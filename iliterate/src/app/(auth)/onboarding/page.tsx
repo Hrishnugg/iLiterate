@@ -1,10 +1,17 @@
+import { BookOpen } from "lucide-react";
+
+import { OnboardingForm } from "@/components/onboarding-form";
+
 export default function OnboardingPage() {
   return (
-    <div>
-      <h1 className="text-2xl font-bold">Welcome to iLiterate</h1>
-      <p className="text-muted-foreground mt-2">
-        Let&apos;s set up your learning profile.
-      </p>
+    <div className="flex w-full max-w-sm flex-col gap-6">
+      <a href="/" className="flex items-center gap-2 self-center font-medium">
+        <div className="bg-primary text-primary-foreground flex size-6 items-center justify-center rounded-md">
+          <BookOpen className="size-4" />
+        </div>
+        iLiterate
+      </a>
+      <OnboardingForm />
     </div>
   );
 }
