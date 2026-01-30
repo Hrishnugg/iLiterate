@@ -130,3 +130,35 @@ export interface UserUpload {
   processed_at: string | null;
   created_at: string;
 }
+
+export type PositionType = "offset" | "xpath" | "cfi";
+
+export interface Highlight {
+  id: string;
+  user_id: string;
+  content_id: string;
+  position_type: PositionType;
+  start_position: string;
+  end_position: string;
+  selected_text: string;
+  context_before: string | null;
+  context_after: string | null;
+  note: string | null;
+  translation: string | null;
+  transliteration: string | null;
+  part_of_speech: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TranslationLookup {
+  id: string;
+  user_id: string;
+  content_id: string;
+  source_text: string;
+  translated_text: string;
+  source_lang: string;
+  target_lang: string;
+  transliteration: string | null;
+  created_at: string;
+}
