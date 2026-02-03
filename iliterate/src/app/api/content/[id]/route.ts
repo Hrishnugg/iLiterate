@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { uuidSchema } from "@/lib/validations";
 
 // GET /api/content/:id
 export async function GET(
@@ -9,6 +10,12 @@ export async function GET(
   try {
     const supabase = await createClient();
     const { id } = await params;
+
+    // Validate UUID format
+    const uuidResult = uuidSchema.safeParse(id);
+    if (!uuidResult.success) {
+      return NextResponse.json({ error: "Invalid content ID format" }, { status: 400 });
+    }
 
     const {
       data: { user },
@@ -26,14 +33,14 @@ export async function GET(
       .single();
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      if (error.code === "PGRST116") {
+        return NextResponse.json({ error: "Content not found" }, { status: 404 });
+      }
+      return NextResponse.json({ error: "Failed to fetch content" }, { status: 500 });
     }
 
     if (!data) {
-      return NextResponse.json(
-        { error: "Content not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Content not found" }, { status: 404 });
     }
 
     return NextResponse.json(data);

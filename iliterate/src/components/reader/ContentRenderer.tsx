@@ -1,10 +1,11 @@
 "use client";
 
+import { useMemo } from "react";
+import DOMPurify from "dompurify";
 import { Content } from "@/types/database";
 import { TextSelection } from "./TextHighlighter";
 import { PDFRenderer } from "./PDFRenderer";
 import { EPUBRenderer } from "./EPUBRenderer";
-import { cn } from "@/lib/utils";
 
 interface ContentRendererProps {
   content: Content;
@@ -24,6 +25,33 @@ export function ContentRenderer({
   const isEPUB =
     content.source_url?.toLowerCase().endsWith(".epub") ||
     content.content_type === "epub";
+
+  // Sanitize HTML content to prevent XSS attacks
+  const sanitizedBody = useMemo(() => {
+    if (typeof window === "undefined") {
+      // Server-side: return empty string (will be hydrated on client)
+      return "";
+    }
+    return DOMPurify.sanitize(content.body, {
+      ALLOWED_TAGS: [
+        "h1", "h2", "h3", "h4", "h5", "h6",
+        "p", "br", "hr",
+        "ul", "ol", "li",
+        "blockquote", "pre", "code",
+        "strong", "em", "b", "i", "u", "s",
+        "a", "span", "div",
+        "table", "thead", "tbody", "tr", "th", "td",
+        "img", "figure", "figcaption",
+      ],
+      ALLOWED_ATTR: [
+        "href", "target", "rel",
+        "src", "alt", "title",
+        "class", "id",
+        "colspan", "rowspan",
+      ],
+      ALLOW_DATA_ATTR: false,
+    });
+  }, [content.body]);
 
   // Render based on type
   if (isPDF && content.source_url) {
@@ -61,7 +89,7 @@ export function ContentRenderer({
               const range = selection.getRangeAt(0);
               const container = range.commonAncestorContainer.parentElement;
               const fullText = container?.textContent || "";
-              
+
               // Calculate approximate offset
               const preSelectionRange = document.createRange();
               preSelectionRange.selectNodeContents(container || document.body);
@@ -84,7 +112,7 @@ export function ContentRenderer({
             }
           }
         }}
-        dangerouslySetInnerHTML={{ __html: content.body }}
+        dangerouslySetInnerHTML={{ __html: sanitizedBody }}
         className="space-y-4 text-lg leading-relaxed [&_h2]:text-2xl [&_h2]:font-semibold [&_h2]:mt-8 [&_h2]:mb-4 [&_h3]:text-xl [&_h3]:font-semibold [&_h3]:mt-6 [&_h3]:mb-3 [&_p]:mb-4 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:list-decimal [&_ol]:pl-6 [&_li]:mb-2 [&_blockquote]:border-l-4 [&_blockquote]:border-muted [&_blockquote]:pl-4 [&_blockquote]:italic"
       />
     </div>

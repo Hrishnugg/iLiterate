@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { highlightRequestSchema, uuidSchema, validateRequestBody } from "@/lib/validations";
 
 // GET /api/highlights?contentId=xxx
 export async function GET(request: NextRequest) {
@@ -18,6 +19,14 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const contentId = searchParams.get("contentId");
 
+    // Validate contentId if provided
+    if (contentId) {
+      const result = uuidSchema.safeParse(contentId);
+      if (!result.success) {
+        return NextResponse.json({ error: "Invalid contentId format" }, { status: 400 });
+      }
+    }
+
     let query = supabase
       .from("highlights")
       .select("*")
@@ -31,7 +40,7 @@ export async function GET(request: NextRequest) {
     const { data, error } = await query;
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: "Failed to fetch highlights" }, { status: 500 });
     }
 
     return NextResponse.json(data);
@@ -58,7 +67,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await request.json();
+    // Validate request body
+    const { data: body, error: validationError } = await validateRequestBody(
+      request,
+      highlightRequestSchema
+    );
+
+    if (validationError || !body) {
+      return NextResponse.json({ error: validationError || "Invalid request body" }, { status: 400 });
+    }
+
     const {
       contentId,
       positionType,
@@ -73,19 +91,12 @@ export async function POST(request: NextRequest) {
       partOfSpeech,
     } = body;
 
-    if (!contentId || !startPosition || !endPosition || !selectedText) {
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 }
-      );
-    }
-
     const { data, error } = await supabase
       .from("highlights")
       .insert({
         user_id: user.id,
         content_id: contentId,
-        position_type: positionType || "offset",
+        position_type: positionType,
         start_position: String(startPosition),
         end_position: String(endPosition),
         selected_text: selectedText,
@@ -100,7 +111,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: "Failed to create highlight" }, { status: 500 });
     }
 
     return NextResponse.json(data, { status: 201 });

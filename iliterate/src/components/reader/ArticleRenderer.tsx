@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Highlight, TranslationLookup, Content } from "@/types/database";
 import { TextSelection } from "./TextHighlighter";
 import { TranslatePopover } from "./TranslatePopover";
@@ -10,7 +10,6 @@ import { RightSidebar } from "./RightSidebar";
 import { ContentRenderer } from "./ContentRenderer";
 import { useReadingProgress } from "./useReadingProgress";
 import { AudioPlayer } from "./AudioPlayer";
-import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 
 interface TOCItem {
@@ -24,14 +23,11 @@ interface ArticleRendererProps {
 }
 
 export function ArticleRenderer({ content }: ArticleRendererProps) {
-  const supabase = createClient();
-
   const [highlights, setHighlights] = useState<Highlight[]>([]);
   const [lookups, setLookups] = useState<TranslationLookup[]>([]);
   const [selection, setSelection] = useState<TextSelection | null>(null);
   const [popoverPosition, setPopoverPosition] = useState({ x: 0, y: 0 });
   const [tocItems, setTocItems] = useState<TOCItem[]>([]);
-  const [epubToc, setEpubToc] = useState<Array<{ label: string; href: string }>>([]);
 
   // Reading progress tracking
   const {
@@ -45,31 +41,42 @@ export function ArticleRenderer({ content }: ArticleRendererProps) {
 
   const timeRemaining = getTimeRemaining(200); // Default 200 WPM
 
-  // Load highlights and lookups on mount
-  useEffect(() => {
-    loadHighlights();
-    loadLookups();
-    generateTOC();
+  // Memoize plain text for AudioPlayer
+  const plainTextContent = useMemo(
+    () => content.body.replace(/<[^>]*>/g, ""),
+    [content.body]
+  );
+
+  // Load highlights - memoized with content.id dependency
+  const loadHighlights = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/highlights?contentId=${content.id}`);
+      if (response.ok) {
+        const data = await response.json();
+        setHighlights(data);
+      }
+    } catch (error) {
+      console.error("Failed to load highlights:", error);
+    }
   }, [content.id]);
 
-  const loadHighlights = async () => {
-    const response = await fetch(`/api/highlights?contentId=${content.id}`);
-    if (response.ok) {
-      const data = await response.json();
-      setHighlights(data);
+  // Load lookups - memoized with content.id dependency
+  const loadLookups = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/translation-lookups?contentId=${content.id}`);
+      if (response.ok) {
+        const data = await response.json();
+        setLookups(data);
+      }
+    } catch (error) {
+      console.error("Failed to load lookups:", error);
     }
-  };
+  }, [content.id]);
 
-  const loadLookups = async () => {
-    const response = await fetch(`/api/translation-lookups?contentId=${content.id}`);
-    if (response.ok) {
-      const data = await response.json();
-      setLookups(data);
-    }
-  };
+  // Generate TOC from content headings (for HTML content) - memoized
+  const generateTOC = useCallback(() => {
+    if (typeof window === "undefined") return;
 
-  // Generate TOC from content headings (for HTML content)
-  const generateTOC = () => {
     const parser = new DOMParser();
     const doc = parser.parseFromString(content.body, "text/html");
     const headings = doc.querySelectorAll("h1, h2, h3");
@@ -86,7 +93,14 @@ export function ArticleRenderer({ content }: ArticleRendererProps) {
     });
 
     setTocItems(items);
-  };
+  }, [content.body]);
+
+  // Load highlights and lookups on mount and when content changes
+  useEffect(() => {
+    loadHighlights();
+    loadLookups();
+    generateTOC();
+  }, [loadHighlights, loadLookups, generateTOC]);
 
   // Handle text selection from any content type
   const handleSelection = useCallback((sel: TextSelection | null) => {
@@ -102,9 +116,8 @@ export function ArticleRenderer({ content }: ArticleRendererProps) {
 
   // Handle EPUB TOC updates
   const handleEpubTocUpdate = useCallback((toc: Array<{ label: string; href: string }>) => {
-    setEpubToc(toc);
     // Convert EPUB TOC to our format
-    const items: TOCItem[] = toc.map((item, index) => ({
+    const items: TOCItem[] = toc.map((item) => ({
       id: item.href,
       title: item.label,
       level: 1,
@@ -113,7 +126,7 @@ export function ArticleRenderer({ content }: ArticleRendererProps) {
   }, []);
 
   // Handle translate
-  const handleTranslate = async (text: string) => {
+  const handleTranslate = useCallback(async (text: string) => {
     const response = await fetch("/api/translate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -128,7 +141,8 @@ export function ArticleRenderer({ content }: ArticleRendererProps) {
     });
 
     if (!response.ok) {
-      throw new Error("Translation failed");
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || "Translation failed");
     }
 
     const result = await response.json();
@@ -137,10 +151,10 @@ export function ArticleRenderer({ content }: ArticleRendererProps) {
     await loadLookups();
 
     return result;
-  };
+  }, [content.language, content.id, selection?.contextBefore, selection?.contextAfter, loadLookups]);
 
   // Handle add note
-  const handleAddNote = async (
+  const handleAddNote = useCallback(async (
     text: string,
     note: string,
     translation?: { translation: string; transliteration?: string; partOfSpeech?: string }
@@ -170,10 +184,10 @@ export function ArticleRenderer({ content }: ArticleRendererProps) {
       setSelection(null);
       window.getSelection()?.removeAllRanges();
     }
-  };
+  }, [content.id, selection, loadHighlights]);
 
   // Handle save word (create highlight + add to vocabulary/flashcards)
-  const handleSaveWord = async (
+  const handleSaveWord = useCallback(async (
     text: string,
     translation: { translation: string; transliteration?: string; partOfSpeech?: string; definitions?: string[]; examples?: string[] }
   ) => {
@@ -208,22 +222,22 @@ export function ArticleRenderer({ content }: ArticleRendererProps) {
     } else {
       toast.error("Failed to add to flashcards");
     }
-  };
+  }, [content.language, content.id, selection, handleAddNote]);
 
   // Handle highlight click (scroll to position)
-  const handleHighlightClick = (highlight: Highlight) => {
+  const handleHighlightClick = useCallback((highlight: Highlight) => {
     // TODO: Scroll to position and show in context
     console.log("Scroll to highlight:", highlight);
-  };
+  }, []);
 
   // Handle lookup click
-  const handleLookupClick = (lookup: TranslationLookup) => {
+  const handleLookupClick = useCallback((lookup: TranslationLookup) => {
     // TODO: Show translation popup again
     console.log("Show lookup:", lookup);
-  };
+  }, []);
 
   // Handle clear lookups
-  const handleClearLookups = async () => {
+  const handleClearLookups = useCallback(async () => {
     const response = await fetch(`/api/translation-lookups?contentId=${content.id}`, {
       method: "DELETE",
     });
@@ -231,10 +245,10 @@ export function ArticleRenderer({ content }: ArticleRendererProps) {
     if (response.ok) {
       setLookups([]);
     }
-  };
+  }, [content.id]);
 
   // Handle remove single lookup
-  const handleRemoveLookup = async (id: string) => {
+  const handleRemoveLookup = useCallback(async (id: string) => {
     const response = await fetch(`/api/translation-lookups?id=${id}`, {
       method: "DELETE",
     });
@@ -242,10 +256,10 @@ export function ArticleRenderer({ content }: ArticleRendererProps) {
     if (response.ok) {
       setLookups((prev) => prev.filter((l) => l.id !== id));
     }
-  };
+  }, []);
 
   // Handle TOC item click
-  const handleTOCClick = (id: string) => {
+  const handleTOCClick = useCallback((id: string) => {
     // For HTML content, scroll to element
     if (!content.source_url?.endsWith('.epub')) {
       const element = document.getElementById(id);
@@ -254,7 +268,13 @@ export function ArticleRenderer({ content }: ArticleRendererProps) {
       }
     }
     // For EPUB, the href is handled internally by the EPUB renderer
-  };
+  }, [content.source_url]);
+
+  // Handle popover close
+  const handlePopoverClose = useCallback(() => {
+    setSelection(null);
+    window.getSelection()?.removeAllRanges();
+  }, []);
 
   return (
     <>
@@ -282,7 +302,7 @@ export function ArticleRenderer({ content }: ArticleRendererProps) {
         }
         audioPlayer={
           <AudioPlayer
-            text={content.body.replace(/<[^>]*>/g, "")} // Strip HTML tags
+            text={plainTextContent}
             language={content.language}
           />
         }
@@ -301,10 +321,7 @@ export function ArticleRenderer({ content }: ArticleRendererProps) {
           onTranslate={handleTranslate}
           onAddNote={handleAddNote}
           onSaveWord={handleSaveWord}
-          onClose={() => {
-            setSelection(null);
-            window.getSelection()?.removeAllRanges();
-          }}
+          onClose={handlePopoverClose}
         />
       )}
     </>

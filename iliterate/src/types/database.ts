@@ -22,7 +22,9 @@ export type ContentType =
   | "news"
   | "dialogue"
   | "menu"
-  | "sign";
+  | "sign"
+  | "pdf"
+  | "epub";
 
 export type QuizType = "comprehension" | "vocabulary" | "grammar";
 
@@ -80,6 +82,9 @@ export interface ReadingProgress {
   completed_at: string | null;
   last_position: number;
   wpm_setting: number;
+  progress_percentage: number;
+  words_read: number;
+  updated_at: string;
 }
 
 export interface Vocabulary {

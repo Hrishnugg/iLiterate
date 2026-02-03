@@ -35,8 +35,7 @@ export function TextHighlighter({
     const walker = document.createTreeWalker(
       containerRef.current,
       NodeFilter.SHOW_TEXT,
-      null,
-      false
+      null
     );
 
     let currentOffset = 0;
@@ -158,8 +157,7 @@ export function createHighlightSpan(
   const walker = document.createTreeWalker(
     container,
     NodeFilter.SHOW_TEXT,
-    null,
-    false
+    null
   );
 
   let currentOffset = 0;
@@ -167,19 +165,20 @@ export function createHighlightSpan(
   let startNodeOffset = 0;
   let endNode: Text | null = null;
   let endNodeOffset = 0;
-  let node;
+  let node: Node | null;
 
   // Find start and end nodes
-  while ((node = walker.nextNode()) as Text | null) {
-    const nodeLength = node.textContent?.length || 0;
+  while ((node = walker.nextNode()) !== null) {
+    const textNode = node as Text;
+    const nodeLength = textNode.textContent?.length || 0;
 
     if (!startNode && currentOffset + nodeLength > startOffset) {
-      startNode = node;
+      startNode = textNode;
       startNodeOffset = startOffset - currentOffset;
     }
 
     if (!endNode && currentOffset + nodeLength >= endOffset) {
-      endNode = node;
+      endNode = textNode;
       endNodeOffset = endOffset - currentOffset;
       break;
     }

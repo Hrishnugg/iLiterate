@@ -1,16 +1,22 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenerativeAI, GenerativeModel } from "@google/generative-ai";
 
-const apiKey = process.env.GOOGLE_AI_API_KEY;
+// Lazy initialization to avoid build-time failures
+let _genAI: GoogleGenerativeAI | null = null;
+let _geminiModel: GenerativeModel | null = null;
 
-if (!apiKey) {
-  throw new Error("GOOGLE_AI_API_KEY is not set in environment variables");
+function getGeminiModel(): GenerativeModel {
+  if (!_geminiModel) {
+    const apiKey = process.env.GOOGLE_AI_API_KEY;
+    if (!apiKey) {
+      throw new Error("GOOGLE_AI_API_KEY is not set in environment variables");
+    }
+    _genAI = new GoogleGenerativeAI(apiKey);
+    _geminiModel = _genAI.getGenerativeModel({
+      model: "gemini-1.5-flash",
+    });
+  }
+  return _geminiModel;
 }
-
-export const genAI = new GoogleGenerativeAI(apiKey);
-
-export const geminiModel = genAI.getGenerativeModel({
-  model: "gemini-1.5-flash",
-});
 
 export interface TranslationRequest {
   text: string;
@@ -33,11 +39,18 @@ export async function translateWithContext(
 ): Promise<TranslationResponse> {
   const { text, sourceLang, targetLang, contextBefore, contextAfter } = request;
 
-  const prompt = `You are a language learning assistant. Translate the following text from ${sourceLang} to ${targetLang}.
+  // Sanitize inputs to prevent prompt injection
+  const sanitize = (str: string | undefined): string => {
+    if (!str) return "N/A";
+    // Escape characters that could be used for prompt injection
+    return str.replace(/["""]/g, "'").slice(0, 500);
+  };
 
-Context before: "${contextBefore || "N/A"}"
-Text to translate: "${text}"
-Context after: "${contextAfter || "N/A"}"
+  const prompt = `You are a language learning assistant. Translate the following text from ${sanitize(sourceLang)} to ${sanitize(targetLang)}.
+
+Context before: "${sanitize(contextBefore)}"
+Text to translate: "${sanitize(text)}"
+Context after: "${sanitize(contextAfter)}"
 
 Provide your response in this exact JSON format:
 {
@@ -54,6 +67,7 @@ Important:
 - Provide 1-2 example sentences showing usage
 - Transliteration only for non-Latin scripts`;
 
+  const geminiModel = getGeminiModel();
   const result = await geminiModel.generateContent(prompt);
   const response = result.response;
   const textResponse = response.text();
@@ -64,7 +78,18 @@ Important:
     throw new Error("Failed to parse translation response");
   }
 
-  const parsed = JSON.parse(jsonMatch[0]);
+  let parsed;
+  try {
+    parsed = JSON.parse(jsonMatch[0]);
+  } catch {
+    throw new Error("Invalid JSON in translation response");
+  }
+
+  // Validate required fields
+  if (!parsed.translation || typeof parsed.translation !== "string") {
+    throw new Error("Translation response missing required translation field");
+  }
+
   return {
     translation: parsed.translation,
     transliteration: parsed.transliteration,

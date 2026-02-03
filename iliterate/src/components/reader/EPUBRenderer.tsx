@@ -31,11 +31,22 @@ export function EPUBRenderer({
   const [fontSize, setFontSize] = useState(100);
   const [toc, setToc] = useState<Array<{ label: string; href: string }>>([]);
 
-  // Initialize EPUB
+  // Use refs for callbacks to avoid re-initializing EPUB on every parent render
+  const onSelectionRef = useRef(onSelection);
+  const onTocUpdateRef = useRef(onTocUpdate);
+
+  // Keep refs updated with latest callbacks
+  useEffect(() => {
+    onSelectionRef.current = onSelection;
+    onTocUpdateRef.current = onTocUpdate;
+  }, [onSelection, onTocUpdate]);
+
+  // Initialize EPUB - only depends on url
   useEffect(() => {
     const initEPUB = async () => {
       try {
         setLoading(true);
+        setError(null);
 
         // Create book
         const book = ePub(url);
@@ -51,7 +62,7 @@ export function EPUBRenderer({
           href: item.href,
         }));
         setToc(tocItems);
-        onTocUpdate?.(tocItems);
+        onTocUpdateRef.current?.(tocItems);
 
         // Create rendition
         if (viewerRef.current) {
@@ -73,12 +84,11 @@ export function EPUBRenderer({
           });
 
           // Handle text selection
-          rendition.on("selected", (cfiRange: string, contents: unknown) => {
+          rendition.on("selected", (cfiRange: string) => {
             const selection = window.getSelection();
             if (selection && !selection.isCollapsed) {
               const text = selection.toString().trim();
               const range = selection.getRangeAt(0);
-              const rect = range.getBoundingClientRect();
 
               // Get context
               const fullText = rendition.getRange(cfiRange)?.toString() || text;
@@ -87,7 +97,7 @@ export function EPUBRenderer({
               const contextBefore = fullText.slice(Math.max(0, startIdx - contextLength), startIdx);
               const contextAfter = fullText.slice(startIdx + text.length, startIdx + text.length + contextLength);
 
-              onSelection?.({
+              onSelectionRef.current?.({
                 text,
                 startOffset: 0, // EPUB uses CFI, not offsets
                 endOffset: 0,
@@ -115,12 +125,14 @@ export function EPUBRenderer({
     return () => {
       if (renditionRef.current) {
         renditionRef.current.destroy();
+        renditionRef.current = null;
       }
       if (bookRef.current) {
         bookRef.current.destroy();
+        bookRef.current = null;
       }
     };
-  }, [url, onTocUpdate, onSelection]);
+  }, [url]); // Only depend on url - callbacks accessed via refs
 
   // Update font size
   useEffect(() => {
@@ -141,6 +153,20 @@ export function EPUBRenderer({
   const goToTocItem = useCallback((href: string) => {
     renditionRef.current?.display(href);
   }, []);
+
+  // Keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "ArrowLeft") {
+        goPrev();
+      } else if (e.key === "ArrowRight") {
+        goNext();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [goPrev, goNext]);
 
   if (loading) {
     return (
@@ -169,6 +195,7 @@ export function EPUBRenderer({
             size="sm"
             onClick={goPrev}
             disabled={atStart}
+            aria-label="Previous page"
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
@@ -177,6 +204,7 @@ export function EPUBRenderer({
             size="sm"
             onClick={goNext}
             disabled={atEnd}
+            aria-label="Next page"
           >
             <ChevronRight className="h-4 w-4" />
           </Button>
@@ -190,6 +218,7 @@ export function EPUBRenderer({
               variant="ghost"
               size="sm"
               onClick={() => setFontSize((s) => Math.max(50, s - 10))}
+              aria-label="Decrease font size"
             >
               A-
             </Button>
@@ -198,6 +227,7 @@ export function EPUBRenderer({
               variant="ghost"
               size="sm"
               onClick={() => setFontSize((s) => Math.min(200, s + 10))}
+              aria-label="Increase font size"
             >
               A+
             </Button>
@@ -213,7 +243,7 @@ export function EPUBRenderer({
               <BookOpen className="h-4 w-4" />
               Table of Contents ({toc.length} chapters)
             </summary>
-            <div className="mt-2 max-h-48 overflow-y-auto">
+            <nav aria-label="Table of contents" className="mt-2 max-h-48 overflow-y-auto">
               {toc.map((item, index) => (
                 <button
                   key={index}
@@ -223,11 +253,12 @@ export function EPUBRenderer({
                     "hover:bg-accent hover:text-accent-foreground",
                     currentLocation.includes(item.href) && "bg-accent text-accent-foreground"
                   )}
+                  aria-current={currentLocation.includes(item.href) ? "location" : undefined}
                 >
                   {item.label}
                 </button>
               ))}
-            </div>
+            </nav>
           </details>
         </div>
       )}

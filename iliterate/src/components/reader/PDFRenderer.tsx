@@ -104,6 +104,7 @@ export function PDFRenderer({ url, contentId, onSelection }: PDFRendererProps) {
       await page.render({
         canvasContext: context,
         viewport,
+        canvas,
       }).promise;
     },
     [pdf, scale]

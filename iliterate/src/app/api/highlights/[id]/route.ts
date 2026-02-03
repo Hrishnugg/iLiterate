@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { uuidSchema } from "@/lib/validations";
 
 // PATCH /api/highlights/:id
 export async function PATCH(
@@ -9,6 +10,12 @@ export async function PATCH(
   try {
     const supabase = await createClient();
     const { id } = await params;
+
+    // Validate UUID format
+    const uuidResult = uuidSchema.safeParse(id);
+    if (!uuidResult.success) {
+      return NextResponse.json({ error: "Invalid highlight ID format" }, { status: 400 });
+    }
 
     const {
       data: { user },
@@ -38,14 +45,14 @@ export async function PATCH(
       .single();
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      if (error.code === "PGRST116") {
+        return NextResponse.json({ error: "Highlight not found" }, { status: 404 });
+      }
+      return NextResponse.json({ error: "Failed to update highlight" }, { status: 500 });
     }
 
     if (!data) {
-      return NextResponse.json(
-        { error: "Highlight not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Highlight not found" }, { status: 404 });
     }
 
     return NextResponse.json(data);
@@ -67,6 +74,12 @@ export async function DELETE(
     const supabase = await createClient();
     const { id } = await params;
 
+    // Validate UUID format
+    const uuidResult = uuidSchema.safeParse(id);
+    if (!uuidResult.success) {
+      return NextResponse.json({ error: "Invalid highlight ID format" }, { status: 400 });
+    }
+
     const {
       data: { user },
       error: authError,
@@ -83,10 +96,10 @@ export async function DELETE(
       .eq("user_id", user.id);
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: "Failed to delete highlight" }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true });
+    return new NextResponse(null, { status: 204 });
   } catch (error) {
     console.error("Delete highlight error:", error);
     return NextResponse.json(

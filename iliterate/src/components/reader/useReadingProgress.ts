@@ -30,7 +30,7 @@ export function useReadingProgress({
   });
 
   const lastSavedRef = useRef(0);
-  const rafRef = useRef<number>();
+  const rafRef = useRef<number | undefined>(undefined);
 
   // Calculate reading progress
   const calculateProgress = useCallback((): ReadingProgress => {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { readingProgressRequestSchema, uuidSchema, validateRequestBody } from "@/lib/validations";
 
 // GET /api/reading-progress?contentId=xxx
 export async function GET(request: NextRequest) {
@@ -25,6 +26,12 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Validate contentId format
+    const uuidResult = uuidSchema.safeParse(contentId);
+    if (!uuidResult.success) {
+      return NextResponse.json({ error: "Invalid contentId format" }, { status: 400 });
+    }
+
     const { data, error } = await supabase
       .from("reading_progress")
       .select("*")
@@ -34,7 +41,7 @@ export async function GET(request: NextRequest) {
 
     if (error && error.code !== "PGRST116") {
       // PGRST116 = no rows found
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: "Failed to fetch reading progress" }, { status: 500 });
     }
 
     return NextResponse.json(
@@ -68,15 +75,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await request.json();
-    const { contentId, progress, position, wordsRead } = body;
+    // Validate request body
+    const { data: body, error: validationError } = await validateRequestBody(
+      request,
+      readingProgressRequestSchema
+    );
 
-    if (!contentId) {
-      return NextResponse.json(
-        { error: "Missing contentId" },
-        { status: 400 }
-      );
+    if (validationError || !body) {
+      return NextResponse.json({ error: validationError || "Invalid request body" }, { status: 400 });
     }
+
+    const { contentId, progress, position, wordsRead } = body;
 
     // Check if progress exists
     const { data: existing } = await supabase
@@ -86,16 +95,18 @@ export async function POST(request: NextRequest) {
       .eq("content_id", contentId)
       .single();
 
-    const updates = {
-      last_position: position,
-      progress_percentage: progress,
-      words_read: wordsRead,
+    const updates: Record<string, unknown> = {
       updated_at: new Date().toISOString(),
     };
 
+    // Only include fields that are provided
+    if (position !== undefined) updates.last_position = position;
+    if (progress !== undefined) updates.progress_percentage = progress;
+    if (wordsRead !== undefined) updates.words_read = wordsRead;
+
     // Mark as completed if progress >= 95%
-    if (progress >= 95 && !existing?.completed_at) {
-      Object.assign(updates, { completed_at: new Date().toISOString() });
+    if (progress !== undefined && progress >= 95 && !existing?.completed_at) {
+      updates.completed_at = new Date().toISOString();
     }
 
     let result;
@@ -121,7 +132,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (result.error) {
-      return NextResponse.json({ error: result.error.message }, { status: 500 });
+      return NextResponse.json({ error: "Failed to save reading progress" }, { status: 500 });
     }
 
     return NextResponse.json(result.data);

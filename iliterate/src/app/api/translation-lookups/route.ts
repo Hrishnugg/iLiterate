@@ -62,6 +62,14 @@ export async function DELETE(request: NextRequest) {
     const contentId = searchParams.get("contentId");
     const id = searchParams.get("id");
 
+    // Require either id or contentId to prevent accidental mass deletion
+    if (!id && !contentId) {
+      return NextResponse.json(
+        { error: "Must provide either 'id' or 'contentId' parameter" },
+        { status: 400 }
+      );
+    }
+
     let query = supabase
       .from("translation_lookups")
       .delete()

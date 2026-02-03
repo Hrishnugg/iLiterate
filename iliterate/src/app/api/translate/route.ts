@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { translateWithContext } from "@/lib/google-ai";
+import { translateRequestSchema, validateRequestBody } from "@/lib/validations";
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,23 +17,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Parse request body
-    const body = await request.json();
-    const {
-      text,
-      sourceLang,
-      targetLang,
-      contextBefore,
-      contextAfter,
-      contentId,
-    } = body;
+    // Validate request body
+    const { data: body, error: validationError } = await validateRequestBody(
+      request,
+      translateRequestSchema
+    );
 
-    if (!text || !sourceLang || !targetLang) {
-      return NextResponse.json(
-        { error: "Missing required fields: text, sourceLang, targetLang" },
-        { status: 400 }
-      );
+    if (validationError || !body) {
+      return NextResponse.json({ error: validationError || "Invalid request body" }, { status: 400 });
     }
+
+    const { text, sourceLang, targetLang, contextBefore, contextAfter, contentId } = body;
 
     // Get translation from Gemini
     const translation = await translateWithContext({
