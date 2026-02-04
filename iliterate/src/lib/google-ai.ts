@@ -12,7 +12,7 @@ function getGeminiModel(): GenerativeModel {
     }
     _genAI = new GoogleGenerativeAI(apiKey);
     _geminiModel = _genAI.getGenerativeModel({
-      model: "gemini-1.5-flash",
+      model: "gemini-3-flash-preview",
     });
   }
   return _geminiModel;

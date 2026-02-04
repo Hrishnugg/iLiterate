@@ -52,6 +52,99 @@ export function ContentRenderer({
     setIsMounted(true);
   }, []);
 
+  // Helper function to highlight text in a parsed DOM document
+  const highlightTextInDocument = useCallback((
+    doc: Document,
+    container: Element,
+    searchText: string,
+    highlightId: string | null,
+    className: string,
+    title: string = ""
+  ): boolean => {
+    if (!searchText) return false;
+
+    // Use TreeWalker to iterate through text nodes
+    const walker = doc.createTreeWalker(
+      container,
+      NodeFilter.SHOW_TEXT,
+      null
+    );
+
+    // Collect all text nodes and their positions
+    const textNodes: { node: Text; start: number; end: number }[] = [];
+    let totalLength = 0;
+    let node: Text | null;
+
+    while ((node = walker.nextNode() as Text | null)) {
+      const nodeLength = node.textContent?.length || 0;
+      if (nodeLength > 0) {
+        textNodes.push({
+          node,
+          start: totalLength,
+          end: totalLength + nodeLength,
+        });
+        totalLength += nodeLength;
+      }
+    }
+
+    // Get full text content
+    const fullText = textNodes.map(tn => tn.node.textContent).join('');
+
+    // Find the search text in full text
+    const searchIndex = fullText.indexOf(searchText);
+    if (searchIndex === -1) return false;
+
+    const searchEnd = searchIndex + searchText.length;
+
+    // Find which text nodes contain the match
+    const affectedNodes: { node: Text; startInNode: number; endInNode: number }[] = [];
+
+    for (const tn of textNodes) {
+      if (tn.end <= searchIndex) continue; // Before match
+      if (tn.start >= searchEnd) break; // After match
+
+      const startInNode = Math.max(0, searchIndex - tn.start);
+      const endInNode = Math.min(tn.node.textContent?.length || 0, searchEnd - tn.start);
+
+      affectedNodes.push({ node: tn.node, startInNode, endInNode });
+    }
+
+    if (affectedNodes.length === 0) return false;
+
+    // Process nodes in reverse order to avoid index shifting issues
+    for (let i = affectedNodes.length - 1; i >= 0; i--) {
+      const { node: textNode, startInNode, endInNode } = affectedNodes[i];
+      const text = textNode.textContent || '';
+
+      const before = text.slice(0, startInNode);
+      const matched = text.slice(startInNode, endInNode);
+      const after = text.slice(endInNode);
+
+      const mark = doc.createElement('mark');
+      mark.className = className;
+      if (highlightId) {
+        mark.setAttribute('data-highlight-id', highlightId);
+      } else {
+        mark.setAttribute('data-current-selection', 'true');
+      }
+      if (title && i === 0) {
+        mark.setAttribute('title', title);
+      }
+      mark.textContent = matched;
+
+      const parent = textNode.parentNode;
+      if (parent) {
+        const fragment = doc.createDocumentFragment();
+        if (before) fragment.appendChild(doc.createTextNode(before));
+        fragment.appendChild(mark);
+        if (after) fragment.appendChild(doc.createTextNode(after));
+        parent.replaceChild(fragment, textNode);
+      }
+    }
+
+    return true;
+  }, []);
+
   // Sanitize and apply highlights to HTML content (only on client)
   const processedBody = useMemo(() => {
     if (!isMounted) return "";
@@ -80,53 +173,56 @@ export function ContentRenderer({
       ALLOW_DATA_ATTR: true,
     });
 
-    // Apply highlights to the HTML string
-    // Sort by length (longest first) to avoid partial replacements
+    // Add IDs to headings for TOC navigation
+    let headingIndex = 0;
+    html = html.replace(/<(h[1-3])([^>]*)>/gi, (match: string, tag: string, attrs: string) => {
+      // Don't replace if already has an id
+      if (attrs.includes('id=')) return match;
+      const id = `heading-${headingIndex++}`;
+      return `<${tag}${attrs} id="${id}">`;
+    });
+
+    // Parse HTML into DOM for robust text searching
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(`<div>${html}</div>`, 'text/html');
+    const container = doc.body.firstElementChild;
+
+    if (!container) return html;
+
+    // Apply saved highlights (sort by length, longest first)
     const sortedHighlights = [...highlights].sort(
       (a, b) => (b.selected_text?.length || 0) - (a.selected_text?.length || 0)
     );
 
     sortedHighlights.forEach((highlight) => {
-      const textToFind = highlight.selected_text;
-      if (!textToFind) return;
-
-      // Escape special regex characters
-      const escapedText = textToFind.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
-      // Only replace if not already inside a mark tag
-      // Use a regex that matches the text but not inside existing marks
-      const regex = new RegExp(`(?<!<mark[^>]*>)${escapedText}(?![^<]*</mark>)`, "g");
-
       const isFocused = highlight.id === focusedHighlightId;
       const baseClass = "bg-yellow-200 dark:bg-yellow-800 cursor-pointer rounded px-0.5 transition-all duration-300";
       const focusClass = isFocused ? " ring-2 ring-primary ring-offset-2 bg-yellow-300 dark:bg-yellow-600" : "";
+      const title = highlight.note || highlight.translation || "";
 
-      // Only replace the first occurrence
-      let replaced = false;
-      html = html.replace(regex, (match: string) => {
-        if (replaced) return match;
-        replaced = true;
-        const title = (highlight.note || highlight.translation || "").replace(/"/g, "&quot;");
-        return `<mark data-highlight-id="${highlight.id}" class="${baseClass}${focusClass}" title="${title}">${match}</mark>`;
-      });
+      highlightTextInDocument(
+        doc,
+        container,
+        highlight.selected_text || "",
+        highlight.id,
+        `${baseClass}${focusClass}`,
+        title
+      );
     });
 
-    // Apply temporary highlight for current selection (subtle blue)
+    // Apply current selection highlight
     if (currentSelection?.text) {
-      const selectionText = currentSelection.text;
-      const escapedSelection = selectionText.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      const selectionRegex = new RegExp(`(?<!<mark[^>]*>)${escapedSelection}(?![^<]*</mark>)`, "g");
-
-      let selectionReplaced = false;
-      html = html.replace(selectionRegex, (match: string) => {
-        if (selectionReplaced) return match;
-        selectionReplaced = true;
-        return `<mark class="bg-blue-100 dark:bg-blue-900/50 rounded px-0.5" data-current-selection="true">${match}</mark>`;
-      });
+      highlightTextInDocument(
+        doc,
+        container,
+        currentSelection.text,
+        null,
+        "bg-blue-100 dark:bg-blue-900/50 rounded px-0.5"
+      );
     }
 
-    return html;
-  }, [content.body, isMounted, highlights, focusedHighlightId, currentSelection]);
+    return container.innerHTML;
+  }, [content.body, isMounted, highlights, focusedHighlightId, currentSelection, highlightTextInDocument]);
 
   // Handle highlight clicks via event delegation
   useEffect(() => {
