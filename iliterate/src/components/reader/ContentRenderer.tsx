@@ -52,6 +52,21 @@ export function ContentRenderer({
     setIsMounted(true);
   }, []);
 
+  // Normalize text for comparison (handles full-width/half-width differences)
+  const normalizeText = useCallback((text: string): string => {
+    return text
+      // Normalize Unicode (NFC form)
+      .normalize('NFC')
+      // Convert full-width alphanumeric to half-width
+      .replace(/[\uFF01-\uFF5E]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0))
+      // Normalize common punctuation variations
+      .replace(/\u3000/g, ' ') // Full-width space to regular space
+      .replace(/\u00A0/g, ' ') // Non-breaking space to regular space
+      // Normalize quotes
+      .replace(/[""]/g, '"')
+      .replace(/['']/g, "'");
+  }, []);
+
   // Helper function to highlight text in a parsed DOM document
   const highlightTextInDocument = useCallback((
     doc: Document,
@@ -90,8 +105,18 @@ export function ContentRenderer({
     // Get full text content
     const fullText = textNodes.map(tn => tn.node.textContent).join('');
 
-    // Find the search text in full text
-    const searchIndex = fullText.indexOf(searchText);
+    // Normalize both texts for comparison
+    const normalizedFullText = normalizeText(fullText);
+    const normalizedSearchText = normalizeText(searchText);
+
+    // Find the search text in normalized full text
+    let searchIndex = normalizedFullText.indexOf(normalizedSearchText);
+
+    // If normalized search fails, try original text as fallback
+    if (searchIndex === -1) {
+      searchIndex = fullText.indexOf(searchText);
+    }
+
     if (searchIndex === -1) return false;
 
     const searchEnd = searchIndex + searchText.length;
@@ -143,7 +168,7 @@ export function ContentRenderer({
     }
 
     return true;
-  }, []);
+  }, [normalizeText]);
 
   // Sanitize and apply highlights to HTML content (only on client)
   const processedBody = useMemo(() => {
