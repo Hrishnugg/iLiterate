@@ -6,12 +6,14 @@ import { StickyNote, MessageSquare } from "lucide-react";
 
 interface YourNotesPanelProps {
   highlights: Highlight[];
+  focusedHighlightId?: string | null;
   onHighlightClick?: (highlight: Highlight) => void;
   className?: string;
 }
 
 export function YourNotesPanel({
   highlights,
+  focusedHighlightId,
   onHighlightClick,
   className,
 }: YourNotesPanelProps) {
@@ -49,13 +51,21 @@ export function YourNotesPanel({
             {groupIndex > 0 && (
               <div className="my-3 border-t" />
             )}
-            {group.map((highlight) => (
+            {group.map((highlight) => {
+              const isFocused = highlight.id === focusedHighlightId;
+              return (
               <button
                 key={highlight.id}
                 onClick={() => onHighlightClick?.(highlight)}
                 className="w-full text-left group"
+                data-sidebar-highlight={highlight.id}
               >
-                <div className="rounded-md border bg-card p-3 transition-colors hover:bg-accent">
+                <div className={cn(
+                  "rounded-md border bg-card p-3 transition-all",
+                  isFocused
+                    ? "ring-2 ring-primary ring-offset-2 bg-yellow-50 dark:bg-yellow-900/20"
+                    : "hover:bg-accent"
+                )}>
                   {/* Selected text */}
                   <p className="mb-2 text-sm font-medium text-foreground">
                     &ldquo;{truncate(highlight.selected_text, 60)}&rdquo;
@@ -89,7 +99,8 @@ export function YourNotesPanel({
                   )}
                 </div>
               </button>
-            ))}
+              );
+            })}
           </div>
         ))}
       </div>

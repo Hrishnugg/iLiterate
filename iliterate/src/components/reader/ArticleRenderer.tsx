@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useRef } from "react";
+import { ArrowUp } from "lucide-react";
 import { Highlight, TranslationLookup, Content } from "@/types/database";
 import { TextSelection } from "./TextHighlighter";
 import { TranslatePopover } from "./TranslatePopover";
@@ -10,6 +11,7 @@ import { RightSidebar } from "./RightSidebar";
 import { ContentRenderer } from "./ContentRenderer";
 import { useReadingProgress } from "./useReadingProgress";
 import { AudioPlayer } from "./AudioPlayer";
+import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
 interface TOCItem {
@@ -28,6 +30,9 @@ export function ArticleRenderer({ content }: ArticleRendererProps) {
   const [selection, setSelection] = useState<TextSelection | null>(null);
   const [popoverPosition, setPopoverPosition] = useState({ x: 0, y: 0 });
   const [tocItems, setTocItems] = useState<TOCItem[]>([]);
+  const [focusedHighlightId, setFocusedHighlightId] = useState<string | null>(null);
+  const [savedScrollPosition, setSavedScrollPosition] = useState<number | null>(null);
+  const contentContainerRef = useRef<HTMLDivElement>(null);
 
   // Reading progress tracking
   const {
@@ -224,11 +229,49 @@ export function ArticleRenderer({ content }: ArticleRendererProps) {
     }
   }, [content.language, content.id, selection, handleAddNote]);
 
-  // Handle highlight click (scroll to position)
+  // Handle highlight click from sidebar or content - scroll to highlight and show glow
   const handleHighlightClick = useCallback((highlight: Highlight) => {
-    // TODO: Scroll to position and show in context
-    console.log("Scroll to highlight:", highlight);
+    // Save current scroll position
+    setSavedScrollPosition(window.scrollY);
+
+    // Focus the highlight (triggers scroll and glow in ContentRenderer)
+    setFocusedHighlightId(highlight.id);
   }, []);
+
+  // Clear focused highlight when clicking outside
+  useEffect(() => {
+    if (!focusedHighlightId) return;
+
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      // Don't clear if clicking on a highlight or sidebar highlight item
+      if (
+        target.closest('mark[data-highlight-id]') ||
+        target.closest('[data-sidebar-highlight]')
+      ) {
+        return;
+      }
+      setFocusedHighlightId(null);
+    };
+
+    // Small delay to avoid clearing immediately from the same click
+    const timeoutId = setTimeout(() => {
+      document.addEventListener('click', handleClickOutside);
+    }, 100);
+
+    return () => {
+      clearTimeout(timeoutId);
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [focusedHighlightId]);
+
+  // Handle returning to saved reading position
+  const handleReturnToPosition = useCallback(() => {
+    if (savedScrollPosition !== null) {
+      window.scrollTo({ top: savedScrollPosition, behavior: "smooth" });
+      setSavedScrollPosition(null);
+    }
+  }, [savedScrollPosition]);
 
   // Handle lookup click
   const handleLookupClick = useCallback((lookup: TranslationLookup) => {
@@ -294,6 +337,7 @@ export function ArticleRenderer({ content }: ArticleRendererProps) {
             wordsRead={wordsRead}
             totalWords={content.word_count || 1000}
             timeRemaining={timeRemaining}
+            focusedHighlightId={focusedHighlightId}
             onHighlightClick={handleHighlightClick}
             onLookupClick={handleLookupClick}
             onClearLookups={handleClearLookups}
@@ -309,8 +353,12 @@ export function ArticleRenderer({ content }: ArticleRendererProps) {
       >
         <ContentRenderer
           content={content}
+          highlights={highlights}
+          focusedHighlightId={focusedHighlightId}
+          currentSelection={selection}
           onSelection={handleSelection}
           onTocUpdate={handleEpubTocUpdate}
+          onHighlightClick={handleHighlightClick}
         />
       </ReaderLayout>
 
@@ -323,6 +371,18 @@ export function ArticleRenderer({ content }: ArticleRendererProps) {
           onSaveWord={handleSaveWord}
           onClose={handlePopoverClose}
         />
+      )}
+
+      {/* Back to reading position button */}
+      {savedScrollPosition !== null && (
+        <Button
+          onClick={handleReturnToPosition}
+          className="fixed bottom-6 right-6 z-50 shadow-lg"
+          size="sm"
+        >
+          <ArrowUp className="mr-2 h-4 w-4" />
+          Back to reading
+        </Button>
       )}
     </>
   );

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, MessageSquare, Languages, BookOpen } from "lucide-react";
+import { Loader2, MessageSquare, Languages, BookOpen, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { TextSelection } from "./TextHighlighter";
@@ -70,9 +70,18 @@ export function TranslatePopover({
 
   return (
     <div style={popupStyle} className="w-72">
-      <div className="rounded-lg border bg-popover p-3 shadow-lg">
+      <div className="rounded-lg border bg-popover p-3 shadow-lg relative">
+        {/* Close button */}
+        <button
+          onClick={onClose}
+          className="absolute right-2 top-2 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+          aria-label="Close"
+        >
+          <X className="h-4 w-4" />
+        </button>
+
         {/* Selected text preview */}
-        <div className="mb-3 border-b pb-2">
+        <div className="mb-3 border-b pb-2 pr-6">
           <p className="text-sm font-medium text-foreground">
             &ldquo;{selection.text}&rdquo;
           </p>

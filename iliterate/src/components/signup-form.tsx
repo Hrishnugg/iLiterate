@@ -77,8 +77,9 @@ export function SignupForm({
       // Redirect to onboarding after successful signup
       router.push("/onboarding");
       router.refresh();
-    } catch {
-      setError("An unexpected error occurred. Please try again.");
+    } catch (err) {
+      console.error("Signup error:", err);
+      setError(err instanceof Error ? err.message : "An unexpected error occurred. Please try again.");
     } finally {
       setIsLoading(false);
     }

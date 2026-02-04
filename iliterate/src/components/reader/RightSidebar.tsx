@@ -13,6 +13,7 @@ interface RightSidebarProps {
   wordsRead: number;
   totalWords: number;
   timeRemaining: string;
+  focusedHighlightId?: string | null;
   onHighlightClick?: (highlight: Highlight) => void;
   onLookupClick?: (lookup: TranslationLookup) => void;
   onClearLookups?: () => void;
@@ -26,6 +27,7 @@ export function RightSidebar({
   wordsRead,
   totalWords,
   timeRemaining,
+  focusedHighlightId,
   onHighlightClick,
   onLookupClick,
   onClearLookups,
@@ -46,6 +48,7 @@ export function RightSidebar({
       {/* Your Notes Section */}
       <YourNotesPanel
         highlights={highlights}
+        focusedHighlightId={focusedHighlightId}
         onHighlightClick={onHighlightClick}
       />
 
