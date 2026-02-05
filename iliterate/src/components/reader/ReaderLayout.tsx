@@ -11,6 +11,7 @@ interface ReaderLayoutProps {
   rightSidebar: React.ReactNode;
   audioPlayer?: React.ReactNode;
   title?: string;
+  contentScrollRef?: React.RefObject<HTMLDivElement | null>;
 }
 
 export function ReaderLayout({
@@ -19,6 +20,7 @@ export function ReaderLayout({
   rightSidebar,
   audioPlayer,
   title,
+  contentScrollRef,
 }: ReaderLayoutProps) {
   const [leftOpen, setLeftOpen] = useState(true);
   const [rightOpen, setRightOpen] = useState(true);
@@ -90,7 +92,7 @@ export function ReaderLayout({
         )}
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto">
+        <div ref={contentScrollRef} className="flex-1 overflow-y-auto">
           <article className="mx-auto max-w-3xl px-8 py-12">
             {children}
           </article>

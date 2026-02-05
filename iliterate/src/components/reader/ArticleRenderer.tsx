@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
-import { ArrowUp } from "lucide-react";
+import { ArrowDown } from "lucide-react";
 import { Highlight, TranslationLookup, Content } from "@/types/database";
 import { TextSelection } from "./TextHighlighter";
 import { TranslatePopover } from "./TranslatePopover";
@@ -42,6 +42,7 @@ export function ArticleRenderer({ content }: ArticleRendererProps) {
   } = useReadingProgress({
     contentId: content.id,
     wordCount: content.word_count || 1000,
+    scrollContainerRef: contentContainerRef,
   });
 
   const timeRemaining = getTimeRemaining(200); // Default 200 WPM
@@ -248,8 +249,9 @@ export function ArticleRenderer({ content }: ArticleRendererProps) {
 
   // Handle highlight click from sidebar or content - scroll to highlight and show glow
   const handleHighlightClick = useCallback((highlight: Highlight) => {
-    // Save current scroll position
-    setSavedScrollPosition(window.scrollY);
+    // Save current scroll position from the actual scrollable container
+    const scrollContainer = contentContainerRef.current;
+    setSavedScrollPosition(scrollContainer ? scrollContainer.scrollTop : window.scrollY);
 
     // Focus the highlight (triggers scroll and glow in ContentRenderer)
     setFocusedHighlightId(highlight.id);
@@ -285,7 +287,12 @@ export function ArticleRenderer({ content }: ArticleRendererProps) {
   // Handle returning to saved reading position
   const handleReturnToPosition = useCallback(() => {
     if (savedScrollPosition !== null) {
-      window.scrollTo({ top: savedScrollPosition, behavior: "smooth" });
+      const scrollContainer = contentContainerRef.current;
+      if (scrollContainer) {
+        scrollContainer.scrollTo({ top: savedScrollPosition, behavior: "smooth" });
+      } else {
+        window.scrollTo({ top: savedScrollPosition, behavior: "smooth" });
+      }
       setSavedScrollPosition(null);
     }
   }, [savedScrollPosition]);
@@ -340,6 +347,7 @@ export function ArticleRenderer({ content }: ArticleRendererProps) {
     <>
       <ReaderLayout
         title={content.title}
+        contentScrollRef={contentContainerRef}
         leftSidebar={
           <TableOfContents
             items={tocItems}
@@ -398,7 +406,7 @@ export function ArticleRenderer({ content }: ArticleRendererProps) {
           className="fixed bottom-6 right-6 z-50 shadow-lg"
           size="sm"
         >
-          <ArrowUp className="mr-2 h-4 w-4" />
+          <ArrowDown className="mr-2 h-4 w-4" />
           Back to reading
         </Button>
       )}

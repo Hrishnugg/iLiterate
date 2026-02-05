@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, type RefObject } from "react";
 
 interface ReadingProgress {
   progress: number; // 0-100
@@ -12,6 +12,7 @@ interface ReadingProgress {
 interface UseReadingProgressOptions {
   contentId: string;
   wordCount: number;
+  scrollContainerRef?: RefObject<HTMLDivElement | null>;
   onProgressUpdate?: (progress: number) => void;
   saveInterval?: number; // ms, default 5000
 }
@@ -19,6 +20,7 @@ interface UseReadingProgressOptions {
 export function useReadingProgress({
   contentId,
   wordCount,
+  scrollContainerRef,
   onProgressUpdate,
   saveInterval = 5000,
 }: UseReadingProgressOptions) {
@@ -34,12 +36,17 @@ export function useReadingProgress({
 
   // Calculate reading progress
   const calculateProgress = useCallback((): ReadingProgress => {
-    const scrollTop = window.scrollY || document.documentElement.scrollTop;
-    const docHeight = document.documentElement.scrollHeight - window.innerHeight;
-    
+    const container = scrollContainerRef?.current;
+    const scrollTop = container
+      ? container.scrollTop
+      : window.scrollY || document.documentElement.scrollTop;
+    const totalHeight = container
+      ? container.scrollHeight - container.clientHeight
+      : document.documentElement.scrollHeight - window.innerHeight;
+
     // Calculate percentage (capped at 100)
-    const percentage = docHeight > 0 
-      ? Math.min(100, Math.max(0, (scrollTop / docHeight) * 100))
+    const percentage = totalHeight > 0
+      ? Math.min(100, Math.max(0, (scrollTop / totalHeight) * 100))
       : 100;
 
     // Estimate words read based on scroll position
@@ -48,10 +55,10 @@ export function useReadingProgress({
     return {
       progress: Math.round(percentage),
       currentPosition: scrollTop,
-      totalHeight: docHeight,
+      totalHeight,
       wordsRead,
     };
-  }, [wordCount]);
+  }, [wordCount, scrollContainerRef]);
 
   // Update progress on scroll
   const handleScroll = useCallback(() => {
@@ -100,8 +107,9 @@ export function useReadingProgress({
       if (response.ok) {
         const data = await response.json();
         if (data.last_position) {
+          const target = scrollContainerRef?.current ?? window;
           // Restore scroll position (slightly above to give context)
-          window.scrollTo({
+          target.scrollTo({
             top: Math.max(0, data.last_position - 100),
             behavior: "smooth",
           });
@@ -110,21 +118,22 @@ export function useReadingProgress({
     } catch (error) {
       console.error("Failed to load reading progress:", error);
     }
-  }, [contentId]);
+  }, [contentId, scrollContainerRef]);
 
   // Set up scroll listener
   useEffect(() => {
-    window.addEventListener("scroll", handleScroll, { passive: true });
+    const target = scrollContainerRef?.current ?? window;
+    target.addEventListener("scroll", handleScroll, { passive: true });
     handleScroll(); // Initial calculation
     loadProgress(); // Restore position
 
     return () => {
-      window.removeEventListener("scroll", handleScroll);
+      target.removeEventListener("scroll", handleScroll);
       if (rafRef.current) {
         cancelAnimationFrame(rafRef.current);
       }
     };
-  }, [handleScroll, loadProgress]);
+  }, [handleScroll, loadProgress, scrollContainerRef]);
 
   // Auto-save progress periodically
   useEffect(() => {
