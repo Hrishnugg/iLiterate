@@ -52,40 +52,57 @@ export function ContentRenderer({
     setIsMounted(true);
   }, []);
 
-  // Normalize text for comparison (handles full-width/half-width differences)
-  const normalizeText = useCallback((text: string): string => {
-    return text
-      // Normalize Unicode (NFC form)
-      .normalize('NFC')
-      // Convert full-width alphanumeric to half-width
-      .replace(/[\uFF01-\uFF5E]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0))
-      // Normalize common punctuation variations
-      .replace(/\u3000/g, ' ') // Full-width space to regular space
-      .replace(/\u00A0/g, ' ') // Non-breaking space to regular space
-      // Normalize quotes
-      .replace(/[""]/g, '"')
-      .replace(/['']/g, "'");
+  // Normalize a single character (full-width to half-width, etc.)
+  const normalizeChar = useCallback((ch: string): string => {
+    const code = ch.charCodeAt(0);
+    // Full-width alphanumeric/punctuation to half-width
+    if (code >= 0xFF01 && code <= 0xFF5E) {
+      return String.fromCharCode(code - 0xFEE0);
+    }
+    // Full-width space
+    if (code === 0x3000 || code === 0x00A0) return ' ';
+    // Fancy quotes
+    if (ch === '\u201C' || ch === '\u201D') return '"';
+    if (ch === '\u2018' || ch === '\u2019') return "'";
+    return ch;
   }, []);
 
-  // Helper function to highlight text in a parsed DOM document
-  const highlightTextInDocument = useCallback((
-    doc: Document,
-    container: Element,
-    searchText: string,
-    highlightId: string | null,
-    className: string,
-    title: string = ""
-  ): boolean => {
-    if (!searchText) return false;
+  // Normalize text for comparison (handles full-width/half-width differences)
+  const normalizeText = useCallback((text: string): string => {
+    return text.normalize('NFC').split('').map(normalizeChar).join('');
+  }, [normalizeChar]);
 
-    // Use TreeWalker to iterate through text nodes
-    const walker = doc.createTreeWalker(
-      container,
-      NodeFilter.SHOW_TEXT,
-      null
-    );
+  // Normalize text with whitespace collapsing and position mapping
+  // Returns normalized string and a mapping array: mapping[normalizedIdx] = originalIdx
+  const normalizeWithMapping = useCallback((text: string): { normalized: string; mapping: number[] } => {
+    const nfc = text.normalize('NFC');
+    let normalized = '';
+    const mapping: number[] = [];
+    let lastWasSpace = false;
 
-    // Collect all text nodes and their positions
+    for (let i = 0; i < nfc.length; i++) {
+      let ch = normalizeChar(nfc[i]);
+
+      if (/\s/.test(ch)) {
+        if (!lastWasSpace) {
+          normalized += ' ';
+          mapping.push(i);
+          lastWasSpace = true;
+        }
+        // Skip additional whitespace - don't add to normalized
+      } else {
+        normalized += ch;
+        mapping.push(i);
+        lastWasSpace = false;
+      }
+    }
+
+    return { normalized, mapping };
+  }, [normalizeChar]);
+
+  // Helper: collect text nodes and full text from a container
+  const collectTextNodes = useCallback((doc: Document, container: Element) => {
+    const walker = doc.createTreeWalker(container, NodeFilter.SHOW_TEXT, null);
     const textNodes: { node: Text; start: number; end: number }[] = [];
     let totalLength = 0;
     let node: Text | null;
@@ -93,40 +110,109 @@ export function ContentRenderer({
     while ((node = walker.nextNode() as Text | null)) {
       const nodeLength = node.textContent?.length || 0;
       if (nodeLength > 0) {
-        textNodes.push({
-          node,
-          start: totalLength,
-          end: totalLength + nodeLength,
-        });
+        textNodes.push({ node, start: totalLength, end: totalLength + nodeLength });
         totalLength += nodeLength;
       }
     }
 
-    // Get full text content
     const fullText = textNodes.map(tn => tn.node.textContent).join('');
+    return { textNodes, fullText };
+  }, []);
 
-    // Normalize both texts for comparison
-    const normalizedFullText = normalizeText(fullText);
-    const normalizedSearchText = normalizeText(searchText);
+  // Helper: find ALL occurrences of a substring in text
+  const findAllOccurrences = useCallback((text: string, search: string): number[] => {
+    const indices: number[] = [];
+    let pos = 0;
+    while ((pos = text.indexOf(search, pos)) !== -1) {
+      indices.push(pos);
+      pos += 1; // Move past this char to find overlapping matches
+    }
+    return indices;
+  }, []);
 
-    // Find the search text in normalized full text
-    let searchIndex = normalizedFullText.indexOf(normalizedSearchText);
+  // Helper: pick the best occurrence using position and context hints
+  const pickBestMatch = useCallback((
+    fullText: string,
+    occurrences: number[],
+    positionHint?: number,
+    contextBefore?: string | null,
+    contextAfter?: string | null,
+  ): number => {
+    if (occurrences.length === 1) return occurrences[0];
 
-    // If normalized search fails, try original text as fallback
-    if (searchIndex === -1) {
-      searchIndex = fullText.indexOf(searchText);
+    let bestIndex = occurrences[0];
+    let bestScore = -Infinity;
+
+    for (const idx of occurrences) {
+      let score = 0;
+
+      // Score by proximity to stored position (most reliable)
+      if (positionHint !== undefined && positionHint >= 0) {
+        const distance = Math.abs(idx - positionHint);
+        // Closer = higher score, max 100 points
+        score += Math.max(0, 100 - distance);
+      }
+
+      // Score by context_before match
+      if (contextBefore) {
+        const normalizedContext = normalizeText(contextBefore);
+        const textBefore = normalizeText(fullText.slice(Math.max(0, idx - contextBefore.length), idx));
+        // Check how much of the context matches (suffix matching)
+        let matchLen = 0;
+        for (let i = 1; i <= Math.min(normalizedContext.length, textBefore.length); i++) {
+          if (normalizedContext.slice(-i) === textBefore.slice(-i)) {
+            matchLen = i;
+          } else {
+            break;
+          }
+        }
+        score += matchLen * 2; // Context match weighted heavily
+      }
+
+      // Score by context_after match
+      if (contextAfter) {
+        const normalizedContext = normalizeText(contextAfter);
+        const searchLen = fullText.length; // Need the search text length
+        const afterStart = idx + (contextAfter.length > 0 ? 1 : 0); // approximate
+        const textAfter = normalizeText(fullText.slice(afterStart, afterStart + contextAfter.length));
+        let matchLen = 0;
+        for (let i = 1; i <= Math.min(normalizedContext.length, textAfter.length); i++) {
+          if (normalizedContext.slice(0, i) === textAfter.slice(0, i)) {
+            matchLen = i;
+          } else {
+            break;
+          }
+        }
+        score += matchLen * 2;
+      }
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestIndex = idx;
+      }
     }
 
-    if (searchIndex === -1) return false;
+    return bestIndex;
+  }, [normalizeText]);
 
-    const searchEnd = searchIndex + searchText.length;
+  // Helper: wrap text nodes at a given range in mark elements
+  const wrapTextRange = useCallback((
+    doc: Document,
+    textNodes: { node: Text; start: number; end: number }[],
+    searchIndex: number,
+    searchLength: number,
+    highlightId: string | null,
+    className: string,
+    title: string
+  ): boolean => {
+    const searchEnd = searchIndex + searchLength;
 
     // Find which text nodes contain the match
     const affectedNodes: { node: Text; startInNode: number; endInNode: number }[] = [];
 
     for (const tn of textNodes) {
-      if (tn.end <= searchIndex) continue; // Before match
-      if (tn.start >= searchEnd) break; // After match
+      if (tn.end <= searchIndex) continue;
+      if (tn.start >= searchEnd) break;
 
       const startInNode = Math.max(0, searchIndex - tn.start);
       const endInNode = Math.min(tn.node.textContent?.length || 0, searchEnd - tn.start);
@@ -136,7 +222,7 @@ export function ContentRenderer({
 
     if (affectedNodes.length === 0) return false;
 
-    // Process nodes in reverse order to avoid index shifting issues
+    // Process nodes in reverse order to avoid index shifting
     for (let i = affectedNodes.length - 1; i >= 0; i--) {
       const { node: textNode, startInNode, endInNode } = affectedNodes[i];
       const text = textNode.textContent || '';
@@ -168,7 +254,68 @@ export function ContentRenderer({
     }
 
     return true;
-  }, [normalizeText]);
+  }, []);
+
+  // Main function: highlight text with positional disambiguation
+  const highlightTextInDocument = useCallback((
+    doc: Document,
+    container: Element,
+    searchText: string,
+    highlightId: string | null,
+    className: string,
+    title: string = "",
+    positionHint?: number,
+    contextBefore?: string | null,
+    contextAfter?: string | null,
+  ): boolean => {
+    if (!searchText) return false;
+
+    const { textNodes, fullText } = collectTextNodes(doc, container);
+
+    // Try 3 strategies in order:
+    // 1. Exact match
+    // 2. Character-normalized match (full-width/half-width)
+    // 3. Whitespace-collapsed match (handles newlines vs spaces)
+
+    // Strategy 1: Exact match
+    let occurrences = findAllOccurrences(fullText, searchText);
+    if (occurrences.length > 0) {
+      const bestIndex = pickBestMatch(fullText, occurrences, positionHint, contextBefore, contextAfter);
+      return wrapTextRange(doc, textNodes, bestIndex, searchText.length, highlightId, className, title);
+    }
+
+    // Strategy 2: Character-normalized match (no whitespace change)
+    const normalizedFullText = normalizeText(fullText);
+    const normalizedSearchText = normalizeText(searchText);
+    occurrences = findAllOccurrences(normalizedFullText, normalizedSearchText);
+    if (occurrences.length > 0) {
+      const bestIndex = pickBestMatch(fullText, occurrences, positionHint, contextBefore, contextAfter);
+      return wrapTextRange(doc, textNodes, bestIndex, searchText.length, highlightId, className, title);
+    }
+
+    // Strategy 3: Whitespace-collapsed match (handles \n\n vs space)
+    const fullMapped = normalizeWithMapping(fullText);
+    const searchMapped = normalizeWithMapping(searchText);
+
+    occurrences = findAllOccurrences(fullMapped.normalized, searchMapped.normalized);
+    if (occurrences.length > 0) {
+      // Map normalized positions back to original positions
+      const originalOccurrences = occurrences.map(idx => fullMapped.mapping[idx]);
+      const bestOriginalIndex = pickBestMatch(fullText, originalOccurrences, positionHint, contextBefore, contextAfter);
+
+      // Calculate the original length by mapping the end position
+      const bestNormIdx = occurrences[originalOccurrences.indexOf(bestOriginalIndex)];
+      const endNormIdx = bestNormIdx + searchMapped.normalized.length;
+      const endOrigIdx = endNormIdx < fullMapped.mapping.length
+        ? fullMapped.mapping[endNormIdx]
+        : fullText.length;
+      const originalLength = endOrigIdx - bestOriginalIndex;
+
+      return wrapTextRange(doc, textNodes, bestOriginalIndex, originalLength, highlightId, className, title);
+    }
+
+    return false;
+  }, [normalizeText, normalizeWithMapping, collectTextNodes, findAllOccurrences, pickBestMatch, wrapTextRange]);
 
   // Sanitize and apply highlights to HTML content (only on client)
   const processedBody = useMemo(() => {
@@ -221,8 +368,15 @@ export function ContentRenderer({
 
     sortedHighlights.forEach((highlight) => {
       const isFocused = highlight.id === focusedHighlightId;
-      const baseClass = "bg-yellow-200 dark:bg-yellow-800 cursor-pointer rounded px-0.5 transition-all duration-300";
-      const focusClass = isFocused ? " ring-2 ring-primary ring-offset-2 bg-yellow-300 dark:bg-yellow-600" : "";
+      const hasTranslation = !!highlight.translation;
+      const baseClass = hasTranslation
+        ? "bg-green-100 dark:bg-green-900/40 cursor-pointer rounded px-0.5 transition-all duration-300"
+        : "bg-yellow-200 dark:bg-yellow-800 cursor-pointer rounded px-0.5 transition-all duration-300";
+      const focusClass = isFocused
+        ? hasTranslation
+          ? " ring-2 ring-primary ring-offset-2 bg-green-200 dark:bg-green-800/60"
+          : " ring-2 ring-primary ring-offset-2 bg-yellow-300 dark:bg-yellow-600"
+        : "";
       const title = highlight.note || highlight.translation || "";
 
       highlightTextInDocument(
@@ -231,7 +385,10 @@ export function ContentRenderer({
         highlight.selected_text || "",
         highlight.id,
         `${baseClass}${focusClass}`,
-        title
+        title,
+        parseInt(highlight.start_position, 10) || undefined,
+        highlight.context_before,
+        highlight.context_after
       );
     });
 
@@ -242,7 +399,11 @@ export function ContentRenderer({
         container,
         currentSelection.text,
         null,
-        "bg-blue-100 dark:bg-blue-900/50 rounded px-0.5"
+        "bg-blue-100 dark:bg-blue-900/50 rounded px-0.5",
+        "",
+        currentSelection.startOffset,
+        currentSelection.contextBefore,
+        currentSelection.contextAfter
       );
     }
 
@@ -327,19 +488,35 @@ export function ContentRenderer({
         onMouseUp={() => {
           // Handle text selection for article content
           const selection = window.getSelection();
-          if (selection && !selection.isCollapsed) {
+          if (selection && !selection.isCollapsed && contentRef.current) {
             const text = selection.toString().trim();
             if (text && onSelection) {
               const range = selection.getRangeAt(0);
-              const container = range.commonAncestorContainer.parentElement;
-              const fullText = container?.textContent || "";
 
-              // Calculate approximate offset
-              const preSelectionRange = document.createRange();
-              preSelectionRange.selectNodeContents(container || document.body);
-              preSelectionRange.setEnd(range.startContainer, range.startOffset);
-              const startOffset = preSelectionRange.toString().length;
+              // Calculate offset relative to the FULL content container (not parent element)
+              // This ensures stored positions match how highlightTextInDocument searches
+              const walker = document.createTreeWalker(
+                contentRef.current,
+                NodeFilter.SHOW_TEXT,
+                null
+              );
+              let startOffset = 0;
+              let foundStart = false;
+              let currentNode: Node | null;
+
+              while ((currentNode = walker.nextNode())) {
+                if (currentNode === range.startContainer) {
+                  startOffset += range.startOffset;
+                  foundStart = true;
+                  break;
+                }
+                startOffset += currentNode.textContent?.length || 0;
+              }
+
+              if (!foundStart) return;
+
               const endOffset = startOffset + text.length;
+              const fullText = contentRef.current.textContent || "";
 
               const contextLength = 50;
               const contextBefore = fullText.slice(Math.max(0, startOffset - contextLength), startOffset);

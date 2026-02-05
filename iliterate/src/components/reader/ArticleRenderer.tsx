@@ -229,6 +229,23 @@ export function ArticleRenderer({ content }: ArticleRendererProps) {
     }
   }, [content.language, content.id, selection, handleAddNote]);
 
+  // Handle highlight delete
+  const handleDeleteHighlight = useCallback(async (highlightId: string) => {
+    const response = await fetch(`/api/highlights/${highlightId}`, {
+      method: "DELETE",
+    });
+
+    if (response.ok) {
+      setHighlights((prev) => prev.filter((h) => h.id !== highlightId));
+      if (focusedHighlightId === highlightId) {
+        setFocusedHighlightId(null);
+      }
+      toast.success("Highlight deleted");
+    } else {
+      toast.error("Failed to delete highlight");
+    }
+  }, [focusedHighlightId]);
+
   // Handle highlight click from sidebar or content - scroll to highlight and show glow
   const handleHighlightClick = useCallback((highlight: Highlight) => {
     // Save current scroll position
@@ -339,6 +356,7 @@ export function ArticleRenderer({ content }: ArticleRendererProps) {
             timeRemaining={timeRemaining}
             focusedHighlightId={focusedHighlightId}
             onHighlightClick={handleHighlightClick}
+            onDeleteHighlight={handleDeleteHighlight}
             onLookupClick={handleLookupClick}
             onClearLookups={handleClearLookups}
             onRemoveLookup={handleRemoveLookup}

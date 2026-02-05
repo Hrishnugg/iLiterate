@@ -2,12 +2,13 @@
 
 import { Highlight } from "@/types/database";
 import { cn } from "@/lib/utils";
-import { StickyNote, MessageSquare } from "lucide-react";
+import { StickyNote, MessageSquare, Trash2 } from "lucide-react";
 
 interface YourNotesPanelProps {
   highlights: Highlight[];
   focusedHighlightId?: string | null;
   onHighlightClick?: (highlight: Highlight) => void;
+  onDeleteHighlight?: (highlightId: string) => void;
   className?: string;
 }
 
@@ -15,6 +16,7 @@ export function YourNotesPanel({
   highlights,
   focusedHighlightId,
   onHighlightClick,
+  onDeleteHighlight,
   className,
 }: YourNotesPanelProps) {
   // Filter highlights that have notes or translations
@@ -53,52 +55,71 @@ export function YourNotesPanel({
             )}
             {group.map((highlight) => {
               const isFocused = highlight.id === focusedHighlightId;
+              const hasTranslation = !!highlight.translation;
               return (
-              <button
+              <div
                 key={highlight.id}
-                onClick={() => onHighlightClick?.(highlight)}
-                className="w-full text-left group"
+                className="relative group/note"
                 data-sidebar-highlight={highlight.id}
               >
-                <div className={cn(
-                  "rounded-md border bg-card p-3 transition-all",
-                  isFocused
-                    ? "ring-2 ring-primary ring-offset-2 bg-yellow-50 dark:bg-yellow-900/20"
-                    : "hover:bg-accent"
-                )}>
-                  {/* Selected text */}
-                  <p className="mb-2 text-sm font-medium text-foreground">
-                    &ldquo;{truncate(highlight.selected_text, 60)}&rdquo;
-                  </p>
-
-                  {/* Translation */}
-                  {highlight.translation && (
-                    <p className="mb-2 text-sm text-primary">
-                      → {highlight.translation}
-                      {highlight.transliteration && (
-                        <span className="ml-2 text-xs text-muted-foreground">
-                          ({highlight.transliteration})
-                        </span>
-                      )}
+                <button
+                  onClick={() => onHighlightClick?.(highlight)}
+                  className="w-full text-left"
+                >
+                  <div className={cn(
+                    "rounded-md border bg-card p-3 pr-8 transition-all",
+                    isFocused
+                      ? hasTranslation
+                        ? "ring-2 ring-primary ring-offset-2 bg-green-50 dark:bg-green-900/20"
+                        : "ring-2 ring-primary ring-offset-2 bg-yellow-50 dark:bg-yellow-900/20"
+                      : "hover:bg-accent",
+                    hasTranslation && "border-l-2 border-l-green-400 dark:border-l-green-600"
+                  )}>
+                    {/* Selected text */}
+                    <p className="mb-2 text-sm font-medium text-foreground">
+                      &ldquo;{truncate(highlight.selected_text, 60)}&rdquo;
                     </p>
-                  )}
 
-                  {/* User note */}
-                  {highlight.note && (
-                    <p className="flex items-start gap-1.5 text-sm text-muted-foreground">
-                      <MessageSquare className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
-                      {highlight.note}
-                    </p>
-                  )}
+                    {/* Translation */}
+                    {highlight.translation && (
+                      <p className="mb-2 text-sm text-primary">
+                        → {highlight.translation}
+                        {highlight.transliteration && (
+                          <span className="ml-2 text-xs text-muted-foreground">
+                            ({highlight.transliteration})
+                          </span>
+                        )}
+                      </p>
+                    )}
 
-                  {/* Part of speech tag */}
-                  {highlight.part_of_speech && (
-                    <span className="mt-2 inline-block rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
-                      {highlight.part_of_speech}
-                    </span>
-                  )}
-                </div>
-              </button>
+                    {/* User note */}
+                    {highlight.note && (
+                      <p className="flex items-start gap-1.5 text-sm text-muted-foreground">
+                        <MessageSquare className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
+                        {highlight.note}
+                      </p>
+                    )}
+
+                    {/* Part of speech tag */}
+                    {highlight.part_of_speech && (
+                      <span className="mt-2 inline-block rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
+                        {highlight.part_of_speech}
+                      </span>
+                    )}
+                  </div>
+                </button>
+                {/* Delete button */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDeleteHighlight?.(highlight.id);
+                  }}
+                  className="absolute right-2 top-2 rounded-sm p-1 opacity-0 transition-opacity group-hover/note:opacity-70 hover:!opacity-100 hover:bg-destructive/10 hover:text-destructive"
+                  aria-label="Delete highlight"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
               );
             })}
           </div>

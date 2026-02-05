@@ -123,3 +123,25 @@
     @apply bg-background text-foreground font-sans;
   }
 }
+
+/* Popover scrollbar: thin and only visible on hover */
+.popover-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+.popover-scroll:hover {
+  scrollbar-color: oklch(0.556 0 0 / 0.3) transparent;
+}
+.popover-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.popover-scroll::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 3px;
+}
+.popover-scroll:hover::-webkit-scrollbar-thumb {
+  background: oklch(0.556 0 0 / 0.3);
+}
+.popover-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}

@@ -15,6 +15,7 @@ interface RightSidebarProps {
   timeRemaining: string;
   focusedHighlightId?: string | null;
   onHighlightClick?: (highlight: Highlight) => void;
+  onDeleteHighlight?: (highlightId: string) => void;
   onLookupClick?: (lookup: TranslationLookup) => void;
   onClearLookups?: () => void;
   onRemoveLookup?: (id: string) => void;
@@ -29,6 +30,7 @@ export function RightSidebar({
   timeRemaining,
   focusedHighlightId,
   onHighlightClick,
+  onDeleteHighlight,
   onLookupClick,
   onClearLookups,
   onRemoveLookup,
@@ -50,6 +52,7 @@ export function RightSidebar({
         highlights={highlights}
         focusedHighlightId={focusedHighlightId}
         onHighlightClick={onHighlightClick}
+        onDeleteHighlight={onDeleteHighlight}
       />
 
       <Separator />
