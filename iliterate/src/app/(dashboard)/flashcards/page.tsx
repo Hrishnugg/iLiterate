@@ -9,6 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { Link } from "lucide-react";
 
 
 export default function FlashcardsPage() {
@@ -23,7 +24,11 @@ export default function FlashcardsPage() {
           <CardTitle>View Flashcards</CardTitle>
         </CardHeader>
         <CardContent>
-          <Button type = "submit" className="w-full">View All Flashcards</Button>
+          <Button asChild className="w-full">
+              <Link href={`/All`}>
+                  View all
+              </Link>
+          </Button>
         </CardContent>
       </Card>
       <Card>
@@ -31,7 +36,11 @@ export default function FlashcardsPage() {
           <CardTitle>Recently Added</CardTitle>
         </CardHeader>
         <CardContent>
-          <Button type = "submit" className="w-full">View Recently Added</Button>
+          <Button asChild className="w-full">
+              <Link href={`/Recent`}>
+                  View recently added
+              </Link>
+          </Button>
         </CardContent>
       </Card>
       <Card>
@@ -39,7 +48,11 @@ export default function FlashcardsPage() {
           <CardTitle>Create New Flashcard</CardTitle>
         </CardHeader>
         <CardContent>
-          <Button type = "submit" className="w-full">Create New</Button>
+          <Button asChild className="w-full">
+              <Link href={`/Create`}>
+                  Create
+              </Link>
+          </Button>
         </CardContent>
       </Card>
     </div>
