@@ -66,7 +66,7 @@ export async function login(
     redirect("/onboarding");
   }
 
-  redirect("/library");
+  redirect("/home");
 }
 
 export async function logout() {
