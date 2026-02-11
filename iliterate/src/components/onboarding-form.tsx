@@ -1,7 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useActionState, useState } from "react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -15,6 +14,7 @@ import {
 import {
   Field,
   FieldDescription,
+  FieldError,
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field";
@@ -27,7 +27,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { createClient } from "@/lib/supabase/client";
+import { completeOnboarding } from "@/app/(auth)/onboarding/actions";
 
 const LANGUAGES = [
   "Arabic",
@@ -57,67 +57,21 @@ export function OnboardingForm({
   className,
   ...props
 }: React.ComponentProps<"div">) {
-  const router = useRouter();
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [state, formAction, pending] = useActionState(
+    completeOnboarding,
+    null
+  );
 
   const [targetLanguage, setTargetLanguage] = useState("");
   const [nativeLanguage, setNativeLanguage] = useState("");
   const [ageGroup, setAgeGroup] = useState("");
   const [educationLevel, setEducationLevel] = useState("");
-  const [yearsLearning, setYearsLearning] = useState("0");
   const [motivations, setMotivations] = useState<string[]>([]);
 
   const handleMotivationChange = (id: string, checked: boolean) => {
     setMotivations((prev) =>
       checked ? [...prev, id] : prev.filter((m) => m !== id)
     );
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    setIsLoading(true);
-
-    try {
-      const supabase = createClient();
-
-      // Get current user
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError || !user) {
-        setError("You must be logged in to complete onboarding");
-        return;
-      }
-
-      // Update or create profile
-      const { error: profileError } = await supabase
-        .from("profiles")
-        .upsert({
-          id: user.id,
-          target_language: targetLanguage,
-          native_language: nativeLanguage,
-          age_group: ageGroup,
-          education_level: educationLevel,
-          years_learning: parseInt(yearsLearning, 10),
-          learning_motivation: motivations,
-          updated_at: new Date().toISOString(),
-        });
-
-      if (profileError) {
-        console.error("Profile error:", profileError);
-        setError(profileError.message);
-        return;
-      }
-
-      // Redirect to library
-      router.push("/library");
-      router.refresh();
-    } catch (err) {
-      console.error("Onboarding error:", err);
-      setError(err instanceof Error ? err.message : "An unexpected error occurred");
-    } finally {
-      setIsLoading(false);
-    }
   };
 
   return (
@@ -130,18 +84,20 @@ export function OnboardingForm({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit}>
+          <form action={formAction}>
             <FieldGroup>
-              {error && (
-                <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-                  {error}
-                </div>
-              )}
+              {state?.error && <FieldError>{state.error}</FieldError>}
               <Field>
                 <FieldLabel htmlFor="target-language">
                   What language do you want to learn?
                 </FieldLabel>
-                <Select value={targetLanguage} onValueChange={setTargetLanguage} required disabled={isLoading}>
+                <Select
+                  name="target-language"
+                  value={targetLanguage}
+                  onValueChange={setTargetLanguage}
+                  required
+                  disabled={pending}
+                >
                   <SelectTrigger id="target-language">
                     <SelectValue placeholder="Select a language" />
                   </SelectTrigger>
@@ -159,7 +115,13 @@ export function OnboardingForm({
                 <FieldLabel htmlFor="native-language">
                   What is your native language?
                 </FieldLabel>
-                <Select value={nativeLanguage} onValueChange={setNativeLanguage} required disabled={isLoading}>
+                <Select
+                  name="native-language"
+                  value={nativeLanguage}
+                  onValueChange={setNativeLanguage}
+                  required
+                  disabled={pending}
+                >
                   <SelectTrigger id="native-language">
                     <SelectValue placeholder="Select your native language" />
                   </SelectTrigger>
@@ -176,7 +138,13 @@ export function OnboardingForm({
               <Field className="grid grid-cols-2 gap-4">
                 <Field>
                   <FieldLabel htmlFor="age-group">Age group</FieldLabel>
-                  <Select value={ageGroup} onValueChange={setAgeGroup} required disabled={isLoading}>
+                  <Select
+                    name="age-group"
+                    value={ageGroup}
+                    onValueChange={setAgeGroup}
+                    required
+                    disabled={pending}
+                  >
                     <SelectTrigger id="age-group">
                       <SelectValue placeholder="Select" />
                     </SelectTrigger>
@@ -191,7 +159,13 @@ export function OnboardingForm({
                   <FieldLabel htmlFor="education-level">
                     Education level
                   </FieldLabel>
-                  <Select value={educationLevel} onValueChange={setEducationLevel} required disabled={isLoading}>
+                  <Select
+                    name="education-level"
+                    value={educationLevel}
+                    onValueChange={setEducationLevel}
+                    required
+                    disabled={pending}
+                  >
                     <SelectTrigger id="education-level">
                       <SelectValue placeholder="Select" />
                     </SelectTrigger>
@@ -212,13 +186,12 @@ export function OnboardingForm({
                 </FieldLabel>
                 <Input
                   id="years-learning"
+                  name="years-learning"
                   type="number"
                   min={0}
                   max={50}
                   placeholder="0"
-                  value={yearsLearning}
-                  onChange={(e) => setYearsLearning(e.target.value)}
-                  disabled={isLoading}
+                  disabled={pending}
                   required
                 />
                 <FieldDescription>
@@ -238,11 +211,13 @@ export function OnboardingForm({
                     >
                       <Checkbox
                         id={`motivation-${motivation.id}`}
+                        name="motivations"
+                        value={motivation.id}
                         checked={motivations.includes(motivation.id)}
                         onCheckedChange={(checked) =>
                           handleMotivationChange(motivation.id, checked === true)
                         }
-                        disabled={isLoading}
+                        disabled={pending}
                       />
                       {motivation.label}
                     </label>
@@ -251,8 +226,8 @@ export function OnboardingForm({
               </Field>
 
               <Field>
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? "Saving..." : "Continue"}
+                <Button type="submit" className="w-full" disabled={pending}>
+                  {pending ? "Saving..." : "Continue"}
                 </Button>
               </Field>
             </FieldGroup>

@@ -8,6 +8,7 @@ const PROTECTED_ROUTES = [
   "/flashcards",
   "/quizzes",
   "/profile",
+  "/home",
 ];
 
 // Routes only accessible when NOT authenticated
@@ -70,7 +71,7 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(redirectUrl);
   }
 
-  // Redirect authenticated users away from auth routes
+  // Redirect authenticated users away from auth routes to library
   if (user && isAuthRoute) {
     return NextResponse.redirect(new URL("/library", request.url));
   }
