@@ -122,6 +122,15 @@
   body {
     @apply bg-background text-foreground font-sans;
   }
+  
+  /* Smooth theme transitions */
+  html,
+  body,
+  * {
+    transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 200ms;
+  }
 }
 
 /* Popover scrollbar: thin and only visible on hover */

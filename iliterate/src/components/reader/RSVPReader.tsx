@@ -34,7 +34,10 @@ export function RSVPReader({
   const [currentWordIndex, setCurrentWordIndex] = useState(initialPosition);
   const [wpm, setWpm] = useState(250);
   const [showSettings, setShowSettings] = useState(false);
+  const [isEditingWpm, setIsEditingWpm] = useState(false);
+  const [wpmInput, setWpmInput] = useState(wpm.toString());
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const wpmInputRef = useRef<HTMLInputElement>(null);
 
   // Extract words from text
   const words = useMemo(() => {
@@ -186,6 +189,38 @@ export function RSVPReader({
     };
   }, [clearPlayback]);
 
+  // Focus WPM input when editing starts
+  useEffect(() => {
+    if (isEditingWpm && wpmInputRef.current) {
+      wpmInputRef.current.focus();
+      wpmInputRef.current.select();
+    }
+  }, [isEditingWpm]);
+
+  // Handle WPM input change
+  const handleWpmInputChange = (value: string) => {
+    setWpmInput(value);
+  };
+
+  // Handle WPM input blur or enter
+  const handleWpmInputSubmit = () => {
+    const newWpm = parseInt(wpmInput, 10);
+    if (!isNaN(newWpm) && newWpm >= 100 && newWpm <= 600) {
+      setWpm(newWpm);
+      onWpmChange?.(newWpm);
+    } else {
+      // Reset to current WPM if invalid
+      setWpmInput(wpm.toString());
+    }
+    setIsEditingWpm(false);
+  };
+
+  // Start editing WPM
+  const handleWpmClick = () => {
+    setIsEditingWpm(true);
+    setWpmInput(wpm.toString());
+  };
+
   // Notify parent when component mounts (deferred to avoid render-phase update)
   useEffect(() => {
     if (totalWords > 0 && onPositionChange) {
@@ -307,14 +342,48 @@ export function RSVPReader({
         </Button>
       </div>
 
-      {/* Settings panel */}
-      {showSettings && (
-        <div className="w-full max-w-md rounded-lg border bg-muted/50 p-4 space-y-3">
+      {/* Settings panel - always reserve space */}
+      <div className="w-full max-w-md">
+        <div
+          className={cn(
+            "rounded-lg border bg-muted/50 p-4 space-y-3 transition-opacity duration-200",
+            showSettings ? "opacity-100" : "opacity-0 pointer-events-none"
+          )}
+        >
           {/* Speed control */}
           <div className="space-y-2">
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">Reading Speed</span>
-              <span className="font-medium">{wpm} WPM</span>
+              {isEditingWpm ? (
+                <input
+                  ref={wpmInputRef}
+                  type="number"
+                  min="100"
+                  max="600"
+                  value={wpmInput}
+                  onChange={(e) => handleWpmInputChange(e.target.value)}
+                  onBlur={handleWpmInputSubmit}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      handleWpmInputSubmit();
+                    } else if (e.key === "Escape") {
+                      setWpmInput(wpm.toString());
+                      setIsEditingWpm(false);
+                    }
+                  }}
+                  className="w-20 px-2 py-1 text-right font-medium border rounded focus:outline-none focus:ring-2 focus:ring-primary"
+                  aria-label="Enter reading speed"
+                />
+              ) : (
+                <button
+                  onClick={handleWpmClick}
+                  className="font-medium hover:bg-accent px-2 py-1 rounded transition-colors cursor-pointer"
+                  tabIndex={showSettings ? 0 : -1}
+                  aria-label="Click to edit reading speed"
+                >
+                  {wpm} WPM
+                </button>
+              )}
             </div>
             <input
               type="range"
@@ -325,10 +394,15 @@ export function RSVPReader({
               onChange={(e) => {
                 const newWpm = parseInt(e.target.value, 10);
                 setWpm(newWpm);
+                setWpmInput(newWpm.toString());
                 onWpmChange?.(newWpm);
               }}
-              className="w-full"
+              className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-gray-200 dark:bg-gray-700 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-black [&::-webkit-slider-thumb]:cursor-pointer [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-black [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:border-0"
+              style={{
+                background: `linear-gradient(to right, black 0%, black ${((wpm - 100) / 500) * 100}%, rgb(229 231 235) ${((wpm - 100) / 500) * 100}%, rgb(229 231 235) 100%)`
+              }}
               aria-label="Reading speed in words per minute"
+              tabIndex={showSettings ? 0 : -1}
             />
             <div className="flex items-center justify-between text-xs text-muted-foreground">
               <span>Slow (100)</span>
@@ -349,7 +423,7 @@ export function RSVPReader({
             </ul>
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }
