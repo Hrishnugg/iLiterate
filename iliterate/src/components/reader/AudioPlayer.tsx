@@ -112,7 +112,9 @@ export function AudioPlayer({ text, language, className }: AudioPlayerProps) {
       };
 
       utterance.onerror = (event) => {
-        console.error("Speech synthesis error:", event);
+        // "interrupted" and "canceled" are expected when stop/skip/cancel is called
+        if (event.error === "interrupted" || event.error === "canceled") return;
+        console.error("Speech synthesis error:", event.error);
         setIsPlaying(false);
         setIsPaused(false);
       };
