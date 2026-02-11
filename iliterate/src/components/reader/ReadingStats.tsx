@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useRef, useEffect } from "react";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { Clock, BookOpen, Target } from "lucide-react";
@@ -9,6 +10,8 @@ interface ReadingStatsProps {
   wordsRead: number;
   totalWords: number;
   timeRemaining: string;
+  isInteractive?: boolean;
+  onSeek?: (percentage: number) => void;
   className?: string;
 }
 
@@ -17,9 +20,49 @@ export function ReadingStats({
   wordsRead,
   totalWords,
   timeRemaining,
+  isInteractive = false,
+  onSeek,
   className,
 }: ReadingStatsProps) {
   const isCompleted = progress >= 100;
+  const [isDragging, setIsDragging] = useState(false);
+  const progressBarRef = useRef<HTMLDivElement>(null);
+
+  const calculatePercentage = (clientX: number) => {
+    if (!progressBarRef.current) return 0;
+    const rect = progressBarRef.current.getBoundingClientRect();
+    const x = clientX - rect.left;
+    return Math.max(0, Math.min(100, (x / rect.width) * 100));
+  };
+
+  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isInteractive || !onSeek) return;
+    e.preventDefault();
+    setIsDragging(true);
+    const percentage = calculatePercentage(e.clientX);
+    onSeek(percentage);
+  };
+
+  useEffect(() => {
+    if (!isDragging || !isInteractive || !onSeek) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const percentage = calculatePercentage(e.clientX);
+      onSeek(percentage);
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [isDragging, isInteractive, onSeek]);
 
   return (
     <div className={cn("p-4", className)}>
@@ -37,7 +80,17 @@ export function ReadingStats({
               {isCompleted ? "Completed" : `${timeRemaining} remaining`}
             </span>
           </div>
-          <Progress value={progress} className="h-2" />
+          <div
+            ref={progressBarRef}
+            onMouseDown={handleMouseDown}
+            className={cn(
+              isInteractive && "cursor-pointer hover:opacity-80 transition-opacity select-none",
+              isDragging && "opacity-80"
+            )}
+            title={isInteractive ? "Click or drag to seek" : undefined}
+          >
+            <Progress value={progress} className="h-2" />
+          </div>
         </div>
 
         {/* Stats grid */}
