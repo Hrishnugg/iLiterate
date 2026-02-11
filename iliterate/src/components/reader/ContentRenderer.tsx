@@ -370,12 +370,12 @@ export function ContentRenderer({
       const isFocused = highlight.id === focusedHighlightId;
       const hasTranslation = !!highlight.translation;
       const baseClass = hasTranslation
-        ? "bg-green-100 dark:bg-green-900/40 cursor-pointer rounded px-0.5 transition-all duration-300"
-        : "bg-yellow-200 dark:bg-yellow-800 cursor-pointer rounded px-0.5 transition-all duration-300";
+        ? "bg-green-100 dark:bg-green-400/50 cursor-pointer rounded px-0.5 transition-all duration-300"
+        : "bg-yellow-200 dark:bg-yellow-300/50 cursor-pointer rounded px-0.5 transition-all duration-300";
       const focusClass = isFocused
         ? hasTranslation
-          ? " ring-2 ring-primary ring-offset-2 bg-green-200 dark:bg-green-800/60"
-          : " ring-2 ring-primary ring-offset-2 bg-yellow-300 dark:bg-yellow-600"
+          ? " ring-2 ring-primary ring-offset-2 bg-green-200 dark:bg-green-400/65"
+          : " ring-2 ring-primary ring-offset-2 bg-yellow-300 dark:bg-yellow-300/65"
         : "";
       const title = highlight.note || highlight.translation || "";
 
@@ -399,7 +399,7 @@ export function ContentRenderer({
         container,
         currentSelection.text,
         null,
-        "bg-blue-100 dark:bg-blue-900/50 rounded px-0.5",
+        "bg-blue-100 dark:bg-blue-400/50 rounded px-0.5",
         "",
         currentSelection.startOffset,
         currentSelection.contextBefore,
