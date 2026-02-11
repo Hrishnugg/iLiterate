@@ -167,3 +167,137 @@ export interface TranslationLookup {
   transliteration: string | null;
   created_at: string;
 }
+
+// ============================================================================
+// Skill-Based Progress Tracking Types
+// ============================================================================
+
+/** CEFR to numeric level mapping ranges */
+export const CEFR_LEVEL_RANGES = {
+  A1: { min: 1, max: 3 },
+  A2: { min: 4, max: 6 },
+  B1: { min: 7, max: 10 },
+  B2: { min: 11, max: 14 },
+  C1: { min: 15, max: 17 },
+  C2: { min: 18, max: 20 },
+} as const;
+
+/** Skill types tracked by the system */
+export type SkillType = "reading" | "vocabulary" | "grammar";
+
+/** Assessment/quiz types */
+export type AssessmentType = "post_reading" | "level_check" | "placement";
+
+/** Question types in assessments */
+export type QuestionType =
+  | "comprehension_mcq"
+  | "vocabulary_fill_blank"
+  | "grammar_mcq"
+  | "grammar_fill_blank";
+
+/** User's skill levels and XP progress */
+export interface UserSkillLevels {
+  id: string;
+  user_id: string;
+  reading_level: number;
+  vocabulary_level: number;
+  grammar_level: number;
+  reading_xp: number;
+  vocabulary_xp: number;
+  grammar_xp: number;
+  reading_weight: number;
+  vocabulary_weight: number;
+  grammar_weight: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Individual question in an assessment */
+export interface AssessmentQuestion {
+  id: string;
+  type: QuestionType;
+  question: string;
+  options?: string[];
+  correct_answer: string;
+  user_answer?: string;
+  correct?: boolean;
+  context?: string;
+  hint?: string;
+}
+
+/** Level change record */
+export interface LevelChange {
+  from: number;
+  to: number;
+}
+
+/** Complete assessment record */
+export interface SkillAssessment {
+  id: string;
+  user_id: string;
+  content_id: string | null;
+  assessment_type: AssessmentType;
+  questions: AssessmentQuestion[];
+  reading_score: number | null;
+  reading_max_score: number | null;
+  vocabulary_score: number | null;
+  vocabulary_max_score: number | null;
+  grammar_score: number | null;
+  grammar_max_score: number | null;
+  reading_xp_awarded: number;
+  vocabulary_xp_awarded: number;
+  grammar_xp_awarded: number;
+  level_changes: Partial<Record<SkillType, LevelChange>> | null;
+  time_taken_seconds: number | null;
+  created_at: string;
+}
+
+/** AI-generated content metadata */
+export interface GeneratedContent {
+  id: string;
+  user_id: string;
+  content_id: string | null;
+  target_cefr_level: CEFRLevel;
+  target_numeric_level: number;
+  topic_requested: string | null;
+  vocabulary_focus: string[];
+  grammar_focus: string[];
+  prompt_used: string | null;
+  model_used: string;
+  created_at: string;
+}
+
+// ============================================================================
+// Utility Functions
+// ============================================================================
+
+/** Convert numeric level (1-20) to CEFR level */
+export function numericLevelToCEFR(level: number): CEFRLevel {
+  if (level <= 3) return "A1";
+  if (level <= 6) return "A2";
+  if (level <= 10) return "B1";
+  if (level <= 14) return "B2";
+  if (level <= 17) return "C1";
+  return "C2";
+}
+
+/** Get numeric range for a CEFR level */
+export function cefrToNumericRange(cefr: CEFRLevel): { min: number; max: number } {
+  return CEFR_LEVEL_RANGES[cefr];
+}
+
+/** Calculate overall level from individual skills and weights */
+export function calculateOverallLevel(
+  readingLevel: number,
+  vocabularyLevel: number,
+  grammarLevel: number,
+  readingWeight: number,
+  vocabularyWeight: number,
+  grammarWeight: number
+): number {
+  return Math.floor(
+    readingLevel * readingWeight +
+    vocabularyLevel * vocabularyWeight +
+    grammarLevel * grammarWeight
+  );
+}

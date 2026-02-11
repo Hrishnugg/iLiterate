@@ -10,6 +10,7 @@ import {
   User,
   PanelLeftClose,
   PanelLeft,
+  TrendingUp,
 } from "lucide-react";
 
 import {
@@ -32,6 +33,7 @@ const navItems = [
   { title: "Reader", href: "/reader", icon: BookOpen },
   { title: "Flashcards", href: "/flashcards", icon: Layers },
   { title: "Quizzes", href: "/quizzes", icon: ClipboardCheck },
+  { title: "Progress", href: "/progress", icon: TrendingUp },
 ];
 
 export function AppSidebar() {
