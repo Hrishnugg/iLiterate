@@ -8,6 +8,16 @@ import {
 } from "@/lib/level-system";
 import { numericLevelToCEFR } from "@/types/database";
 
+// Map proficiency level from profile to starting skill level (1-20)
+const PROFICIENCY_TO_LEVEL: Record<string, number> = {
+  complete_beginner: 1,
+  beginner: 3,
+  elementary: 5,
+  intermediate: 8,
+  upper_intermediate: 12,
+  advanced: 16,
+};
+
 // Validation schema for updating weights
 const updateWeightsSchema = z
   .object({
@@ -48,9 +58,25 @@ export async function GET() {
 
     // Create default skill levels if not exists
     if (!skillLevels) {
+      // Check user's profile for proficiency level to set starting level
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("proficiency_level")
+        .eq("id", user.id)
+        .single();
+
+      const startingLevel = profile?.proficiency_level
+        ? PROFICIENCY_TO_LEVEL[profile.proficiency_level] || 1
+        : 1;
+
       const { data: newSkillLevels, error: createError } = await supabase
         .from("user_skill_levels")
-        .insert({ user_id: user.id })
+        .insert({
+          user_id: user.id,
+          reading_level: startingLevel,
+          vocabulary_level: startingLevel,
+          grammar_level: startingLevel,
+        })
         .select()
         .single();
 
@@ -157,7 +183,7 @@ export async function PATCH(request: NextRequest) {
 
     if (!validationResult.success) {
       return NextResponse.json(
-        { error: validationResult.error.errors[0].message },
+        { error: validationResult.error.issues[0].message },
         { status: 400 }
       );
     }

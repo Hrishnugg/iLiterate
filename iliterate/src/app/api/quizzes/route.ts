@@ -43,12 +43,16 @@ export async function GET() {
     // Filter to only content without assessments
     const pending = (progressData || [])
       .filter((p) => !completedContentIds.has(p.content_id))
-      .map((p) => ({
-        id: p.content_id,
-        title: (p.content as { title: string })?.title || "Untitled",
-        difficulty_level: (p.content as { difficulty_level: string })?.difficulty_level || "A1",
-        progress_percent: Math.round(p.progress_percent),
-      }));
+      .map((p) => {
+        const contentData = p.content as unknown;
+        const content = contentData as { id: string; title: string; difficulty_level: string } | null;
+        return {
+          id: p.content_id,
+          title: content?.title || "Untitled",
+          difficulty_level: content?.difficulty_level || "A1",
+          progress_percent: Math.round(p.progress_percent),
+        };
+      });
 
     // Get completed assessments with content info
     const { data: completedAssessments } = await supabase
@@ -76,11 +80,13 @@ export async function GET() {
       const totalScore = (a.reading_score || 0) + (a.vocabulary_score || 0);
       const totalMax = (a.reading_max_score || 0) + (a.vocabulary_max_score || 0);
       const totalXP = (a.reading_xp_awarded || 0) + (a.vocabulary_xp_awarded || 0);
+      const contentData = a.content as unknown;
+      const content = contentData as { id: string; title: string } | null;
 
       return {
         id: a.id,
         content_id: a.content_id,
-        content_title: (a.content as { title: string })?.title || "Untitled",
+        content_title: content?.title || "Untitled",
         score_percent: totalMax > 0 ? Math.round((totalScore / totalMax) * 100) : 0,
         total_xp: totalXP,
         created_at: a.created_at,

@@ -65,6 +65,7 @@ export interface Content {
   body: string;
   language: string;
   difficulty_level: CEFRLevel;
+  numeric_level?: number;
   content_type: ContentType | null;
   topic_tags: string[];
   word_count: number | null;

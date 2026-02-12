@@ -11,6 +11,7 @@ import {
   PanelLeftClose,
   PanelLeft,
   TrendingUp,
+  GraduationCap,
 } from "lucide-react";
 
 import {
@@ -29,6 +30,7 @@ import {
 } from "@/components/ui/sidebar";
 
 const navItems = [
+  { title: "Lesson Plan", href: "/lesson-plan", icon: GraduationCap },
   { title: "Library", href: "/library", icon: Library },
   { title: "Reader", href: "/reader", icon: BookOpen },
   { title: "Flashcards", href: "/flashcards", icon: Layers },

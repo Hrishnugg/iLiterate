@@ -1,23 +1,10 @@
-import { GoogleGenerativeAI, GenerativeModel } from "@google/generative-ai";
+import OpenAI from "openai";
 import { Content, AssessmentQuestion, CEFRLevel, numericLevelToCEFR } from "@/types/database";
 
-// Lazy initialization
-let _genAI: GoogleGenerativeAI | null = null;
-let _geminiModel: GenerativeModel | null = null;
-
-function getGeminiModel(): GenerativeModel {
-  if (!_geminiModel) {
-    const apiKey = process.env.GOOGLE_AI_API_KEY;
-    if (!apiKey) {
-      throw new Error("GOOGLE_AI_API_KEY is not set in environment variables");
-    }
-    _genAI = new GoogleGenerativeAI(apiKey);
-    _geminiModel = _genAI.getGenerativeModel({
-      model: "gemini-2.0-flash",
-    });
-  }
-  return _geminiModel;
-}
+// Initialize OpenAI
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
 export interface GenerateQuizParams {
   content: Content;
@@ -125,9 +112,13 @@ Important rules:
 6. Provide 4 options for multiple choice (one correct, three plausible wrong)
 7. Hints should guide without giving away the answer`;
 
-  const geminiModel = getGeminiModel();
-  const result = await geminiModel.generateContent(prompt);
-  const textResponse = result.response.text();
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o-mini",
+    messages: [{ role: "user", content: prompt }],
+    temperature: 0.7,
+  });
+
+  const textResponse = response.choices[0]?.message?.content || "";
 
   // Extract JSON from response
   const jsonMatch = textResponse.match(/\[[\s\S]*\]/);
@@ -161,6 +152,112 @@ Important rules:
     contentLevel: content.numeric_level || 5,
     generatedAt: new Date().toISOString(),
   };
+}
+
+/**
+ * Generate a quiz directly from content body (for lesson sessions)
+ */
+export async function generateQuizFromContent(
+  contentBody: string,
+  targetLevel: number,
+  targetLanguage: string,
+  nativeLanguage: string,
+  vocabulary: Array<{ word: string; translation: string; context?: string }>,
+  numComprehension: number = 3,
+  numVocabulary: number = 3
+): Promise<AssessmentQuestion[]> {
+  const cefrLevel = numericLevelToCEFR(targetLevel);
+
+  // Truncate content body to avoid token limits
+  const truncatedBody = contentBody
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 3000);
+
+  const vocabContext = vocabulary.length > 0
+    ? `Key vocabulary from the text: ${vocabulary.map(v => `${v.word} (${v.translation})`).join(", ")}. Use some of these for fill-in-blank questions.`
+    : "Create vocabulary questions from key words that appeared in the text.";
+
+  const prompt = `You are creating a language learning quiz.
+
+Student Profile:
+- Native language: ${nativeLanguage}
+- Current level: ${targetLevel}/20 (${cefrLevel} CEFR)
+
+The student just read this text in ${targetLanguage}:
+"""
+${truncatedBody}
+"""
+
+${vocabContext}
+
+Level Guidelines: ${LEVEL_GUIDELINES[cefrLevel]}
+
+Generate a quiz with EXACTLY:
+- ${numComprehension} reading comprehension multiple choice questions
+- ${numVocabulary} vocabulary fill-in-the-blank questions
+
+Return your response as a JSON array with this EXACT structure:
+[
+  {
+    "id": "q1",
+    "type": "comprehension_mcq",
+    "question": "Question text (in ${targetLevel <= 6 ? nativeLanguage : targetLanguage})",
+    "options": ["Option A", "Option B", "Option C", "Option D"],
+    "correct_answer": "Option A",
+    "hint": "Optional hint"
+  },
+  {
+    "id": "q2",
+    "type": "vocabulary_fill_blank",
+    "question": "Complete: La casa ___ muy grande.",
+    "context": "The house is very big.",
+    "correct_answer": "es",
+    "hint": "Think about the verb 'to be'"
+  }
+]
+
+Rules:
+1. Comprehension questions test understanding, not just word recall
+2. For levels 1-6, questions can be in native language
+3. For levels 7+, questions should be in target language
+4. Fill-in-blank sentences need clear context clues
+5. Each question needs a unique ID (q1, q2, etc.)
+6. Provide 4 options for MCQ (one correct, three plausible wrong)`;
+
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o-mini",
+    messages: [{ role: "user", content: prompt }],
+    temperature: 0.7,
+  });
+
+  const textResponse = response.choices[0]?.message?.content || "";
+
+  const jsonMatch = textResponse.match(/\[[\s\S]*\]/);
+  if (!jsonMatch) {
+    console.error("Failed to parse quiz response:", textResponse);
+    throw new Error("Failed to parse quiz response from AI");
+  }
+
+  let questions: AssessmentQuestion[];
+  try {
+    questions = JSON.parse(jsonMatch[0]);
+  } catch (e) {
+    console.error("Invalid JSON in quiz response:", e);
+    throw new Error("Invalid JSON in quiz response");
+  }
+
+  // Validate and normalize questions
+  return questions.map((q, index) => ({
+    id: q.id || `q${index + 1}`,
+    type: q.type,
+    question: q.question,
+    options: q.options,
+    correct_answer: q.correct_answer,
+    context: q.context,
+    hint: q.hint,
+  }));
 }
 
 /**

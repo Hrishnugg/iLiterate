@@ -22,9 +22,10 @@ interface TOCItem {
 
 interface ArticleRendererProps {
   content: Content;
+  isLesson?: boolean;
 }
 
-export function ArticleRenderer({ content }: ArticleRendererProps) {
+export function ArticleRenderer({ content, isLesson = false }: ArticleRendererProps) {
   const [highlights, setHighlights] = useState<Highlight[]>([]);
   const [lookups, setLookups] = useState<TranslationLookup[]>([]);
   const [selection, setSelection] = useState<TextSelection | null>(null);
@@ -56,7 +57,8 @@ export function ArticleRenderer({ content }: ArticleRendererProps) {
   // Load highlights - memoized with content.id dependency
   const loadHighlights = useCallback(async () => {
     try {
-      const response = await fetch(`/api/highlights?contentId=${content.id}`);
+      const param = isLesson ? `lessonId=${content.id}` : `contentId=${content.id}`;
+      const response = await fetch(`/api/highlights?${param}`);
       if (response.ok) {
         const data = await response.json();
         setHighlights(data);
@@ -64,12 +66,13 @@ export function ArticleRenderer({ content }: ArticleRendererProps) {
     } catch (error) {
       console.error("Failed to load highlights:", error);
     }
-  }, [content.id]);
+  }, [content.id, isLesson]);
 
   // Load lookups - memoized with content.id dependency
   const loadLookups = useCallback(async () => {
     try {
-      const response = await fetch(`/api/translation-lookups?contentId=${content.id}`);
+      const param = isLesson ? `lessonId=${content.id}` : `contentId=${content.id}`;
+      const response = await fetch(`/api/translation-lookups?${param}`);
       if (response.ok) {
         const data = await response.json();
         setLookups(data);
@@ -77,7 +80,7 @@ export function ArticleRenderer({ content }: ArticleRendererProps) {
     } catch (error) {
       console.error("Failed to load lookups:", error);
     }
-  }, [content.id]);
+  }, [content.id, isLesson]);
 
   // Generate TOC from content headings (for HTML content) - memoized
   const generateTOC = useCallback(() => {
@@ -142,7 +145,7 @@ export function ArticleRenderer({ content }: ArticleRendererProps) {
         targetLang: "en", // TODO: Get from user profile
         contextBefore: selection?.contextBefore,
         contextAfter: selection?.contextAfter,
-        contentId: content.id,
+        ...(isLesson ? { lessonId: content.id } : { contentId: content.id }),
       }),
     });
 
@@ -157,7 +160,7 @@ export function ArticleRenderer({ content }: ArticleRendererProps) {
     await loadLookups();
 
     return result;
-  }, [content.language, content.id, selection?.contextBefore, selection?.contextAfter, loadLookups]);
+  }, [content.language, content.id, isLesson, selection?.contextBefore, selection?.contextAfter, loadLookups]);
 
   // Handle add note
   const handleAddNote = useCallback(async (
@@ -171,7 +174,7 @@ export function ArticleRenderer({ content }: ArticleRendererProps) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        contentId: content.id,
+        ...(isLesson ? { lessonId: content.id } : { contentId: content.id }),
         positionType: "offset",
         startPosition: selection.startOffset,
         endPosition: selection.endOffset,
@@ -190,7 +193,7 @@ export function ArticleRenderer({ content }: ArticleRendererProps) {
       setSelection(null);
       window.getSelection()?.removeAllRanges();
     }
-  }, [content.id, selection, loadHighlights]);
+  }, [content.id, isLesson, selection, loadHighlights]);
 
   // Handle save word (create highlight + add to vocabulary/flashcards)
   const handleSaveWord = useCallback(async (
@@ -305,14 +308,15 @@ export function ArticleRenderer({ content }: ArticleRendererProps) {
 
   // Handle clear lookups
   const handleClearLookups = useCallback(async () => {
-    const response = await fetch(`/api/translation-lookups?contentId=${content.id}`, {
+    const param = isLesson ? `lessonId=${content.id}` : `contentId=${content.id}`;
+    const response = await fetch(`/api/translation-lookups?${param}`, {
       method: "DELETE",
     });
 
     if (response.ok) {
       setLookups([]);
     }
-  }, [content.id]);
+  }, [content.id, isLesson]);
 
   // Handle remove single lookup
   const handleRemoveLookup = useCallback(async (id: string) => {
@@ -348,6 +352,7 @@ export function ArticleRenderer({ content }: ArticleRendererProps) {
       <ReaderLayout
         title={content.title}
         contentScrollRef={contentContainerRef}
+        hideLeftSidebar={tocItems.length === 0}
         leftSidebar={
           <TableOfContents
             items={tocItems}

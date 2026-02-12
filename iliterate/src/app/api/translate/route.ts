@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: validationError || "Invalid request body" }, { status: 400 });
     }
 
-    const { text, sourceLang, targetLang, contextBefore, contextAfter, contentId } = body;
+    const { text, sourceLang, targetLang, contextBefore, contextAfter, contentId, lessonId } = body;
 
     // Get translation from Gemini
     const translation = await translateWithContext({
@@ -38,13 +38,14 @@ export async function POST(request: NextRequest) {
       contextAfter,
     });
 
-    // If contentId provided, save to translation_lookups
-    if (contentId) {
+    // If contentId or lessonId provided, save to translation_lookups
+    if (contentId || lessonId) {
       const { error: insertError } = await supabase
         .from("translation_lookups")
         .insert({
           user_id: user.id,
-          content_id: contentId,
+          content_id: contentId || null,
+          lesson_id: lessonId || null,
           source_text: text,
           translated_text: translation.translation,
           source_lang: sourceLang,

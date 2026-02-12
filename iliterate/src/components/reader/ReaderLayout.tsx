@@ -7,11 +7,12 @@ import { cn } from "@/lib/utils";
 
 interface ReaderLayoutProps {
   children: React.ReactNode;
-  leftSidebar: React.ReactNode;
+  leftSidebar?: React.ReactNode;
   rightSidebar: React.ReactNode;
   audioPlayer?: React.ReactNode;
   title?: string;
   contentScrollRef?: React.RefObject<HTMLDivElement | null>;
+  hideLeftSidebar?: boolean;
 }
 
 export function ReaderLayout({
@@ -21,40 +22,48 @@ export function ReaderLayout({
   audioPlayer,
   title,
   contentScrollRef,
+  hideLeftSidebar = false,
 }: ReaderLayoutProps) {
-  const [leftOpen, setLeftOpen] = useState(true);
+  const [leftOpen, setLeftOpen] = useState(!hideLeftSidebar);
   const [rightOpen, setRightOpen] = useState(true);
   const [showAudio, setShowAudio] = useState(false);
+
+  // Don't render left sidebar at all if it should be hidden and there's no content
+  const showLeftSidebar = !hideLeftSidebar && leftSidebar;
 
   return (
     <div className="flex h-[calc(100vh-3.5rem)] overflow-hidden">
       {/* Left Sidebar - Table of Contents */}
-      <aside
-        className={cn(
-          "flex-shrink-0 border-r bg-muted/30 transition-all duration-300 ease-in-out overflow-hidden",
-          leftOpen ? "w-64 opacity-100" : "w-0 opacity-0"
-        )}
-      >
-        <div className="h-full w-64 overflow-y-auto p-4">
-          {leftSidebar}
-        </div>
-      </aside>
+      {showLeftSidebar && (
+        <aside
+          className={cn(
+            "flex-shrink-0 border-r bg-muted/30 transition-all duration-300 ease-in-out overflow-hidden",
+            leftOpen ? "w-64 opacity-100" : "w-0 opacity-0"
+          )}
+        >
+          <div className="h-full w-64 overflow-y-auto p-4">
+            {leftSidebar}
+          </div>
+        </aside>
+      )}
 
       {/* Main Content Area */}
       <div className="flex flex-1 flex-col min-w-0">
         {/* Toolbar */}
         <div className="flex items-center justify-between border-b px-4 py-2">
           <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setLeftOpen(!leftOpen)}
-              className={cn("h-8 w-8", leftOpen && "bg-accent")}
-            >
-              <PanelLeft className="h-4 w-4" />
-            </Button>
+            {showLeftSidebar && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setLeftOpen(!leftOpen)}
+                className={cn("h-8 w-8", leftOpen && "bg-accent")}
+              >
+                <PanelLeft className="h-4 w-4" />
+              </Button>
+            )}
             {title && (
-              <span className="ml-2 text-sm font-medium truncate max-w-xs">
+              <span className={cn("text-sm font-medium truncate max-w-xs", showLeftSidebar && "ml-2")}>
                 {title}
               </span>
             )}

@@ -408,3 +408,165 @@ export const WEIGHT_PRESETS = {
 } as const;
 
 export type WeightPresetKey = keyof typeof WEIGHT_PRESETS;
+
+// ============================================================================
+// Level Descriptions (Real-World Abilities)
+// ============================================================================
+
+/** Description of what a user can do at each level */
+export interface LevelDescription {
+  level: number;
+  cefr: CEFRLevel;
+  title: string;
+  description: string;
+}
+
+/** Detailed descriptions for each of the 20 levels */
+export const LEVEL_DESCRIPTIONS: Record<number, LevelDescription> = {
+  // A1 - Absolute Beginner (Levels 1-3)
+  1: {
+    level: 1,
+    cefr: "A1",
+    title: "First Steps",
+    description: "Recognize the alphabet/script. Say 'hello' and 'thank you'. Count to 10.",
+  },
+  2: {
+    level: 2,
+    cefr: "A1",
+    title: "Basic Greetings",
+    description: "Introduce yourself with your name. Understand very slow, clear speech. Use basic courtesy phrases.",
+  },
+  3: {
+    level: 3,
+    cefr: "A1",
+    title: "Simple Interactions",
+    description: "Ask and answer simple questions ('Where is...?', 'How much?'). Order food by pointing and using single words. Recognize common signs.",
+  },
+
+  // A2 - Elementary (Levels 4-6)
+  4: {
+    level: 4,
+    cefr: "A2",
+    title: "Everyday Basics",
+    description: "Describe your family and home. Ask for directions and understand simple replies. Handle basic shopping situations.",
+  },
+  5: {
+    level: 5,
+    cefr: "A2",
+    title: "Daily Routines",
+    description: "Talk about your daily routine and hobbies. Understand the main point of short announcements. Write simple messages and postcards.",
+  },
+  6: {
+    level: 6,
+    cefr: "A2",
+    title: "Getting Around",
+    description: "Make simple travel arrangements (hotels, tickets). Describe past events in basic terms. Follow simple instructions and recipes.",
+  },
+
+  // B1 - Intermediate (Levels 7-10)
+  7: {
+    level: 7,
+    cefr: "B1",
+    title: "Basic Conversations",
+    description: "Hold a basic conversation on familiar topics. Understand the main points of clear TV/radio programs. Write personal letters describing experiences.",
+  },
+  8: {
+    level: 8,
+    cefr: "B1",
+    title: "Expressing Opinions",
+    description: "Express opinions and explain your reasoning. Understand most of what's said at normal speed on familiar topics. Read straightforward factual texts.",
+  },
+  9: {
+    level: 9,
+    cefr: "B1",
+    title: "Independent Travel",
+    description: "Handle most travel situations without preparation. Follow TV shows and films with subtitles. Write connected text on topics of personal interest.",
+  },
+  10: {
+    level: 10,
+    cefr: "B1",
+    title: "Abstract Discussions",
+    description: "Participate in conversations on abstract topics. Understand extended speech and lectures. Read articles about current issues and understand the writer's viewpoint.",
+  },
+
+  // B2 - Upper Intermediate (Levels 11-14)
+  11: {
+    level: 11,
+    cefr: "B2",
+    title: "Debating Ideas",
+    description: "Argue a point of view on current topics. Understand most TV news and films in standard dialect. Write clear essays presenting pros and cons.",
+  },
+  12: {
+    level: 12,
+    cefr: "B2",
+    title: "Fluent Interaction",
+    description: "Communicate fluently with native speakers without strain for either party. Read novels adapted for learners. Understand specialized articles in your field.",
+  },
+  13: {
+    level: 13,
+    cefr: "B2",
+    title: "Spontaneous Expression",
+    description: "Express yourself spontaneously without obvious searching for words. Follow complex lines of argument. Write detailed descriptions of real or imaginary events.",
+  },
+  14: {
+    level: 14,
+    cefr: "B2",
+    title: "Professional Communication",
+    description: "Interact with native speakers easily in professional settings. Understand most movies without subtitles. Write clear, well-structured reports and articles.",
+  },
+
+  // C1 - Advanced (Levels 15-17)
+  15: {
+    level: 15,
+    cefr: "C1",
+    title: "Fluent & Flexible",
+    description: "Express ideas fluently and spontaneously. Understand extended speech even when not clearly structured. Read long, complex texts including literary works.",
+  },
+  16: {
+    level: 16,
+    cefr: "C1",
+    title: "Nuanced Understanding",
+    description: "Use language flexibly for social, academic, and professional purposes. Recognize implicit meaning, irony, and humor. Produce detailed, well-organized text on complex subjects.",
+  },
+  17: {
+    level: 17,
+    cefr: "C1",
+    title: "Near-Native Comprehension",
+    description: "Understand virtually all spoken language, including fast native speech with regional accents. Read with ease virtually any kind of text. Express yourself precisely in demanding situations.",
+  },
+
+  // C2 - Mastery (Levels 18-20)
+  18: {
+    level: 18,
+    cefr: "C2",
+    title: "Effortless Understanding",
+    description: "Understand with ease virtually everything heard or read. Summarize information from different sources, reconstructing arguments coherently.",
+  },
+  19: {
+    level: 19,
+    cefr: "C2",
+    title: "Cultural Fluency",
+    description: "Express yourself spontaneously, very fluently and precisely. Appreciate subtle distinctions in meaning, humor, and cultural references in any type of text.",
+  },
+  20: {
+    level: 20,
+    cefr: "C2",
+    title: "Full Mastery",
+    description: "Indistinguishable from an educated native speaker. Complete command of the language including idiomatic expressions, colloquialisms, and cultural nuances.",
+  },
+};
+
+/**
+ * Get the description for a specific level.
+ */
+export function getLevelDescription(level: number): LevelDescription {
+  const clampedLevel = Math.max(1, Math.min(MAX_LEVEL, level));
+  return LEVEL_DESCRIPTIONS[clampedLevel];
+}
+
+/**
+ * Get descriptions for a CEFR range.
+ */
+export function getDescriptionsForCEFR(cefr: CEFRLevel): LevelDescription[] {
+  return Object.values(LEVEL_DESCRIPTIONS).filter((desc) => desc.cefr === cefr);
+}
