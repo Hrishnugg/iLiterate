@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { PanelLeft, PanelRight, Headphones } from "lucide-react";
+import { PanelLeft, PanelRight, Headphones, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -13,6 +13,8 @@ interface ReaderLayoutProps {
   title?: string;
   contentScrollRef?: React.RefObject<HTMLDivElement | null>;
   hideLeftSidebar?: boolean;
+  isRSVPMode?: boolean;
+  onToggleRSVP?: () => void;
 }
 
 export function ReaderLayout({
@@ -23,6 +25,8 @@ export function ReaderLayout({
   title,
   contentScrollRef,
   hideLeftSidebar = false,
+  isRSVPMode = false,
+  onToggleRSVP,
 }: ReaderLayoutProps) {
   const [leftOpen, setLeftOpen] = useState(!hideLeftSidebar);
   const [rightOpen, setRightOpen] = useState(true);
@@ -69,6 +73,17 @@ export function ReaderLayout({
             )}
           </div>
           <div className="flex items-center gap-2">
+            {onToggleRSVP && (
+              <Button
+                variant={isRSVPMode ? "default" : "ghost"}
+                size="icon"
+                onClick={onToggleRSVP}
+                className="h-8 w-8"
+                title="RSVP Speed Reader"
+              >
+                <Zap className="h-4 w-4" />
+              </Button>
+            )}
             {audioPlayer && (
               <>
                 <Button
@@ -101,10 +116,20 @@ export function ReaderLayout({
         )}
 
         {/* Content */}
-        <div ref={contentScrollRef} className="flex-1 overflow-y-auto">
-          <article className="mx-auto max-w-3xl px-8 py-12">
-            {children}
-          </article>
+        <div
+          ref={contentScrollRef}
+          className={cn(
+            "flex-1",
+            isRSVPMode ? "overflow-hidden" : "overflow-y-auto"
+          )}
+        >
+          {isRSVPMode ? (
+            children
+          ) : (
+            <article className="mx-auto max-w-3xl px-8 py-12">
+              {children}
+            </article>
+          )}
         </div>
       </div>
 

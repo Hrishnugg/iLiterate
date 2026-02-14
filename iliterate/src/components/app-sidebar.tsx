@@ -8,8 +8,6 @@ import {
   Layers,
   ClipboardCheck,
   User,
-  PanelLeftClose,
-  PanelLeft,
   TrendingUp,
   GraduationCap,
 } from "lucide-react";
@@ -25,9 +23,9 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 const navItems = [
   { title: "Lesson Plan", href: "/lesson-plan", icon: GraduationCap },
@@ -97,6 +95,9 @@ export function AppSidebar() {
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
+            <ThemeToggle />
+          </SidebarMenuItem>
+          <SidebarMenuItem>
             <SidebarMenuButton
               asChild
               tooltip="Profile"
@@ -107,9 +108,6 @@ export function AppSidebar() {
                 <span>Profile</span>
               </Link>
             </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarTrigger className="w-full justify-start" />
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
