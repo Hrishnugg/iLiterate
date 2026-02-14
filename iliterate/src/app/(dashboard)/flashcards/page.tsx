@@ -54,7 +54,7 @@ export default function FlashcardsPage() {
         </CardContent>
         <CardFooter>
           <Button asChild className="w-full">
-              <Link href = "/recent">
+              <Link href = "/sorted-by-book">
                 View Sorted By Book
               </Link>
           </Button>
