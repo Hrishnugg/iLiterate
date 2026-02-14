@@ -9,7 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { Plus } from "lucide-react";
+import { Book, Plus } from "lucide-react";
 
 
 export default function FlashcardsPage() {
@@ -24,7 +24,8 @@ export default function FlashcardsPage() {
       <Card>
         <CardHeader>
           <div className="flex items-start justify-between">
-          <CardTitle className="text-lg">View Flashcards</CardTitle>
+          <CardTitle className="text-lg">View All Flashcards
+          </CardTitle>
           </div>
         </CardHeader>
         <CardContent>
@@ -43,39 +44,19 @@ export default function FlashcardsPage() {
       <Card>
         <CardHeader>
           <div className="flex items-start justify-between">
-          <CardTitle className="text-lg">Recently Added</CardTitle>
+          <CardTitle className="text-lg">Sorted By Book</CardTitle>
           </div>
         </CardHeader>
         <CardContent>
           <p>
-            Review recently defined words from your books.
+            Review defined words from your books.
           </p>
         </CardContent>
         <CardFooter>
           <Button asChild className="w-full">
               <Link href = "/recent">
-                View Recently Added
+                View Sorted By Book
               </Link>
-          </Button>
-        </CardFooter>
-      </Card>
-      <Card>
-        <CardHeader>
-          <div className="flex items-start justify-between">
-          <CardTitle className="text-lg">Create New Flashcard</CardTitle>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <p>
-            Create your own flashcard for a term!
-          </p>
-        </CardContent>
-        <CardFooter>
-          <Button asChild className="w-full">
-            <Link href = "/create">
-              <Plus/>
-              Create
-            </Link>
           </Button>
         </CardFooter>
       </Card>
