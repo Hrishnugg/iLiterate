@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { highlightRequestSchema, uuidSchema, validateRequestBody } from "@/lib/validations";
 
-// GET /api/highlights?contentId=xxx
+// GET /api/highlights?contentId=xxx or ?lessonId=xxx
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
@@ -18,12 +18,19 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const contentId = searchParams.get("contentId");
+    const lessonId = searchParams.get("lessonId");
 
-    // Validate contentId if provided
+    // Validate IDs if provided
     if (contentId) {
       const result = uuidSchema.safeParse(contentId);
       if (!result.success) {
         return NextResponse.json({ error: "Invalid contentId format" }, { status: 400 });
+      }
+    }
+    if (lessonId) {
+      const result = uuidSchema.safeParse(lessonId);
+      if (!result.success) {
+        return NextResponse.json({ error: "Invalid lessonId format" }, { status: 400 });
       }
     }
 
@@ -35,6 +42,8 @@ export async function GET(request: NextRequest) {
 
     if (contentId) {
       query = query.eq("content_id", contentId);
+    } else if (lessonId) {
+      query = query.eq("lesson_id", lessonId);
     }
 
     const { data, error } = await query;
@@ -79,6 +88,7 @@ export async function POST(request: NextRequest) {
 
     const {
       contentId,
+      lessonId,
       positionType,
       startPosition,
       endPosition,
@@ -95,7 +105,8 @@ export async function POST(request: NextRequest) {
       .from("highlights")
       .insert({
         user_id: user.id,
-        content_id: contentId,
+        content_id: contentId || null,
+        lesson_id: lessonId || null,
         position_type: positionType,
         start_position: String(startPosition),
         end_position: String(endPosition),

@@ -12,6 +12,10 @@ export const SUPPORTED_LANGUAGES = [
   // Full language names also accepted
   "english", "spanish", "french", "german", "italian", "portuguese",
   "russian", "chinese", "japanese", "korean", "arabic", "hindi",
+  // Language name variations (with qualifiers)
+  "chinese (mandarin)", "chinese (cantonese)", "mandarin", "cantonese",
+  "portuguese (brazilian)", "portuguese (european)", "brazilian portuguese",
+  "spanish (latin american)", "spanish (spain)",
 ] as const;
 
 export const languageSchema = z.string().min(2).max(50).refine(
@@ -20,7 +24,9 @@ export const languageSchema = z.string().min(2).max(50).refine(
     // Allow both ISO codes and language names
     return SUPPORTED_LANGUAGES.includes(lower as typeof SUPPORTED_LANGUAGES[number]) ||
       // Also allow any 2-3 letter ISO code pattern
-      /^[a-z]{2,3}(-[a-z]{2,4})?$/i.test(val);
+      /^[a-z]{2,3}(-[a-z]{2,4})?$/i.test(val) ||
+      // Allow language names with parenthetical qualifiers
+      /^[a-z]+(\s*\([a-z\s]+\))?$/i.test(val);
   },
   { message: "Unsupported or invalid language code" }
 );
@@ -33,11 +39,13 @@ export const translateRequestSchema = z.object({
   contextBefore: z.string().max(500, "Context too long").optional(),
   contextAfter: z.string().max(500, "Context too long").optional(),
   contentId: uuidSchema.optional(),
+  lessonId: uuidSchema.optional(),
 });
 
 // Highlight request validation
 export const highlightRequestSchema = z.object({
-  contentId: uuidSchema,
+  contentId: uuidSchema.optional(),
+  lessonId: uuidSchema.optional(),
   positionType: z.enum(["offset", "xpath", "cfi"]),
   startPosition: z.union([z.string(), z.number()]),
   endPosition: z.union([z.string(), z.number()]),
@@ -48,7 +56,10 @@ export const highlightRequestSchema = z.object({
   translation: z.string().max(1000).optional(),
   transliteration: z.string().max(500).optional(),
   partOfSpeech: z.string().max(100).optional(),
-});
+}).refine(
+  (data) => data.contentId || data.lessonId,
+  { message: "Either contentId or lessonId is required" }
+);
 
 // Vocabulary request validation
 export const vocabularyRequestSchema = z.object({

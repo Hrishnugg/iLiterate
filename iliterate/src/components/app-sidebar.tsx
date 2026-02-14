@@ -8,6 +8,8 @@ import {
   Layers,
   ClipboardCheck,
   User,
+  TrendingUp,
+  GraduationCap,
 } from "lucide-react";
 
 import {
@@ -26,10 +28,12 @@ import {
 import { ThemeToggle } from "@/components/theme-toggle";
 
 const navItems = [
+  { title: "Lesson Plan", href: "/lesson-plan", icon: GraduationCap },
   { title: "Library", href: "/library", icon: Library },
   { title: "Reader", href: "/reader", icon: BookOpen },
   { title: "Flashcards", href: "/flashcards", icon: Layers },
   { title: "Quizzes", href: "/quizzes", icon: ClipboardCheck },
+  { title: "Progress", href: "/progress", icon: TrendingUp },
 ];
 
 export function AppSidebar() {
