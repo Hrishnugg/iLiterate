@@ -1,4 +1,51 @@
-export default function RecentFlashCardsPage() {
+import Link from "next/link";
+import { createClient } from "@/lib/supabase/server";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Key, ReactElement, JSXElementConstructor, ReactNode, ReactPortal } from "react";
+
+export default async function RecentFlashCardsPage() {
+
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    // unauthorized; return empty list
+    return (
+      <div>
+        <h1 className="text-2xl font-bold">Recently Added</h1>
+        <p className="text-muted-foreground mt-2">Unauthorized</p>
+      </div>
+    );
+  }
+
+  // fetch list of contents where user has saved vocabulary (flashcards)
+  const { data: vocabRows } = await supabase
+    .from("user_vocabulary")
+    .select("content_id")
+    .eq("user_id", user.id);
+
+  const contentIds = (vocabRows || [])
+    .map((l: { content_id: any }) => l.content_id)
+    .filter(Boolean);
+
+  const { data: contents } = await supabase
+    .from("content")
+    .select("*")
+    .in("id", contentIds)
+    .order("created_at", { ascending: false });
+
+
   return (
     <>
       <div>
