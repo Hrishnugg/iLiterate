@@ -1,10 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, BookOpen, Trash2, Search } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Loader2, BookOpen, Trash2, Search, Calendar, Library } from "lucide-react";
 import Link from "next/link";
 
 interface VocabularyItem {
@@ -24,23 +31,42 @@ interface UserVocabulary {
   context_sentence: string | null;
   created_at: string;
   vocabulary: VocabularyItem;
+  content?: { id: string; title: string } | null;
 }
+
+interface ContentOption {
+  id: string;
+  title: string;
+}
+
+type TimeFilter = "all" | "24h" | "7d" | "30d";
 
 export default function AllFlashcardsPage() {
   const [flashcards, setFlashcards] = useState<UserVocabulary[]>([]);
-  const [filteredCards, setFilteredCards] = useState<UserVocabulary[]>([]);
+  const [contentOptions, setContentOptions] = useState<ContentOption[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [timeFilter, setTimeFilter] = useState<TimeFilter>("all");
+  const [bookFilter, setBookFilter] = useState<string>("all");
 
   const fetchFlashcards = async () => {
     try {
       setIsLoading(true);
       const response = await fetch("/api/vocabulary");
       if (!response.ok) throw new Error("Failed to fetch flashcards");
-      const data = await response.json();
+      const data: UserVocabulary[] = await response.json();
       setFlashcards(data);
-      setFilteredCards(data);
+
+      // Extract unique content IDs and fetch their titles
+      const contentIds = [...new Set(data.map((item) => item.content_id).filter(Boolean))] as string[];
+      if (contentIds.length > 0) {
+        const contentResponse = await fetch(`/api/content/batch?ids=${contentIds.join(",")}`);
+        if (contentResponse.ok) {
+          const contents = await contentResponse.json();
+          setContentOptions(contents);
+        }
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load flashcards");
     } finally {
@@ -52,20 +78,49 @@ export default function AllFlashcardsPage() {
     fetchFlashcards();
   }, []);
 
-  useEffect(() => {
-    if (searchQuery.trim() === "") {
-      setFilteredCards(flashcards);
-    } else {
-      const query = searchQuery.toLowerCase();
-      setFilteredCards(
-        flashcards.filter(
-          (item) =>
-            item.vocabulary.word.toLowerCase().includes(query) ||
-            getTranslation(item.vocabulary).toLowerCase().includes(query)
-        )
+  // Filter cards by time, book, and search query
+  const filteredCards = useMemo(() => {
+    let filtered = flashcards;
+
+    // Apply book filter
+    if (bookFilter !== "all") {
+      filtered = filtered.filter((item) => item.content_id === bookFilter);
+    }
+
+    // Apply time filter
+    if (timeFilter !== "all") {
+      const now = new Date();
+      let cutoffDate: Date;
+
+      switch (timeFilter) {
+        case "24h":
+          cutoffDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+          break;
+        case "7d":
+          cutoffDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          break;
+        case "30d":
+          cutoffDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+          break;
+      }
+
+      filtered = filtered.filter(
+        (item) => new Date(item.created_at) >= cutoffDate
       );
     }
-  }, [searchQuery, flashcards]);
+
+    // Apply search filter
+    if (searchQuery.trim() !== "") {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(
+        (item) =>
+          item.vocabulary.word.toLowerCase().includes(query) ||
+          getTranslation(item.vocabulary).toLowerCase().includes(query)
+      );
+    }
+
+    return filtered;
+  }, [flashcards, bookFilter, timeFilter, searchQuery]);
 
   const handleDelete = async (id: string) => {
     try {
@@ -107,21 +162,69 @@ export default function AllFlashcardsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">All Flashcards</h1>
-          <p className="text-muted-foreground mt-1">
-            {flashcards.length} words saved
-          </p>
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold">All Flashcards</h1>
+            <p className="text-muted-foreground mt-1">
+              {filteredCards.length} of {flashcards.length} words
+            </p>
+          </div>
+          <div className="relative w-full sm:w-64">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search words..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+            />
+          </div>
         </div>
-        <div className="relative w-full sm:w-64">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search words..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
-          />
+
+        {/* Filters row */}
+        <div className="flex flex-wrap gap-2">
+          <Select value={bookFilter} onValueChange={setBookFilter}>
+            <SelectTrigger className="w-[180px]">
+              <Library className="h-4 w-4 mr-2" />
+              <SelectValue placeholder="Filter by book" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All books</SelectItem>
+              {contentOptions.map((content) => (
+                <SelectItem key={content.id} value={content.id}>
+                  {content.title.length > 25
+                    ? content.title.slice(0, 25) + "..."
+                    : content.title}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={timeFilter} onValueChange={(v) => setTimeFilter(v as TimeFilter)}>
+            <SelectTrigger className="w-[150px]">
+              <Calendar className="h-4 w-4 mr-2" />
+              <SelectValue placeholder="Time" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All time</SelectItem>
+              <SelectItem value="24h">Last 24 hours</SelectItem>
+              <SelectItem value="7d">Last 7 days</SelectItem>
+              <SelectItem value="30d">Last 30 days</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {(bookFilter !== "all" || timeFilter !== "all") && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setBookFilter("all");
+                setTimeFilter("all");
+              }}
+            >
+              Clear filters
+            </Button>
+          )}
         </div>
       </div>
 

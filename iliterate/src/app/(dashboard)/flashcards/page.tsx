@@ -112,22 +112,6 @@ export default function FlashcardsPage() {
         <Card className="h-full">
           <CardHeader>
             <div className="flex items-start justify-between">
-              <CardTitle className="text-lg">Recently Added</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent className="flex-1">
-            <p>Review recently defined words from your books.</p>
-          </CardContent>
-          <CardFooter className="mt-auto">
-            <Button asChild className="w-full" variant="outline">
-              <Link href="/recent">View Recently Added</Link>
-            </Button>
-          </CardFooter>
-        </Card>
-
-        <Card className="h-full">
-          <CardHeader>
-            <div className="flex items-start justify-between">
               <CardTitle className="text-lg">Create New Flashcard</CardTitle>
             </div>
           </CardHeader>
