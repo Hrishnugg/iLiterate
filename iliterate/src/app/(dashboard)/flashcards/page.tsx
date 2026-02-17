@@ -10,7 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Plus, BookOpen, Clock, Loader2, Library } from "lucide-react";
+import { Plus, BookOpen, Clock, Loader2 } from "lucide-react";
 import { FlashcardReview } from "@/components/flashcards/FlashcardReview";
 
 export default function FlashcardsPage() {
@@ -105,25 +105,6 @@ export default function FlashcardsPage() {
           <CardFooter>
             <Button asChild className="w-full" variant="outline">
               <Link href="/all">View All</Link>
-            </Button>
-          </CardFooter>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <div className="flex items-start justify-between">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Library className="h-5 w-5" />
-                Sorted by Book
-              </CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <p>Browse flashcards organized by book or article.</p>
-          </CardContent>
-          <CardFooter>
-            <Button asChild className="w-full" variant="outline">
-              <Link href="/sorted-by-book">View by Book</Link>
             </Button>
           </CardFooter>
         </Card>

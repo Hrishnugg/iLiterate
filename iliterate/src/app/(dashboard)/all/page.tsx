@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, BookOpen, Trash2, Search, Calendar } from "lucide-react";
+import { Loader2, BookOpen, Trash2, Search, Calendar, Library } from "lucide-react";
 import Link from "next/link";
 
 interface VocabularyItem {
@@ -31,24 +31,42 @@ interface UserVocabulary {
   context_sentence: string | null;
   created_at: string;
   vocabulary: VocabularyItem;
+  content?: { id: string; title: string } | null;
+}
+
+interface ContentOption {
+  id: string;
+  title: string;
 }
 
 type TimeFilter = "all" | "24h" | "7d" | "30d";
 
 export default function AllFlashcardsPage() {
   const [flashcards, setFlashcards] = useState<UserVocabulary[]>([]);
+  const [contentOptions, setContentOptions] = useState<ContentOption[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("all");
+  const [bookFilter, setBookFilter] = useState<string>("all");
 
   const fetchFlashcards = async () => {
     try {
       setIsLoading(true);
       const response = await fetch("/api/vocabulary");
       if (!response.ok) throw new Error("Failed to fetch flashcards");
-      const data = await response.json();
+      const data: UserVocabulary[] = await response.json();
       setFlashcards(data);
+
+      // Extract unique content IDs and fetch their titles
+      const contentIds = [...new Set(data.map((item) => item.content_id).filter(Boolean))] as string[];
+      if (contentIds.length > 0) {
+        const contentResponse = await fetch(`/api/content/batch?ids=${contentIds.join(",")}`);
+        if (contentResponse.ok) {
+          const contents = await contentResponse.json();
+          setContentOptions(contents);
+        }
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load flashcards");
     } finally {
@@ -60,9 +78,14 @@ export default function AllFlashcardsPage() {
     fetchFlashcards();
   }, []);
 
-  // Filter cards by time and search query
+  // Filter cards by time, book, and search query
   const filteredCards = useMemo(() => {
     let filtered = flashcards;
+
+    // Apply book filter
+    if (bookFilter !== "all") {
+      filtered = filtered.filter((item) => item.content_id === bookFilter);
+    }
 
     // Apply time filter
     if (timeFilter !== "all") {
@@ -97,7 +120,7 @@ export default function AllFlashcardsPage() {
     }
 
     return filtered;
-  }, [flashcards, timeFilter, searchQuery]);
+  }, [flashcards, bookFilter, timeFilter, searchQuery]);
 
   const handleDelete = async (id: string) => {
     try {
@@ -147,29 +170,61 @@ export default function AllFlashcardsPage() {
               {filteredCards.length} of {flashcards.length} words
             </p>
           </div>
-          <div className="flex gap-2">
-            <Select value={timeFilter} onValueChange={(v) => setTimeFilter(v as TimeFilter)}>
-              <SelectTrigger className="w-[140px]">
-                <Calendar className="h-4 w-4 mr-2" />
-                <SelectValue placeholder="Time" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All time</SelectItem>
-                <SelectItem value="24h">Last 24 hours</SelectItem>
-                <SelectItem value="7d">Last 7 days</SelectItem>
-                <SelectItem value="30d">Last 30 days</SelectItem>
-              </SelectContent>
-            </Select>
-            <div className="relative w-full sm:w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search words..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9"
-              />
-            </div>
+          <div className="relative w-full sm:w-64">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search words..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+            />
           </div>
+        </div>
+
+        {/* Filters row */}
+        <div className="flex flex-wrap gap-2">
+          <Select value={bookFilter} onValueChange={setBookFilter}>
+            <SelectTrigger className="w-[180px]">
+              <Library className="h-4 w-4 mr-2" />
+              <SelectValue placeholder="Filter by book" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All books</SelectItem>
+              {contentOptions.map((content) => (
+                <SelectItem key={content.id} value={content.id}>
+                  {content.title.length > 25
+                    ? content.title.slice(0, 25) + "..."
+                    : content.title}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={timeFilter} onValueChange={(v) => setTimeFilter(v as TimeFilter)}>
+            <SelectTrigger className="w-[150px]">
+              <Calendar className="h-4 w-4 mr-2" />
+              <SelectValue placeholder="Time" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All time</SelectItem>
+              <SelectItem value="24h">Last 24 hours</SelectItem>
+              <SelectItem value="7d">Last 7 days</SelectItem>
+              <SelectItem value="30d">Last 30 days</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {(bookFilter !== "all" || timeFilter !== "all") && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setBookFilter("all");
+                setTimeFilter("all");
+              }}
+            >
+              Clear filters
+            </Button>
+          )}
         </div>
       </div>
 
