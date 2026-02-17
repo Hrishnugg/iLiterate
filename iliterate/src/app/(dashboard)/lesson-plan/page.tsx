@@ -184,7 +184,7 @@ export default function LessonPlanPage() {
 
       {/* Current Level Display */}
       <Card>
-        <CardContent className="pt-6">
+        <CardContent>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">

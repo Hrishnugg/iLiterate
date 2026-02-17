@@ -47,9 +47,9 @@ export default function FlashcardsPage() {
         Review your saved vocabulary.
       </p>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mt-6">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mt-10 items-stretch">
         {/* Start Review Card - Primary action */}
-        <Card className="border-primary/50 bg-primary/5">
+        <Card className="h-full border-primary/50 bg-primary/5">
           <CardHeader>
             <div className="flex items-start justify-between">
               <CardTitle className="text-lg flex items-center gap-2">
@@ -63,7 +63,7 @@ export default function FlashcardsPage() {
               )}
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex-1">
             <p>
               {isLoadingDue ? (
                 <span className="flex items-center gap-2 text-muted-foreground">
@@ -79,7 +79,7 @@ export default function FlashcardsPage() {
               )}
             </p>
           </CardContent>
-          <CardFooter>
+          <CardFooter className="mt-auto">
             <Button
               className="w-full"
               onClick={() => setShowReview(true)}
@@ -90,7 +90,7 @@ export default function FlashcardsPage() {
           </CardFooter>
         </Card>
 
-        <Card>
+        <Card className="h-full">
           <CardHeader>
             <div className="flex items-start justify-between">
               <CardTitle className="text-lg flex items-center gap-2">
@@ -99,42 +99,42 @@ export default function FlashcardsPage() {
               </CardTitle>
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex-1">
             <p>Look at all the new words you&apos;ve learned so far!</p>
           </CardContent>
-          <CardFooter>
+          <CardFooter className="mt-auto">
             <Button asChild className="w-full" variant="outline">
               <Link href="/all">View All</Link>
             </Button>
           </CardFooter>
         </Card>
 
-        <Card>
+        <Card className="h-full">
           <CardHeader>
             <div className="flex items-start justify-between">
               <CardTitle className="text-lg">Recently Added</CardTitle>
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex-1">
             <p>Review recently defined words from your books.</p>
           </CardContent>
-          <CardFooter>
+          <CardFooter className="mt-auto">
             <Button asChild className="w-full" variant="outline">
               <Link href="/recent">View Recently Added</Link>
             </Button>
           </CardFooter>
         </Card>
 
-        <Card>
+        <Card className="h-full">
           <CardHeader>
             <div className="flex items-start justify-between">
               <CardTitle className="text-lg">Create New Flashcard</CardTitle>
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex-1">
             <p>Create your own flashcard for a term!</p>
           </CardContent>
-          <CardFooter>
+          <CardFooter className="mt-auto">
             <Button asChild className="w-full" variant="outline">
               <Link href="/create">
                 <Plus className="h-4 w-4 mr-2" />

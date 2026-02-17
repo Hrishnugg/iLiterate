@@ -1,6 +1,6 @@
 "use client";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
 import { CEFRLevel } from "@/types/database";
 import { Trophy } from "lucide-react";
 
@@ -13,14 +13,20 @@ const CEFR_DESCRIPTIONS: Record<CEFRLevel, string> = {
   C2: "Mastery",
 };
 
-const CEFR_COLORS: Record<CEFRLevel, string> = {
-  A1: "from-gray-400 to-gray-500",
-  A2: "from-green-400 to-green-500",
-  B1: "from-blue-400 to-blue-500",
-  B2: "from-indigo-400 to-indigo-500",
-  C1: "from-purple-400 to-purple-500",
-  C2: "from-yellow-400 to-yellow-500",
+const CEFR_LABEL_COLORS: Record<CEFRLevel, string> = {
+  A1: "text-muted-foreground",
+  A2: "text-chart-2",
+  B1: "text-chart-1",
+  B2: "text-chart-3",
+  C1: "text-chart-4",
+  C2: "text-chart-5",
 };
+
+const SKILL_COLORS = {
+  reading: "text-chart-1",
+  vocabulary: "text-chart-2",
+  grammar: "text-chart-4",
+} as const;
 
 interface OverallProgressCardProps {
   level: number;
@@ -38,47 +44,66 @@ export function OverallProgressCard({
   skillLevels,
 }: OverallProgressCardProps) {
   return (
-    <Card className="overflow-hidden">
-      <div className={`h-2 bg-gradient-to-r ${CEFR_COLORS[cefr]}`} />
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="text-lg">Overall Level</CardTitle>
-            <CardDescription>{CEFR_DESCRIPTIONS[cefr]}</CardDescription>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="text-right">
-              <div className="text-4xl font-bold">{level}</div>
-              <div className={`text-lg font-semibold bg-gradient-to-r ${CEFR_COLORS[cefr]} bg-clip-text text-transparent`}>
-                {cefr}
+    <Card className="overflow-hidden rounded-xl"
+      role="article"
+      aria-labelledby="overall-level-heading"
+      aria-describedby="overall-level-desc"
+    >
+      <CardHeader className="pb-4">
+        <div className="flex items-center justify-between gap-4">
+          <div className="min-w-0 flex flex-col gap-1">
+            <h2
+              id="overall-level-heading"
+              className="text-lg font-semibold leading-none text-balance"
+            >
+              Overall Level
+            </h2>
+              <CardDescription id="overall-level-desc" className="truncate">
+                {CEFR_DESCRIPTIONS[cefr]}
+              </CardDescription>
+            </div>
+            <div className="flex items-center gap-3 shrink-0">
+              <div className="text-right tabular-nums">
+                <div className="text-3xl font-bold tabular-nums">
+                  {level}
+                </div>
+                <div className={`text-base font-semibold ${CEFR_LABEL_COLORS[cefr]}`}>
+                  {cefr}
+                </div>
               </div>
+              <Trophy
+                className="h-9 w-9 text-chart-4 opacity-90"
+                aria-hidden="true"
+              />
             </div>
-            <Trophy className="h-10 w-10 text-yellow-500" />
           </div>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-3 gap-4 text-center">
-          <div>
-            <div className="text-2xl font-bold text-blue-500">
-              {skillLevels.reading}
+        </CardHeader>
+        <CardContent className="pt-0">
+          <div
+            className="grid grid-cols-3 gap-4 rounded-lg border-t border-r border-b border-border bg-muted/30 px-4 py-4"
+            role="group"
+            aria-label="Skill levels"
+          >
+            <div className="text-center min-w-0">
+              <div className={`text-xl font-bold tabular-nums ${SKILL_COLORS.reading}`}>
+                {skillLevels.reading}
+              </div>
+              <div className="text-xs text-muted-foreground truncate">Reading</div>
             </div>
-            <div className="text-xs text-muted-foreground">Reading</div>
-          </div>
-          <div>
-            <div className="text-2xl font-bold text-green-500">
-              {skillLevels.vocabulary}
+            <div className="text-center min-w-0 border-x border-border/60">
+              <div className={`text-xl font-bold tabular-nums ${SKILL_COLORS.vocabulary}`}>
+                {skillLevels.vocabulary}
+              </div>
+              <div className="text-xs text-muted-foreground truncate">Vocabulary</div>
             </div>
-            <div className="text-xs text-muted-foreground">Vocabulary</div>
-          </div>
-          <div>
-            <div className="text-2xl font-bold text-purple-500">
-              {skillLevels.grammar}
+            <div className="text-center min-w-0">
+              <div className={`text-xl font-bold tabular-nums ${SKILL_COLORS.grammar}`}>
+                {skillLevels.grammar}
+              </div>
+              <div className="text-xs text-muted-foreground truncate">Grammar</div>
             </div>
-            <div className="text-xs text-muted-foreground">Grammar</div>
           </div>
-        </div>
-      </CardContent>
+        </CardContent>
     </Card>
   );
 }
