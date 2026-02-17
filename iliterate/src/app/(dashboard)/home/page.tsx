@@ -1,7 +1,6 @@
 import Link from "next/link";
 import {
   BookOpen,
-  BookText,
   Layers,
   HelpCircle,
   Settings,
@@ -20,13 +19,7 @@ const features = [
     href: "/library",
     icon: BookOpen,
   },
-  {
-    title: "Reader",
-    description: "Read and interact with content",
-    href: "/reader",
-    icon: BookText,
-  },
-  {
+{
     title: "Flashcards",
     description: "Review your saved vocabulary",
     href: "/flashcards",
