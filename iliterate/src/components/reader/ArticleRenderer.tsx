@@ -415,6 +415,7 @@ export function ArticleRenderer({ content, isLesson = false }: ArticleRendererPr
         hideLeftSidebar={tocItems.length === 0}
         isRSVPMode={isRSVPMode}
         onToggleRSVP={toggleRSVP}
+        requestRightOpen={focusedHighlightId}
         leftSidebar={
           <TableOfContents
             items={tocItems}
