@@ -73,36 +73,37 @@ export function TranslatePopover({
 
     const popoverRect = popoverRef.current.getBoundingClientRect();
     const popoverHeight = popoverRect.height;
-    const popoverWidth = 320; // w-80 = 20rem = 320px
+    const popoverWidth = popoverRef.current.offsetWidth || 380;
     const padding = 12;
+    const selectionHeight = 30;
 
     // Horizontal: keep within viewport
     let left = position.x - popoverWidth / 2;
     left = Math.max(padding, Math.min(left, window.innerWidth - popoverWidth - padding));
 
-    // Vertical: prefer above selection, fall back to below
+    // Vertical: prefer below when near top, above when near bottom
     const spaceAbove = position.y;
-    const spaceBelow = window.innerHeight - position.y - 30; // 30px for selection height estimate
+    const spaceBelow = window.innerHeight - position.y - selectionHeight;
 
     let top: number;
     let placeBelow: boolean;
 
-    if (spaceAbove >= popoverHeight + padding) {
+    if (spaceBelow >= popoverHeight + padding) {
+      // Fits below - prefer this to avoid clipping near top
+      top = position.y + selectionHeight;
+      placeBelow = true;
+    } else if (spaceAbove >= popoverHeight + padding) {
       // Fits above
       top = position.y - popoverHeight - padding;
       placeBelow = false;
-    } else if (spaceBelow >= popoverHeight + padding) {
-      // Fits below
-      top = position.y + 30;
-      placeBelow = true;
     } else {
-      // Doesn't fit either way - place where there's more room and constrain height
-      if (spaceAbove > spaceBelow) {
+      // Doesn't fit either way - place where there's more room
+      if (spaceBelow >= spaceAbove) {
+        top = position.y + selectionHeight;
+        placeBelow = true;
+      } else {
         top = Math.max(padding, position.y - popoverHeight - padding);
         placeBelow = false;
-      } else {
-        top = position.y + 30;
-        placeBelow = true;
       }
     }
 
@@ -116,23 +117,23 @@ export function TranslatePopover({
     return () => cancelAnimationFrame(rafId);
   }, [updatePosition, translation, loading, showNoteInput]);
 
-  // Calculate max height based on available space
+  // Calculate max height based on available space, capped at 500px
   const maxHeight = adjustedPos
     ? adjustedPos.placeBelow
       ? window.innerHeight - adjustedPos.top - 12
       : position.y - 12
-    : 400;
+    : 500;
 
   const popupStyle: React.CSSProperties = {
     position: "fixed",
-    left: adjustedPos?.left ?? Math.min(position.x - 144, window.innerWidth - 300),
+    left: adjustedPos?.left ?? Math.min(position.x - 190, window.innerWidth - 392),
     top: adjustedPos?.top ?? (position.y > 200 ? position.y - 10 : position.y + 30),
     zIndex: 50,
-    maxHeight: Math.min(maxHeight, 400),
+    maxHeight: Math.min(maxHeight, 500),
   };
 
   return (
-    <div ref={popoverRef} style={popupStyle} className="w-80 flex flex-col">
+    <div ref={popoverRef} style={popupStyle} className="w-[24rem] max-w-[calc(100vw-24px)] flex flex-col">
       <div className="rounded-lg border bg-popover shadow-lg relative flex flex-col overflow-hidden" style={{ maxHeight: 'inherit' }}>
         {/* Close button */}
         <button
@@ -232,13 +233,6 @@ export function TranslatePopover({
                 >
                   <BookOpen className="mr-1.5 h-3.5 w-3.5" />
                   Save Word
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={onClose}
-                >
-                  Close
                 </Button>
               </div>
             </div>
