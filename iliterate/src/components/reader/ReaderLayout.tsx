@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { PanelLeft, PanelRight, Headphones, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -15,6 +15,7 @@ interface ReaderLayoutProps {
   hideLeftSidebar?: boolean;
   isRSVPMode?: boolean;
   onToggleRSVP?: () => void;
+  requestRightOpen?: string | null;
 }
 
 export function ReaderLayout({
@@ -27,10 +28,18 @@ export function ReaderLayout({
   hideLeftSidebar = false,
   isRSVPMode = false,
   onToggleRSVP,
+  requestRightOpen,
 }: ReaderLayoutProps) {
   const [leftOpen, setLeftOpen] = useState(!hideLeftSidebar);
   const [rightOpen, setRightOpen] = useState(true);
   const [showAudio, setShowAudio] = useState(false);
+
+  // Open right sidebar when requested (e.g. highlight clicked)
+  useEffect(() => {
+    if (requestRightOpen) {
+      setRightOpen(true);
+    }
+  }, [requestRightOpen]);
 
   // Don't render left sidebar at all if it should be hidden and there's no content
   const showLeftSidebar = !hideLeftSidebar && leftSidebar;
