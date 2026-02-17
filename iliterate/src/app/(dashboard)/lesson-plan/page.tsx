@@ -4,8 +4,9 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, BookOpen, Clock, Target, ChevronRight, Trophy, TrendingUp, TrendingDown, Minus, Sparkles } from "lucide-react";
+import { Loader2, BookOpen, Clock, Target, ChevronRight, Trophy, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { numericLevelToCEFR } from "@/types/database";
+import { DowngradeLevelDialog } from "@/components/lesson/DowngradeLevelDialog";
 
 interface TopicInfo {
   id: string;
@@ -78,6 +79,7 @@ export default function LessonPlanPage() {
   const [selectedLength, setSelectedLength] = useState<"short" | "medium" | "long">("medium");
   const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
   const [showTopicSelector, setShowTopicSelector] = useState(false);
+  const [showDowngradeDialog, setShowDowngradeDialog] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -176,7 +178,7 @@ export default function LessonPlanPage() {
       <div>
         <h1 className="text-2xl font-bold">Lesson Plan</h1>
         <p className="text-muted-foreground mt-1">
-          Practice reading with AI-generated content tailored to your level
+          Practice reading with content tailored to your level
         </p>
       </div>
 
@@ -198,10 +200,25 @@ export default function LessonPlanPage() {
             <div className="text-right">
               <p className="text-sm text-muted-foreground">CEFR Level</p>
               <p className="text-2xl font-bold text-primary">{cefrLevel}</p>
+              {userLevel > 3 && (
+                <button
+                  onClick={() => setShowDowngradeDialog(true)}
+                  className="text-xs text-muted-foreground hover:text-orange-500 hover:underline mt-1"
+                >
+                  Level too hard?
+                </button>
+              )}
             </div>
           </div>
         </CardContent>
       </Card>
+
+      {/* Downgrade Level Dialog */}
+      <DowngradeLevelDialog
+        open={showDowngradeDialog}
+        onOpenChange={setShowDowngradeDialog}
+        onDowngradeComplete={fetchData}
+      />
 
       {/* Active Lesson Card */}
       {currentLesson && currentLesson.status !== "completed" && (
@@ -236,15 +253,15 @@ export default function LessonPlanPage() {
         </Card>
       )}
 
-      {/* Generate New Lesson */}
+      {/* New Lesson */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5" />
-            Start New Lesson
+            <BookOpen className="h-5 w-5" />
+            New Lesson
           </CardTitle>
           <CardDescription>
-            Generate a new reading tailored to your current level
+            Practice reading with content tailored to your current level
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -292,7 +309,7 @@ export default function LessonPlanPage() {
                     </span>
                   ) : (
                     <span className="text-muted-foreground">
-                      AI will suggest a topic based on your learning goals
+                      A topic will be suggested based on your learning goals
                     </span>
                   )}
                 </div>
@@ -333,13 +350,13 @@ export default function LessonPlanPage() {
                     setShowTopicSelector(false);
                   }}
                 >
-                  Use AI Suggestion Instead
+                  Surprise Me
                 </Button>
               </div>
             )}
           </div>
 
-          {/* Generate Button */}
+          {/* Begin Lesson Button */}
           <Button
             className="w-full"
             size="lg"
@@ -349,12 +366,12 @@ export default function LessonPlanPage() {
             {isGenerating ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Generating Lesson...
+                Preparing Lesson...
               </>
             ) : (
               <>
-                <Sparkles className="mr-2 h-4 w-4" />
-                Generate Lesson
+                <BookOpen className="mr-2 h-4 w-4" />
+                Begin Lesson
               </>
             )}
           </Button>

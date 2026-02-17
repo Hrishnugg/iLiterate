@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Loader2, MessageSquare, Languages, BookOpen, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { TextSelection } from "./TextHighlighter";
 
@@ -35,6 +36,7 @@ export function TranslatePopover({
   const [loading, setLoading] = useState(false);
   const [showNoteInput, setShowNoteInput] = useState(false);
   const [note, setNote] = useState("");
+  const [alsoAddFlashcard, setAlsoAddFlashcard] = useState(true);
   const popoverRef = useRef<HTMLDivElement>(null);
   const [adjustedPos, setAdjustedPos] = useState<{ left: number; top: number; placeBelow: boolean } | null>(null);
 
@@ -51,6 +53,10 @@ export function TranslatePopover({
   const handleAddNote = () => {
     if (note.trim()) {
       onAddNote(selection.text, note.trim(), translation || undefined);
+      // Also add to flashcards if checkbox is checked and we have a translation
+      if (alsoAddFlashcard && translation) {
+        onSaveWord(selection.text, translation);
+      }
       onClose();
     }
   };
@@ -253,6 +259,15 @@ export function TranslatePopover({
                 rows={3}
                 autoFocus
               />
+              {translation && (
+                <label className="flex items-center gap-2 text-sm">
+                  <Checkbox
+                    checked={alsoAddFlashcard}
+                    onCheckedChange={(checked) => setAlsoAddFlashcard(checked === true)}
+                  />
+                  Also add to flashcards
+                </label>
+              )}
               <div className="flex gap-2">
                 <Button
                   size="sm"

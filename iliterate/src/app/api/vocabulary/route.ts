@@ -34,6 +34,7 @@ export async function POST(request: NextRequest) {
       partOfSpeech,
       definitions,
       contentId,
+      lessonId,
       contextSentence,
     } = body;
 
@@ -62,8 +63,9 @@ export async function POST(request: NextRequest) {
         .single();
 
       if (createError) {
+        console.error("Failed to create vocabulary entry:", createError);
         return NextResponse.json(
-          { error: "Failed to create vocabulary entry" },
+          { error: `Failed to create vocabulary entry: ${createError.message}` },
           { status: 500 }
         );
       }
@@ -92,7 +94,8 @@ export async function POST(request: NextRequest) {
       .insert({
         user_id: user.id,
         vocabulary_id: vocabEntry.id,
-        content_id: contentId,
+        content_id: contentId || null,
+        lesson_id: lessonId || null,
         context_sentence: contextSentence,
         ease_factor: 2.5,
         interval_days: 1,
@@ -103,8 +106,9 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (userVocabError) {
+      console.error("Failed to add user vocabulary:", userVocabError);
       return NextResponse.json(
-        { error: "Failed to add word to vocabulary" },
+        { error: `Failed to add word to vocabulary: ${userVocabError.message}` },
         { status: 500 }
       );
     }

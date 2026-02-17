@@ -14,6 +14,7 @@ export const SUPPORTED_LANGUAGES = [
   "russian", "chinese", "japanese", "korean", "arabic", "hindi",
   // Language name variations (with qualifiers)
   "chinese (mandarin)", "chinese (cantonese)", "mandarin", "cantonese",
+  "chinese (simplified)", "chinese (traditional)", "simplified chinese", "traditional chinese",
   "portuguese (brazilian)", "portuguese (european)", "brazilian portuguese",
   "spanish (latin american)", "spanish (spain)",
 ] as const;
@@ -70,6 +71,7 @@ export const vocabularyRequestSchema = z.object({
   partOfSpeech: z.string().max(100).optional(),
   definitions: z.array(z.string().max(1000)).optional(),
   contentId: uuidSchema.optional(),
+  lessonId: uuidSchema.optional(),
   contextSentence: z.string().max(1000).optional(),
 });
 

@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import Link from "next/link";
+import { Mail, CheckCircle2 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,44 @@ export function SignupForm({
   ...props
 }: React.ComponentProps<"div">) {
   const [state, formAction, pending] = useActionState(signup, null);
+
+  // Show success message after signup
+  if (state?.success) {
+    return (
+      <div className={cn("flex flex-col gap-6", className)} {...props}>
+        <Card>
+          <CardHeader className="text-center">
+            <div className="mx-auto h-16 w-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mb-4">
+              <CheckCircle2 className="h-8 w-8 text-green-600 dark:text-green-400" />
+            </div>
+            <CardTitle className="text-xl">Check your email</CardTitle>
+            <CardDescription>
+              We&apos;ve sent a confirmation link to your email address
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="rounded-lg border bg-muted/50 p-4 text-center">
+              <Mail className="h-6 w-6 mx-auto mb-2 text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">
+                Click the link in your email to verify your account and complete signup.
+              </p>
+            </div>
+            <div className="text-center text-sm text-muted-foreground">
+              <p>Didn&apos;t receive the email?</p>
+              <p className="mt-1">Check your spam folder or <Link href="/signup" className="text-primary hover:underline">try again</Link></p>
+            </div>
+            <div className="pt-4 border-t text-center">
+              <Link href="/login">
+                <Button variant="outline" className="w-full">
+                  Back to Login
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>

@@ -258,6 +258,48 @@ export function getTotalXPForLevel(level: number, currentXP: number): number {
 }
 
 // ============================================================================
+// Level Downgrade Functions
+// ============================================================================
+
+/** CEFR tier boundaries for downgrade calculations */
+export const CEFR_TIER_MAX_LEVELS = {
+  A1: 3,
+  A2: 6,
+  B1: 10,
+  B2: 14,
+  C1: 17,
+  C2: 20,
+} as const;
+
+/**
+ * Get the target level after downgrading one CEFR tier.
+ * Returns null if user is already at A1 (cannot downgrade further).
+ *
+ * @param currentLevel - User's current level (1-20)
+ * @returns Target level after downgrade, or null if at minimum
+ */
+export function getDowngradedLevel(currentLevel: number): number | null {
+  if (currentLevel <= 3) return null;   // A1 - cannot downgrade
+  if (currentLevel <= 6) return 3;      // A2 → A1 (max of A1)
+  if (currentLevel <= 10) return 6;     // B1 → A2
+  if (currentLevel <= 14) return 10;    // B2 → B1
+  if (currentLevel <= 17) return 14;    // C1 → B2
+  return 17;                            // C2 → C1
+}
+
+/**
+ * Get the previous CEFR tier for a given level.
+ * Returns null if already at A1.
+ */
+export function getPreviousCEFRTier(currentLevel: number): CEFRLevel | null {
+  const currentCEFR = numericLevelToCEFR(currentLevel);
+  const tierOrder: CEFRLevel[] = ["A1", "A2", "B1", "B2", "C1", "C2"];
+  const currentIndex = tierOrder.indexOf(currentCEFR);
+  if (currentIndex <= 0) return null;
+  return tierOrder[currentIndex - 1];
+}
+
+// ============================================================================
 // Overall Level Calculation
 // ============================================================================
 

@@ -4,6 +4,11 @@ import { GoogleGenerativeAI, GenerativeModel } from "@google/generative-ai";
 let _genAI: GoogleGenerativeAI | null = null;
 let _geminiModel: GenerativeModel | null = null;
 
+// Simple in-memory cache for translations (cleared on server restart)
+const translationCache = new Map<string, { response: TranslationResponse; timestamp: number }>();
+const CACHE_TTL_MS = 1000 * 60 * 60; // 1 hour cache
+const MAX_CACHE_SIZE = 1000;
+
 function getGeminiModel(): GenerativeModel {
   if (!_geminiModel) {
     const apiKey = process.env.GOOGLE_AI_API_KEY;
@@ -13,9 +18,37 @@ function getGeminiModel(): GenerativeModel {
     _genAI = new GoogleGenerativeAI(apiKey);
     _geminiModel = _genAI.getGenerativeModel({
       model: "gemini-3-flash-preview",
+      generationConfig: {
+        // @ts-expect-error - thinkingConfig is supported by gemini-3-flash-preview
+        thinkingConfig: {
+          thinkingLevel: "MINIMAL",
+        },
+      },
     });
   }
   return _geminiModel;
+}
+
+// Generate cache key from request
+function getCacheKey(request: TranslationRequest): string {
+  return `${request.text.toLowerCase().trim()}|${request.sourceLang}|${request.targetLang}`;
+}
+
+// Clean old cache entries
+function cleanCache(): void {
+  const now = Date.now();
+  for (const [key, value] of translationCache.entries()) {
+    if (now - value.timestamp > CACHE_TTL_MS) {
+      translationCache.delete(key);
+    }
+  }
+  // If still too large, remove oldest entries
+  if (translationCache.size > MAX_CACHE_SIZE) {
+    const entries = Array.from(translationCache.entries());
+    entries.sort((a, b) => a[1].timestamp - b[1].timestamp);
+    const toRemove = entries.slice(0, entries.length - MAX_CACHE_SIZE);
+    toRemove.forEach(([key]) => translationCache.delete(key));
+  }
 }
 
 export interface TranslationRequest {
@@ -38,6 +71,18 @@ export async function translateWithContext(
   request: TranslationRequest
 ): Promise<TranslationResponse> {
   const { text, sourceLang, targetLang, contextBefore, contextAfter } = request;
+
+  // Check cache first
+  const cacheKey = getCacheKey(request);
+  const cached = translationCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+    return cached.response;
+  }
+
+  // Clean cache periodically (every 100 requests)
+  if (translationCache.size > 0 && translationCache.size % 100 === 0) {
+    cleanCache();
+  }
 
   // Sanitize inputs to prevent prompt injection
   const sanitize = (str: string | undefined): string => {
@@ -68,9 +113,16 @@ Important:
 - Transliteration only for non-Latin scripts`;
 
   const geminiModel = getGeminiModel();
-  const result = await geminiModel.generateContent(prompt);
-  const response = result.response;
-  const textResponse = response.text();
+
+  let textResponse: string;
+  try {
+    const result = await geminiModel.generateContent(prompt);
+    const geminiResponse = result.response;
+    textResponse = geminiResponse.text();
+  } catch (apiError) {
+    console.error("Gemini API error:", apiError);
+    throw new Error(`Translation API error: ${apiError instanceof Error ? apiError.message : "Unknown error"}`);
+  }
 
   // Extract JSON from response (handle markdown code blocks)
   const jsonMatch = textResponse.match(/\{[\s\S]*\}/);
@@ -90,11 +142,16 @@ Important:
     throw new Error("Translation response missing required translation field");
   }
 
-  return {
+  const response: TranslationResponse = {
     translation: parsed.translation,
     transliteration: parsed.transliteration,
     partOfSpeech: parsed.partOfSpeech,
     definitions: parsed.definitions || [],
     examples: parsed.examples || [],
   };
+
+  // Cache the result
+  translationCache.set(cacheKey, { response, timestamp: Date.now() });
+
+  return response;
 }

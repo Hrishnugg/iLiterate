@@ -62,8 +62,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(translation);
   } catch (error) {
     console.error("Translation error:", error);
+    const message = error instanceof Error ? error.message : "Failed to translate text";
     return NextResponse.json(
-      { error: "Failed to translate text" },
+      { error: message },
       { status: 500 }
     );
   }
