@@ -258,10 +258,13 @@ export function ArticleRenderer({ content, isLesson = false }: ArticleRendererPr
         transliteration: translation.transliteration,
         partOfSpeech: translation.partOfSpeech,
         definitions: translation.definitions,
-        contentId: content.id,
-        contextSentence: selection?.contextBefore
-          ? `...${selection.contextBefore.slice(-30)} [${text}] ${selection.contextAfter?.slice(0, 30)}...`
-          : text,
+        ...(isLesson ? { lessonId: content.id } : { contentId: content.id }),
+        contextSentence: (() => {
+          if (!selection?.contextBefore) return text;
+          const asianLanguages = ["chinese", "chinese_traditional", "chinese_simplified", "japanese", "korean", "thai", "vietnamese"];
+          const contextLength = asianLanguages.includes(content.language.toLowerCase()) ? 15 : 30;
+          return `...${selection.contextBefore.slice(-contextLength)} [${text}] ${selection.contextAfter?.slice(0, contextLength)}...`;
+        })(),
       }),
     });
 

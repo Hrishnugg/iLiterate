@@ -4,9 +4,9 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
 export async function signup(
-  prevState: { error: string } | null,
+  prevState: { error?: string; success?: boolean } | null,
   formData: FormData
-) {
+): Promise<{ error?: string; success?: boolean }> {
   const name = formData.get("name") as string;
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
@@ -22,7 +22,7 @@ export async function signup(
 
   const supabase = await createClient();
 
-  const { error } = await supabase.auth.signUp({
+  const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
@@ -34,7 +34,15 @@ export async function signup(
     return { error: error.message };
   }
 
-  redirect("/onboarding");
+  // Check if user already exists (Supabase returns user with identities = [] for existing emails)
+  // When email confirmation is enabled and user already exists, Supabase doesn't return an error
+  // but the user object has no identities
+  if (data.user && data.user.identities && data.user.identities.length === 0) {
+    return { error: "An account with this email already exists. Please log in instead." };
+  }
+
+  // Success - email confirmation sent
+  return { success: true };
 }
 
 export async function login(

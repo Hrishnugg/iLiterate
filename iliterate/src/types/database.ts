@@ -45,6 +45,9 @@ export interface Profile {
   years_learning: number;
   learning_motivation: LearningMotivation[];
   proficiency_level: ProficiencyLevel;
+  is_premium: boolean;
+  daily_reviews_used: number;
+  last_review_date: string | null;
   created_at: string;
   updated_at: string;
 }

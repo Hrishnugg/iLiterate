@@ -31,7 +31,8 @@ import { completeOnboarding } from "@/app/(auth)/onboarding/actions";
 
 const LANGUAGES = [
   "Arabic",
-  "Chinese (Mandarin)",
+  "Chinese (Simplified)",
+  "Chinese (Traditional)",
   "English",
   "French",
   "German",

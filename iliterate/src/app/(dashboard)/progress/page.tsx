@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { SkillLevelCard } from "@/components/progress/SkillLevelCard";
 import { OverallProgressCard } from "@/components/progress/OverallProgressCard";
 import { SkillWeightsEditor } from "@/components/progress/SkillWeightsEditor";
+import { DowngradeLevelDialog } from "@/components/lesson/DowngradeLevelDialog";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, ClipboardCheck, Calendar } from "lucide-react";
 import { CEFRLevel } from "@/types/database";
@@ -61,6 +62,7 @@ export default function ProgressPage() {
   const [data, setData] = useState<ProgressData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showDowngradeDialog, setShowDowngradeDialog] = useState(false);
 
   const fetchProgress = async () => {
     try {
@@ -107,14 +109,33 @@ export default function ProgressPage() {
       </div>
 
       {/* Overall Progress */}
-      <OverallProgressCard
-        level={progressInfo.overall.level}
-        cefr={progressInfo.overall.cefr}
-        skillLevels={{
-          reading: progressInfo.reading.level,
-          vocabulary: progressInfo.vocabulary.level,
-          grammar: progressInfo.grammar.level,
-        }}
+      <div className="space-y-2">
+        <OverallProgressCard
+          level={progressInfo.overall.level}
+          cefr={progressInfo.overall.cefr}
+          skillLevels={{
+            reading: progressInfo.reading.level,
+            vocabulary: progressInfo.vocabulary.level,
+            grammar: progressInfo.grammar.level,
+          }}
+        />
+        {progressInfo.reading.level > 3 && (
+          <p className="text-center">
+            <button
+              onClick={() => setShowDowngradeDialog(true)}
+              className="text-sm text-muted-foreground hover:text-orange-500 hover:underline"
+            >
+              Feeling overwhelmed? Lower your level
+            </button>
+          </p>
+        )}
+      </div>
+
+      {/* Downgrade Level Dialog */}
+      <DowngradeLevelDialog
+        open={showDowngradeDialog}
+        onOpenChange={setShowDowngradeDialog}
+        onDowngradeComplete={fetchProgress}
       />
 
       {/* Individual Skills */}

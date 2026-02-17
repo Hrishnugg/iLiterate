@@ -33,7 +33,8 @@ import { createClient } from "@/lib/supabase/client";
 
 const LANGUAGES = [
   "Arabic",
-  "Chinese (Mandarin)",
+  "Chinese (Simplified)",
+  "Chinese (Traditional)",
   "English",
   "French",
   "German",

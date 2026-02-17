@@ -76,7 +76,7 @@ export async function GET() {
       .order("created_at", { ascending: false })
       .limit(20);
 
-    const completed = (completedAssessments || []).map((a) => {
+    const completedFromAssessments = (completedAssessments || []).map((a) => {
       const totalScore = (a.reading_score || 0) + (a.vocabulary_score || 0);
       const totalMax = (a.reading_max_score || 0) + (a.vocabulary_max_score || 0);
       const totalXP = (a.reading_xp_awarded || 0) + (a.vocabulary_xp_awarded || 0);
@@ -90,8 +90,48 @@ export async function GET() {
         score_percent: totalMax > 0 ? Math.round((totalScore / totalMax) * 100) : 0,
         total_xp: totalXP,
         created_at: a.created_at,
+        source: "content" as const,
       };
     });
+
+    // Get completed lesson quizzes
+    const { data: completedLessons } = await supabase
+      .from("lesson_sessions")
+      .select(`
+        id,
+        title,
+        quiz_score,
+        quiz_max_score,
+        reading_xp_awarded,
+        vocabulary_xp_awarded,
+        completed_at
+      `)
+      .eq("user_id", user.id)
+      .eq("status", "completed")
+      .not("quiz_score", "is", null)
+      .order("completed_at", { ascending: false })
+      .limit(20);
+
+    const completedFromLessons = (completedLessons || []).map((l) => {
+      const totalXP = (l.reading_xp_awarded || 0) + (l.vocabulary_xp_awarded || 0);
+      const totalMax = l.quiz_max_score || 0;
+      const totalScore = l.quiz_score || 0;
+
+      return {
+        id: l.id,
+        content_id: null,
+        content_title: l.title || "Lesson Quiz",
+        score_percent: totalMax > 0 ? Math.round((totalScore / totalMax) * 100) : 0,
+        total_xp: totalXP,
+        created_at: l.completed_at,
+        source: "lesson" as const,
+      };
+    });
+
+    // Merge and sort by date
+    const completed = [...completedFromAssessments, ...completedFromLessons]
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      .slice(0, 20);
 
     return NextResponse.json({ pending, completed });
   } catch (error) {
