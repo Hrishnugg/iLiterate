@@ -30,7 +30,7 @@ export function ArticleRenderer({ content, isLesson = false }: ArticleRendererPr
   const [highlights, setHighlights] = useState<Highlight[]>([]);
   const [lookups, setLookups] = useState<TranslationLookup[]>([]);
   const [selection, setSelection] = useState<TextSelection | null>(null);
-  const [popoverPosition, setPopoverPosition] = useState({ x: 0, y: 0 });
+  const [popoverPosition, setPopoverPosition] = useState({ x: 0, y: 0, bottom: 0 });
   const [tocItems, setTocItems] = useState<TOCItem[]>([]);
   const [focusedHighlightId, setFocusedHighlightId] = useState<string | null>(null);
   const [savedScrollPosition, setSavedScrollPosition] = useState<number | null>(null);
@@ -163,6 +163,7 @@ export function ArticleRenderer({ content, isLesson = false }: ArticleRendererPr
       setPopoverPosition({
         x: rect.left + rect.width / 2,
         y: rect.top,
+        bottom: rect.bottom,
       });
     }
   }, []);

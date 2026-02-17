@@ -17,7 +17,7 @@ interface TranslationResult {
 
 interface TranslatePopoverProps {
   selection: TextSelection;
-  position: { x: number; y: number };
+  position: { x: number; y: number; bottom: number };
   onTranslate: (text: string) => Promise<TranslationResult>;
   onAddNote: (text: string, note: string, translation?: TranslationResult) => void;
   onSaveWord: (text: string, translation: TranslationResult) => void;
@@ -75,40 +75,41 @@ export function TranslatePopover({
     const popoverHeight = popoverRect.height;
     const popoverWidth = popoverRef.current.offsetWidth || 380;
     const padding = 12;
-    const selectionHeight = 30;
 
     // Horizontal: keep within viewport
     let left = position.x - popoverWidth / 2;
     left = Math.max(padding, Math.min(left, window.innerWidth - popoverWidth - padding));
 
-    // Vertical: prefer below when near top, above when near bottom
-    const spaceAbove = position.y;
-    const spaceBelow = window.innerHeight - position.y - selectionHeight;
+    // Use actual selection bounds: position.y = top of selection, position.bottom = bottom of selection
+    const selTop = position.y;
+    const selBottom = position.bottom;
+    const spaceAbove = selTop;
+    const spaceBelow = window.innerHeight - selBottom;
 
     let top: number;
     let placeBelow: boolean;
 
     if (spaceBelow >= popoverHeight + padding) {
-      // Fits below - prefer this to avoid clipping near top
-      top = position.y + selectionHeight;
+      // Fits below the lowest line of the selection
+      top = selBottom + padding;
       placeBelow = true;
     } else if (spaceAbove >= popoverHeight + padding) {
-      // Fits above
-      top = position.y - popoverHeight - padding;
+      // Fits above the highest line of the selection
+      top = selTop - popoverHeight - padding;
       placeBelow = false;
     } else {
       // Doesn't fit either way - place where there's more room
       if (spaceBelow >= spaceAbove) {
-        top = position.y + selectionHeight;
+        top = selBottom + padding;
         placeBelow = true;
       } else {
-        top = Math.max(padding, position.y - popoverHeight - padding);
+        top = Math.max(padding, selTop - popoverHeight - padding);
         placeBelow = false;
       }
     }
 
     setAdjustedPos({ left, top, placeBelow });
-  }, [position.x, position.y]);
+  }, [position.x, position.y, position.bottom]);
 
   // Update position on mount and whenever content changes
   useEffect(() => {
@@ -127,7 +128,7 @@ export function TranslatePopover({
   const popupStyle: React.CSSProperties = {
     position: "fixed",
     left: adjustedPos?.left ?? Math.min(position.x - 190, window.innerWidth - 392),
-    top: adjustedPos?.top ?? (position.y > 200 ? position.y - 10 : position.y + 30),
+    top: adjustedPos?.top ?? (position.bottom + 12),
     zIndex: 50,
     maxHeight: Math.min(maxHeight, 500),
   };
