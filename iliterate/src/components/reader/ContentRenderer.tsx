@@ -323,7 +323,11 @@ export function ContentRenderer({
 
     // Dynamic import of DOMPurify to avoid SSR issues
     const DOMPurify = require("dompurify");
-    let html = DOMPurify.sanitize(content.body, {
+    // Prepend title as h1 so it's inside the selectable/highlightable area
+    const titleHtml = content.title
+      ? `<h1 id="article-title">${content.title.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</h1>`
+      : '';
+    let html = DOMPurify.sanitize(titleHtml + content.body, {
       ALLOWED_TAGS: [
         "h1", "h2", "h3", "h4", "h5", "h6",
         "p", "br", "hr",
@@ -370,12 +374,12 @@ export function ContentRenderer({
       const isFocused = highlight.id === focusedHighlightId;
       const hasTranslation = !!highlight.translation;
       const baseClass = hasTranslation
-        ? "bg-green-100 dark:bg-green-900/40 cursor-pointer rounded px-0.5 transition-all duration-300"
-        : "bg-yellow-200 dark:bg-yellow-800 cursor-pointer rounded px-0.5 transition-all duration-300";
+        ? "bg-green-100 dark:bg-green-400/50 cursor-pointer rounded px-0.5 transition-all duration-300"
+        : "bg-yellow-200 dark:bg-yellow-300/50 cursor-pointer rounded px-0.5 transition-all duration-300";
       const focusClass = isFocused
         ? hasTranslation
-          ? " ring-2 ring-primary ring-offset-2 bg-green-200 dark:bg-green-800/60"
-          : " ring-2 ring-primary ring-offset-2 bg-yellow-300 dark:bg-yellow-600"
+          ? " ring-2 ring-primary ring-offset-2 bg-green-200 dark:bg-green-400/65"
+          : " ring-2 ring-primary ring-offset-2 bg-yellow-300 dark:bg-yellow-300/65"
         : "";
       const title = highlight.note || highlight.translation || "";
 
@@ -399,7 +403,7 @@ export function ContentRenderer({
         container,
         currentSelection.text,
         null,
-        "bg-blue-100 dark:bg-blue-900/50 rounded px-0.5",
+        "bg-blue-100 dark:bg-blue-400/50 rounded px-0.5",
         "",
         currentSelection.startOffset,
         currentSelection.contextBefore,
@@ -408,7 +412,7 @@ export function ContentRenderer({
     }
 
     return container.innerHTML;
-  }, [content.body, isMounted, highlights, focusedHighlightId, currentSelection, highlightTextInDocument]);
+  }, [content.title, content.body, isMounted, highlights, focusedHighlightId, currentSelection, highlightTextInDocument]);
 
   // Handle highlight clicks via event delegation
   useEffect(() => {
@@ -470,7 +474,7 @@ export function ContentRenderer({
   if (!isMounted) {
     return (
       <div className="space-y-6">
-        <h1 className="text-3xl font-bold leading-tight">{content.title}</h1>
+        <h1 className="text-3xl font-bold leading-tight mb-4">{content.title}</h1>
         <div className="animate-pulse space-y-4">
           <div className="h-4 bg-muted rounded w-3/4"></div>
           <div className="h-4 bg-muted rounded w-full"></div>
@@ -482,7 +486,6 @@ export function ContentRenderer({
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold leading-tight">{content.title}</h1>
       <div
         ref={contentRef}
         onMouseUp={() => {
@@ -534,7 +537,7 @@ export function ContentRenderer({
           }
         }}
         dangerouslySetInnerHTML={{ __html: processedBody }}
-        className="space-y-4 text-lg leading-relaxed [&_h2]:text-2xl [&_h2]:font-semibold [&_h2]:mt-8 [&_h2]:mb-4 [&_h3]:text-xl [&_h3]:font-semibold [&_h3]:mt-6 [&_h3]:mb-3 [&_p]:mb-4 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:list-decimal [&_ol]:pl-6 [&_li]:mb-2 [&_blockquote]:border-l-4 [&_blockquote]:border-muted [&_blockquote]:pl-4 [&_blockquote]:italic"
+        className="space-y-4 text-lg leading-relaxed [&_h1]:text-3xl [&_h1]:font-bold [&_h1]:leading-tight [&_h1]:mb-4 [&_h2]:text-2xl [&_h2]:font-semibold [&_h2]:mt-8 [&_h2]:mb-4 [&_h3]:text-xl [&_h3]:font-semibold [&_h3]:mt-6 [&_h3]:mb-3 [&_p]:mb-4 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:list-decimal [&_ol]:pl-6 [&_li]:mb-2 [&_blockquote]:border-l-4 [&_blockquote]:border-muted [&_blockquote]:pl-4 [&_blockquote]:italic"
       />
     </div>
   );

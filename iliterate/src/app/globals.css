@@ -135,6 +135,15 @@
   body {
     @apply bg-background text-foreground font-sans;
   }
+  
+  /* Smooth theme transitions */
+  html,
+  body,
+  * {
+    transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 200ms;
+  }
 }
 
 /* Popover scrollbar: thin and only visible on hover */
@@ -165,5 +174,21 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+/* 3D Transform utilities for flip cards */
+@layer utilities {
+  .perspective-1000 {
+    perspective: 1000px;
+  }
+  .preserve-3d {
+    transform-style: preserve-3d;
+  }
+  .backface-hidden {
+    backface-visibility: hidden;
+  }
+  .rotate-y-180 {
+    transform: rotateY(180deg);
   }
 }

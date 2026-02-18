@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
-// GET /api/translation-lookups?contentId=xxx
+// GET /api/translation-lookups?contentId=xxx or ?lessonId=xxx
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
@@ -17,6 +17,7 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const contentId = searchParams.get("contentId");
+    const lessonId = searchParams.get("lessonId");
 
     let query = supabase
       .from("translation_lookups")
@@ -26,6 +27,8 @@ export async function GET(request: NextRequest) {
 
     if (contentId) {
       query = query.eq("content_id", contentId);
+    } else if (lessonId) {
+      query = query.eq("lesson_id", lessonId);
     }
 
     const { data, error } = await query;
@@ -44,7 +47,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// DELETE /api/translation-lookups (clear all for content or specific)
+// DELETE /api/translation-lookups (clear all for content/lesson or specific)
 export async function DELETE(request: NextRequest) {
   try {
     const supabase = await createClient();
@@ -60,12 +63,13 @@ export async function DELETE(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const contentId = searchParams.get("contentId");
+    const lessonId = searchParams.get("lessonId");
     const id = searchParams.get("id");
 
-    // Require either id or contentId to prevent accidental mass deletion
-    if (!id && !contentId) {
+    // Require either id, contentId, or lessonId to prevent accidental mass deletion
+    if (!id && !contentId && !lessonId) {
       return NextResponse.json(
-        { error: "Must provide either 'id' or 'contentId' parameter" },
+        { error: "Must provide 'id', 'contentId', or 'lessonId' parameter" },
         { status: 400 }
       );
     }
@@ -79,6 +83,8 @@ export async function DELETE(request: NextRequest) {
       query = query.eq("id", id);
     } else if (contentId) {
       query = query.eq("content_id", contentId);
+    } else if (lessonId) {
+      query = query.eq("lesson_id", lessonId);
     }
 
     const { error } = await query;

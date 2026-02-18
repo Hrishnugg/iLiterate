@@ -9,6 +9,7 @@ import { ReaderLayout } from "./ReaderLayout";
 import { TableOfContents } from "./TableOfContents";
 import { RightSidebar } from "./RightSidebar";
 import { ContentRenderer } from "./ContentRenderer";
+import { RSVPReader } from "./RSVPReader";
 import { useReadingProgress } from "./useReadingProgress";
 import { AudioPlayer } from "./AudioPlayer";
 import { Button } from "@/components/ui/button";
@@ -22,16 +23,22 @@ interface TOCItem {
 
 interface ArticleRendererProps {
   content: Content;
+  isLesson?: boolean;
 }
 
-export function ArticleRenderer({ content }: ArticleRendererProps) {
+export function ArticleRenderer({ content, isLesson = false }: ArticleRendererProps) {
   const [highlights, setHighlights] = useState<Highlight[]>([]);
   const [lookups, setLookups] = useState<TranslationLookup[]>([]);
   const [selection, setSelection] = useState<TextSelection | null>(null);
-  const [popoverPosition, setPopoverPosition] = useState({ x: 0, y: 0 });
+  const [popoverPosition, setPopoverPosition] = useState({ x: 0, y: 0, bottom: 0 });
   const [tocItems, setTocItems] = useState<TOCItem[]>([]);
   const [focusedHighlightId, setFocusedHighlightId] = useState<string | null>(null);
   const [savedScrollPosition, setSavedScrollPosition] = useState<number | null>(null);
+  const [isRSVPMode, setIsRSVPMode] = useState(false);
+  const [rsvpWordIndex, setRsvpWordIndex] = useState(0);
+  const [rsvpTotalWords, setRsvpTotalWords] = useState(0);
+  const [rsvpWpm, setRsvpWpm] = useState(250);
+  const rsvpSeekFnRef = useRef<((percentage: number) => void) | null>(null);
   const contentContainerRef = useRef<HTMLDivElement>(null);
 
   // Reading progress tracking
@@ -45,18 +52,57 @@ export function ArticleRenderer({ content }: ArticleRendererProps) {
     scrollContainerRef: contentContainerRef,
   });
 
-  const timeRemaining = getTimeRemaining(200); // Default 200 WPM
+  // Calculate time remaining based on mode
+  const displayTimeRemaining = useMemo(() => {
+    if (isRSVPMode && rsvpTotalWords > 0) {
+      const wordsLeft = rsvpTotalWords - rsvpWordIndex;
+      const minutesLeft = wordsLeft / rsvpWpm;
+      const secondsLeft = Math.round(minutesLeft * 60);
+      
+      if (secondsLeft < 60) {
+        return `${secondsLeft}s`;
+      }
+      
+      const minutes = Math.floor(secondsLeft / 60);
+      const seconds = secondsLeft % 60;
+      return `${minutes}m ${seconds}s`;
+    }
+    return getTimeRemaining(200); // Normal scroll-based time remaining at 200 WPM
+  }, [isRSVPMode, rsvpWordIndex, rsvpTotalWords, rsvpWpm, getTimeRemaining]);
 
-  // Memoize plain text for AudioPlayer
+  // Memoize plain text for AudioPlayer and RSVP
   const plainTextContent = useMemo(
     () => content.body.replace(/<[^>]*>/g, ""),
     [content.body]
   );
 
+  // Calculate RSVP-based progress when in RSVP mode
+  const displayProgress = useMemo(() => {
+    if (isRSVPMode && rsvpTotalWords > 0) {
+      return Math.round((rsvpWordIndex / rsvpTotalWords) * 100);
+    }
+    return progress;
+  }, [isRSVPMode, rsvpWordIndex, rsvpTotalWords, progress]);
+
+  const displayWordsRead = useMemo(() => {
+    if (isRSVPMode) {
+      return rsvpWordIndex;
+    }
+    return wordsRead;
+  }, [isRSVPMode, rsvpWordIndex, wordsRead]);
+
+  const displayTotalWords = useMemo(() => {
+    if (isRSVPMode && rsvpTotalWords > 0) {
+      return rsvpTotalWords;
+    }
+    return content.word_count || 1000;
+  }, [isRSVPMode, rsvpTotalWords, content.word_count]);
+
   // Load highlights - memoized with content.id dependency
   const loadHighlights = useCallback(async () => {
     try {
-      const response = await fetch(`/api/highlights?contentId=${content.id}`);
+      const param = isLesson ? `lessonId=${content.id}` : `contentId=${content.id}`;
+      const response = await fetch(`/api/highlights?${param}`);
       if (response.ok) {
         const data = await response.json();
         setHighlights(data);
@@ -64,12 +110,13 @@ export function ArticleRenderer({ content }: ArticleRendererProps) {
     } catch (error) {
       console.error("Failed to load highlights:", error);
     }
-  }, [content.id]);
+  }, [content.id, isLesson]);
 
   // Load lookups - memoized with content.id dependency
   const loadLookups = useCallback(async () => {
     try {
-      const response = await fetch(`/api/translation-lookups?contentId=${content.id}`);
+      const param = isLesson ? `lessonId=${content.id}` : `contentId=${content.id}`;
+      const response = await fetch(`/api/translation-lookups?${param}`);
       if (response.ok) {
         const data = await response.json();
         setLookups(data);
@@ -77,7 +124,7 @@ export function ArticleRenderer({ content }: ArticleRendererProps) {
     } catch (error) {
       console.error("Failed to load lookups:", error);
     }
-  }, [content.id]);
+  }, [content.id, isLesson]);
 
   // Generate TOC from content headings (for HTML content) - memoized
   const generateTOC = useCallback(() => {
@@ -116,6 +163,7 @@ export function ArticleRenderer({ content }: ArticleRendererProps) {
       setPopoverPosition({
         x: rect.left + rect.width / 2,
         y: rect.top,
+        bottom: rect.bottom,
       });
     }
   }, []);
@@ -142,7 +190,7 @@ export function ArticleRenderer({ content }: ArticleRendererProps) {
         targetLang: "en", // TODO: Get from user profile
         contextBefore: selection?.contextBefore,
         contextAfter: selection?.contextAfter,
-        contentId: content.id,
+        ...(isLesson ? { lessonId: content.id } : { contentId: content.id }),
       }),
     });
 
@@ -157,7 +205,7 @@ export function ArticleRenderer({ content }: ArticleRendererProps) {
     await loadLookups();
 
     return result;
-  }, [content.language, content.id, selection?.contextBefore, selection?.contextAfter, loadLookups]);
+  }, [content.language, content.id, isLesson, selection?.contextBefore, selection?.contextAfter, loadLookups]);
 
   // Handle add note
   const handleAddNote = useCallback(async (
@@ -171,7 +219,7 @@ export function ArticleRenderer({ content }: ArticleRendererProps) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        contentId: content.id,
+        ...(isLesson ? { lessonId: content.id } : { contentId: content.id }),
         positionType: "offset",
         startPosition: selection.startOffset,
         endPosition: selection.endOffset,
@@ -190,7 +238,7 @@ export function ArticleRenderer({ content }: ArticleRendererProps) {
       setSelection(null);
       window.getSelection()?.removeAllRanges();
     }
-  }, [content.id, selection, loadHighlights]);
+  }, [content.id, isLesson, selection, loadHighlights]);
 
   // Handle save word (create highlight + add to vocabulary/flashcards)
   const handleSaveWord = useCallback(async (
@@ -211,10 +259,13 @@ export function ArticleRenderer({ content }: ArticleRendererProps) {
         transliteration: translation.transliteration,
         partOfSpeech: translation.partOfSpeech,
         definitions: translation.definitions,
-        contentId: content.id,
-        contextSentence: selection?.contextBefore
-          ? `...${selection.contextBefore.slice(-30)} [${text}] ${selection.contextAfter?.slice(0, 30)}...`
-          : text,
+        ...(isLesson ? { lessonId: content.id } : { contentId: content.id }),
+        contextSentence: (() => {
+          if (!selection?.contextBefore) return text;
+          const asianLanguages = ["chinese", "chinese_traditional", "chinese_simplified", "japanese", "korean", "thai", "vietnamese"];
+          const contextLength = asianLanguages.includes(content.language.toLowerCase()) ? 15 : 30;
+          return `...${selection.contextBefore.slice(-contextLength)} [${text}] ${selection.contextAfter?.slice(0, contextLength)}...`;
+        })(),
       }),
     });
 
@@ -305,14 +356,15 @@ export function ArticleRenderer({ content }: ArticleRendererProps) {
 
   // Handle clear lookups
   const handleClearLookups = useCallback(async () => {
-    const response = await fetch(`/api/translation-lookups?contentId=${content.id}`, {
+    const param = isLesson ? `lessonId=${content.id}` : `contentId=${content.id}`;
+    const response = await fetch(`/api/translation-lookups?${param}`, {
       method: "DELETE",
     });
 
     if (response.ok) {
       setLookups([]);
     }
-  }, [content.id]);
+  }, [content.id, isLesson]);
 
   // Handle remove single lookup
   const handleRemoveLookup = useCallback(async (id: string) => {
@@ -343,11 +395,27 @@ export function ArticleRenderer({ content }: ArticleRendererProps) {
     window.getSelection()?.removeAllRanges();
   }, []);
 
+  // Handle RSVP mode toggle
+  const toggleRSVP = useCallback(() => {
+    setIsRSVPMode((prev) => !prev);
+  }, []);
+
+  // Handle progress bar seek in RSVP mode
+  const handleProgressSeek = useCallback((percentage: number) => {
+    if (rsvpSeekFnRef.current) {
+      rsvpSeekFnRef.current(percentage);
+    }
+  }, []);
+
   return (
     <>
       <ReaderLayout
         title={content.title}
         contentScrollRef={contentContainerRef}
+        hideLeftSidebar={tocItems.length === 0}
+        isRSVPMode={isRSVPMode}
+        onToggleRSVP={toggleRSVP}
+        requestRightOpen={focusedHighlightId}
         leftSidebar={
           <TableOfContents
             items={tocItems}
@@ -358,10 +426,12 @@ export function ArticleRenderer({ content }: ArticleRendererProps) {
           <RightSidebar
             highlights={highlights}
             lookups={lookups}
-            progress={progress}
-            wordsRead={wordsRead}
-            totalWords={content.word_count || 1000}
-            timeRemaining={timeRemaining}
+            progress={displayProgress}
+            wordsRead={displayWordsRead}
+            totalWords={displayTotalWords}
+            timeRemaining={displayTimeRemaining}
+            isProgressInteractive={isRSVPMode}
+            onProgressSeek={handleProgressSeek}
             focusedHighlightId={focusedHighlightId}
             onHighlightClick={handleHighlightClick}
             onDeleteHighlight={handleDeleteHighlight}
@@ -377,15 +447,31 @@ export function ArticleRenderer({ content }: ArticleRendererProps) {
           />
         }
       >
-        <ContentRenderer
-          content={content}
-          highlights={highlights}
-          focusedHighlightId={focusedHighlightId}
-          currentSelection={selection}
-          onSelection={handleSelection}
-          onTocUpdate={handleEpubTocUpdate}
-          onHighlightClick={handleHighlightClick}
-        />
+        {isRSVPMode ? (
+          <RSVPReader
+            text={plainTextContent}
+            onPositionChange={(index, totalWords) => {
+              setRsvpWordIndex(index);
+              setRsvpTotalWords(totalWords);
+            }}
+            onWpmChange={(wpm) => {
+              setRsvpWpm(wpm);
+            }}
+            onRegisterSeek={(seekFn) => {
+              rsvpSeekFnRef.current = seekFn;
+            }}
+          />
+        ) : (
+          <ContentRenderer
+            content={content}
+            highlights={highlights}
+            focusedHighlightId={focusedHighlightId}
+            currentSelection={selection}
+            onSelection={handleSelection}
+            onTocUpdate={handleEpubTocUpdate}
+            onHighlightClick={handleHighlightClick}
+          />
+        )}
       </ReaderLayout>
 
       {selection && (

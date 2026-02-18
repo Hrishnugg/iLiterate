@@ -89,6 +89,15 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // First, get the highlight to find the associated word
+    const { data: highlight } = await supabase
+      .from("highlights")
+      .select("selected_text, content_id, lesson_id")
+      .eq("id", id)
+      .eq("user_id", user.id)
+      .single();
+
+    // Delete the highlight
     const { error } = await supabase
       .from("highlights")
       .delete()
@@ -97,6 +106,34 @@ export async function DELETE(
 
     if (error) {
       return NextResponse.json({ error: "Failed to delete highlight" }, { status: 500 });
+    }
+
+    // Also delete associated flashcard if it exists
+    if (highlight?.selected_text) {
+      // Find the vocabulary entry for this word
+      const { data: vocabEntry } = await supabase
+        .from("vocabulary")
+        .select("id")
+        .eq("word", highlight.selected_text.toLowerCase())
+        .single();
+
+      if (vocabEntry) {
+        // Delete the user's flashcard for this word (matching content/lesson context)
+        let deleteQuery = supabase
+          .from("user_vocabulary")
+          .delete()
+          .eq("user_id", user.id)
+          .eq("vocabulary_id", vocabEntry.id);
+
+        // Match by content_id or lesson_id if available
+        if (highlight.content_id) {
+          deleteQuery = deleteQuery.eq("content_id", highlight.content_id);
+        } else if (highlight.lesson_id) {
+          deleteQuery = deleteQuery.eq("lesson_id", highlight.lesson_id);
+        }
+
+        await deleteQuery;
+      }
     }
 
     return new NextResponse(null, { status: 204 });

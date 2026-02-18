@@ -31,7 +31,8 @@ import { completeOnboarding } from "@/app/(auth)/onboarding/actions";
 
 const LANGUAGES = [
   "Arabic",
-  "Chinese (Mandarin)",
+  "Chinese (Simplified)",
+  "Chinese (Traditional)",
   "English",
   "French",
   "German",
@@ -53,6 +54,15 @@ const MOTIVATIONS = [
   { id: "entertainment", label: "Entertainment (movies, music, etc.)" },
 ];
 
+const PROFICIENCY_LEVELS = [
+  { value: "complete_beginner", label: "Complete beginner", description: "I know little to nothing" },
+  { value: "beginner", label: "Beginner", description: "I know some basics (greetings, numbers)" },
+  { value: "elementary", label: "Elementary", description: "I can form simple sentences" },
+  { value: "intermediate", label: "Intermediate", description: "I can hold basic conversations" },
+  { value: "upper_intermediate", label: "Upper Intermediate", description: "I'm comfortable but not fluent" },
+  { value: "advanced", label: "Advanced", description: "I'm nearly fluent" },
+];
+
 export function OnboardingForm({
   className,
   ...props
@@ -66,6 +76,7 @@ export function OnboardingForm({
   const [nativeLanguage, setNativeLanguage] = useState("");
   const [ageGroup, setAgeGroup] = useState("");
   const [educationLevel, setEducationLevel] = useState("");
+  const [proficiencyLevel, setProficiencyLevel] = useState("");
   const [motivations, setMotivations] = useState<string[]>([]);
 
   const handleMotivationChange = (id: string, checked: boolean) => {
@@ -196,6 +207,34 @@ export function OnboardingForm({
                 />
                 <FieldDescription>
                   How many years have you studied this language?
+                </FieldDescription>
+              </Field>
+
+              <Field>
+                <FieldLabel htmlFor="proficiency-level">
+                  How would you rate your current level?
+                </FieldLabel>
+                <Select
+                  name="proficiency-level"
+                  value={proficiencyLevel}
+                  onValueChange={setProficiencyLevel}
+                  required
+                  disabled={pending}
+                >
+                  <SelectTrigger id="proficiency-level">
+                    <SelectValue placeholder="Select your level" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PROFICIENCY_LEVELS.map((level) => (
+                      <SelectItem key={level.value} value={level.value}>
+                        <span className="font-medium">{level.label}</span>
+                        <span className="text-muted-foreground"> — {level.description}</span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FieldDescription>
+                  This helps us personalize content to your skill level.
                 </FieldDescription>
               </Field>
 

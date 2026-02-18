@@ -13,6 +13,8 @@ interface RightSidebarProps {
   wordsRead: number;
   totalWords: number;
   timeRemaining: string;
+  isProgressInteractive?: boolean;
+  onProgressSeek?: (percentage: number) => void;
   focusedHighlightId?: string | null;
   onHighlightClick?: (highlight: Highlight) => void;
   onDeleteHighlight?: (highlightId: string) => void;
@@ -28,6 +30,8 @@ export function RightSidebar({
   wordsRead,
   totalWords,
   timeRemaining,
+  isProgressInteractive = false,
+  onProgressSeek,
   focusedHighlightId,
   onHighlightClick,
   onDeleteHighlight,
@@ -43,6 +47,8 @@ export function RightSidebar({
         wordsRead={wordsRead}
         totalWords={totalWords}
         timeRemaining={timeRemaining}
+        isInteractive={isProgressInteractive}
+        onSeek={onProgressSeek}
       />
 
       <Separator />

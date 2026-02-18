@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Loader2, MessageSquare, Languages, BookOpen, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { TextSelection } from "./TextHighlighter";
 
@@ -16,7 +17,7 @@ interface TranslationResult {
 
 interface TranslatePopoverProps {
   selection: TextSelection;
-  position: { x: number; y: number };
+  position: { x: number; y: number; bottom: number };
   onTranslate: (text: string) => Promise<TranslationResult>;
   onAddNote: (text: string, note: string, translation?: TranslationResult) => void;
   onSaveWord: (text: string, translation: TranslationResult) => void;
@@ -35,6 +36,7 @@ export function TranslatePopover({
   const [loading, setLoading] = useState(false);
   const [showNoteInput, setShowNoteInput] = useState(false);
   const [note, setNote] = useState("");
+  const [alsoAddFlashcard, setAlsoAddFlashcard] = useState(true);
   const popoverRef = useRef<HTMLDivElement>(null);
   const [adjustedPos, setAdjustedPos] = useState<{ left: number; top: number; placeBelow: boolean } | null>(null);
 
@@ -51,6 +53,10 @@ export function TranslatePopover({
   const handleAddNote = () => {
     if (note.trim()) {
       onAddNote(selection.text, note.trim(), translation || undefined);
+      // Also add to flashcards if checkbox is checked and we have a translation
+      if (alsoAddFlashcard && translation) {
+        onSaveWord(selection.text, translation);
+      }
       onClose();
     }
   };
@@ -67,41 +73,43 @@ export function TranslatePopover({
 
     const popoverRect = popoverRef.current.getBoundingClientRect();
     const popoverHeight = popoverRect.height;
-    const popoverWidth = 320; // w-80 = 20rem = 320px
+    const popoverWidth = popoverRef.current.offsetWidth || 380;
     const padding = 12;
 
     // Horizontal: keep within viewport
     let left = position.x - popoverWidth / 2;
     left = Math.max(padding, Math.min(left, window.innerWidth - popoverWidth - padding));
 
-    // Vertical: prefer above selection, fall back to below
-    const spaceAbove = position.y;
-    const spaceBelow = window.innerHeight - position.y - 30; // 30px for selection height estimate
+    // Use actual selection bounds: position.y = top of selection, position.bottom = bottom of selection
+    const selTop = position.y;
+    const selBottom = position.bottom;
+    const spaceAbove = selTop;
+    const spaceBelow = window.innerHeight - selBottom;
 
     let top: number;
     let placeBelow: boolean;
 
-    if (spaceAbove >= popoverHeight + padding) {
-      // Fits above
-      top = position.y - popoverHeight - padding;
-      placeBelow = false;
-    } else if (spaceBelow >= popoverHeight + padding) {
-      // Fits below
-      top = position.y + 30;
+    if (spaceBelow >= popoverHeight + padding) {
+      // Fits below the lowest line of the selection
+      top = selBottom + padding;
       placeBelow = true;
+    } else if (spaceAbove >= popoverHeight + padding) {
+      // Fits above the highest line of the selection
+      top = selTop - popoverHeight - padding;
+      placeBelow = false;
     } else {
-      // Doesn't fit either way - place where there's more room and constrain height
-      if (spaceAbove > spaceBelow) {
-        top = Math.max(padding, position.y - popoverHeight - padding);
-        placeBelow = false;
-      } else {
-        top = position.y + 30;
+      // Doesn't fit either way - place where there's more room
+      if (spaceBelow >= spaceAbove) {
+        top = selBottom + padding;
         placeBelow = true;
+      } else {
+        top = Math.max(padding, selTop - popoverHeight - padding);
+        placeBelow = false;
       }
     }
 
     setAdjustedPos({ left, top, placeBelow });
-  }, [position.x, position.y]);
+  }, [position.x, position.y, position.bottom]);
 
   // Update position on mount and whenever content changes
   useEffect(() => {
@@ -110,23 +118,23 @@ export function TranslatePopover({
     return () => cancelAnimationFrame(rafId);
   }, [updatePosition, translation, loading, showNoteInput]);
 
-  // Calculate max height based on available space
+  // Calculate max height based on available space, capped at 500px
   const maxHeight = adjustedPos
     ? adjustedPos.placeBelow
       ? window.innerHeight - adjustedPos.top - 12
       : position.y - 12
-    : 400;
+    : 500;
 
   const popupStyle: React.CSSProperties = {
     position: "fixed",
-    left: adjustedPos?.left ?? Math.min(position.x - 144, window.innerWidth - 300),
-    top: adjustedPos?.top ?? (position.y > 200 ? position.y - 10 : position.y + 30),
+    left: adjustedPos?.left ?? Math.min(position.x - 190, window.innerWidth - 392),
+    top: adjustedPos?.top ?? (position.bottom + 12),
     zIndex: 50,
-    maxHeight: Math.min(maxHeight, 400),
+    maxHeight: Math.min(maxHeight, 500),
   };
 
   return (
-    <div ref={popoverRef} style={popupStyle} className="w-80 flex flex-col">
+    <div ref={popoverRef} style={popupStyle} className="w-[24rem] max-w-[calc(100vw-24px)] flex flex-col">
       <div className="rounded-lg border bg-popover shadow-lg relative flex flex-col overflow-hidden" style={{ maxHeight: 'inherit' }}>
         {/* Close button */}
         <button
@@ -227,13 +235,6 @@ export function TranslatePopover({
                   <BookOpen className="mr-1.5 h-3.5 w-3.5" />
                   Save Word
                 </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={onClose}
-                >
-                  Close
-                </Button>
               </div>
             </div>
           )}
@@ -253,6 +254,15 @@ export function TranslatePopover({
                 rows={3}
                 autoFocus
               />
+              {translation && (
+                <label className="flex items-center gap-2 text-sm">
+                  <Checkbox
+                    checked={alsoAddFlashcard}
+                    onCheckedChange={(checked) => setAlsoAddFlashcard(checked === true)}
+                  />
+                  Also add to flashcards
+                </label>
+              )}
               <div className="flex gap-2">
                 <Button
                   size="sm"

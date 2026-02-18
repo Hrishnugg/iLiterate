@@ -3,6 +3,8 @@
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { User } from "@supabase/supabase-js";
+import { useTheme } from "next-themes";
+import { Sun, Moon, Monitor } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -31,7 +33,8 @@ import { createClient } from "@/lib/supabase/client";
 
 const LANGUAGES = [
   "Arabic",
-  "Chinese (Mandarin)",
+  "Chinese (Simplified)",
+  "Chinese (Traditional)",
   "English",
   "French",
   "German",
@@ -73,6 +76,7 @@ interface ProfileSettingsProps {
 
 export function ProfileSettings({ user, profile }: ProfileSettingsProps) {
   const router = useRouter();
+  const { theme, setTheme } = useTheme();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -321,6 +325,58 @@ export function ProfileSettings({ user, profile }: ProfileSettingsProps) {
               {isLoading ? "Saving..." : "Save changes"}
             </Button>
           </FieldGroup>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Theme Preferences</CardTitle>
+          <CardDescription>
+            Customize your visual experience
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Field>
+            <FieldLabel>Theme</FieldLabel>
+            <FieldDescription>
+              Choose your preferred theme. System will follow your operating system settings.
+            </FieldDescription>
+            <div className="grid grid-cols-3 gap-3 pt-2">
+              <button
+                onClick={() => setTheme("light")}
+                className={`flex flex-col items-center gap-2 rounded-lg border-2 p-4 transition-all hover:bg-accent ${
+                  theme === "light"
+                    ? "border-primary bg-accent"
+                    : "border-border"
+                }`}
+              >
+                <Sun className="size-6" />
+                <span className="text-sm font-medium">Light</span>
+              </button>
+              <button
+                onClick={() => setTheme("dark")}
+                className={`flex flex-col items-center gap-2 rounded-lg border-2 p-4 transition-all hover:bg-accent ${
+                  theme === "dark"
+                    ? "border-primary bg-accent"
+                    : "border-border"
+                }`}
+              >
+                <Moon className="size-6" />
+                <span className="text-sm font-medium">Dark</span>
+              </button>
+              <button
+                onClick={() => setTheme("system")}
+                className={`flex flex-col items-center gap-2 rounded-lg border-2 p-4 transition-all hover:bg-accent ${
+                  theme === "system"
+                    ? "border-primary bg-accent"
+                    : "border-border"
+                }`}
+              >
+                <Monitor className="size-6" />
+                <span className="text-sm font-medium">System</span>
+              </button>
+            </div>
+          </Field>
         </CardContent>
       </Card>
 
