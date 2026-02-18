@@ -195,9 +195,9 @@ export function FlashcardReview({ onClose }: FlashcardReviewProps) {
   const currentCard = reviewState.cards[currentIndex];
 
   return (
-    <div className="fixed inset-0 bg-background z-50 flex flex-col">
+    <div className="fixed inset-0 bg-background z-50 flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b">
+      <div className="flex items-center justify-between p-4 border-b flex-shrink-0">
         <h2 className="font-semibold">Review Session</h2>
         <Button variant="ghost" size="icon" onClick={onClose}>
           <X className="h-5 w-5" />
@@ -205,7 +205,7 @@ export function FlashcardReview({ onClose }: FlashcardReviewProps) {
       </div>
 
       {/* Progress */}
-      <div className="p-4">
+      <div className="p-4 flex-shrink-0">
         <ReviewProgress
           completed={completedCount}
           total={reviewState.cards.length}
@@ -215,7 +215,7 @@ export function FlashcardReview({ onClose }: FlashcardReviewProps) {
       </div>
 
       {/* Card */}
-      <div className="flex-1 flex items-center justify-center p-4">
+      <div className="flex-1 flex items-center justify-center p-4 overflow-auto">
         <FlashcardCard
           card={currentCard}
           isFlipped={isFlipped}
@@ -224,7 +224,7 @@ export function FlashcardReview({ onClose }: FlashcardReviewProps) {
       </div>
 
       {/* Review Buttons */}
-      <div className="p-4 border-t">
+      <div className="p-4 border-t flex-shrink-0">
         {isFlipped ? (
           <ReviewButtons
             intervalPreview={currentCard.intervalPreview}
