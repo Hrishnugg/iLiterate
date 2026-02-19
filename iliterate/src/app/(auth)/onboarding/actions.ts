@@ -33,6 +33,7 @@ export async function completeOnboarding(
   const ageGroup = formData.get("age-group") as string;
   const educationLevel = formData.get("education-level") as string;
   const proficiencyLevel = formData.get("proficiency-level") as string;
+  const speechFormality = formData.get("speech-formality") as string;
   const yearsLearning = parseInt(
     (formData.get("years-learning") as string) || "0",
     10
@@ -51,6 +52,10 @@ export async function completeOnboarding(
     return { error: "Please select your current proficiency level." };
   }
 
+  if (!speechFormality || !["casual", "standard", "professional", "academic"].includes(speechFormality)) {
+    return { error: "Please select your preferred speech style." };
+  }
+
   const { error } = await supabase.from("profiles").upsert({
     id: user.id,
     target_language: targetLanguage,
@@ -60,6 +65,7 @@ export async function completeOnboarding(
     years_learning: yearsLearning,
     learning_motivation: motivations,
     proficiency_level: proficiencyLevel,
+    speech_formality: speechFormality,
   });
 
   if (error) {

@@ -56,6 +56,13 @@ const MOTIVATIONS = [
   { id: "entertainment", label: "Entertainment (movies, music, etc.)" },
 ];
 
+const FORMALITY_LEVELS = [
+  { value: "casual", label: "Casual", description: "Informal speech for friends & family" },
+  { value: "standard", label: "Standard", description: "Neutral, everyday communication" },
+  { value: "professional", label: "Professional", description: "Business and work contexts" },
+  { value: "academic", label: "Academic", description: "Scholarly, precise language" },
+];
+
 interface Profile {
   id: string;
   native_language: string;
@@ -65,6 +72,7 @@ interface Profile {
   years_learning: number | null;
   learning_motivation: string[] | null;
   proficiency_level: string | null;
+  speech_formality: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -88,6 +96,7 @@ export function ProfileSettings({ user, profile }: ProfileSettingsProps) {
     ageGroup: profile?.age_group || "",
     educationLevel: profile?.education_level || "",
     yearsLearning: profile?.years_learning?.toString() || "0",
+    speechFormality: profile?.speech_formality || "standard",
     motivations: profile?.learning_motivation || [],
   }), [profile]);
 
@@ -96,6 +105,7 @@ export function ProfileSettings({ user, profile }: ProfileSettingsProps) {
   const [ageGroup, setAgeGroup] = useState(initialValues.ageGroup);
   const [educationLevel, setEducationLevel] = useState(initialValues.educationLevel);
   const [yearsLearning, setYearsLearning] = useState(initialValues.yearsLearning);
+  const [speechFormality, setSpeechFormality] = useState(initialValues.speechFormality);
   const [motivations, setMotivations] = useState<string[]>(initialValues.motivations);
 
   // Check if any values have changed
@@ -110,9 +120,10 @@ export function ProfileSettings({ user, profile }: ProfileSettingsProps) {
       ageGroup !== initialValues.ageGroup ||
       educationLevel !== initialValues.educationLevel ||
       yearsLearning !== initialValues.yearsLearning ||
+      speechFormality !== initialValues.speechFormality ||
       motivationsChanged
     );
-  }, [targetLanguage, nativeLanguage, ageGroup, educationLevel, yearsLearning, motivations, initialValues]);
+  }, [targetLanguage, nativeLanguage, ageGroup, educationLevel, yearsLearning, speechFormality, motivations, initialValues]);
 
   const handleMotivationChange = (id: string, checked: boolean) => {
     setMotivations((prev) =>
@@ -136,6 +147,7 @@ export function ProfileSettings({ user, profile }: ProfileSettingsProps) {
           age_group: ageGroup,
           education_level: educationLevel,
           years_learning: parseInt(yearsLearning, 10),
+          speech_formality: speechFormality,
           learning_motivation: motivations,
           updated_at: new Date().toISOString(),
         })
@@ -297,6 +309,30 @@ export function ProfileSettings({ user, profile }: ProfileSettingsProps) {
                 onChange={(e) => setYearsLearning(e.target.value)}
                 disabled={isLoading}
               />
+            </Field>
+
+            <Field>
+              <FieldLabel>Speech style</FieldLabel>
+              <Select
+                value={speechFormality}
+                onValueChange={setSpeechFormality}
+                disabled={isLoading}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select speech style" />
+                </SelectTrigger>
+                <SelectContent>
+                  {FORMALITY_LEVELS.map((level) => (
+                    <SelectItem key={level.value} value={level.value}>
+                      <span className="font-medium">{level.label}</span>
+                      <span className="text-muted-foreground"> — {level.description}</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FieldDescription>
+                This affects the vocabulary and tone of generated content.
+              </FieldDescription>
             </Field>
 
             <Field>

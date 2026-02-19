@@ -63,6 +63,13 @@ const PROFICIENCY_LEVELS = [
   { value: "advanced", label: "Advanced", description: "I'm nearly fluent" },
 ];
 
+const FORMALITY_LEVELS = [
+  { value: "casual", label: "Casual", description: "Informal speech for friends & family" },
+  { value: "standard", label: "Standard", description: "Neutral, everyday communication" },
+  { value: "professional", label: "Professional", description: "Business and work contexts" },
+  { value: "academic", label: "Academic", description: "Scholarly, precise language" },
+];
+
 export function OnboardingForm({
   className,
   ...props
@@ -77,6 +84,7 @@ export function OnboardingForm({
   const [ageGroup, setAgeGroup] = useState("");
   const [educationLevel, setEducationLevel] = useState("");
   const [proficiencyLevel, setProficiencyLevel] = useState("");
+  const [speechFormality, setSpeechFormality] = useState("standard");
   const [motivations, setMotivations] = useState<string[]>([]);
 
   const handleMotivationChange = (id: string, checked: boolean) => {
@@ -235,6 +243,34 @@ export function OnboardingForm({
                 </Select>
                 <FieldDescription>
                   This helps us personalize content to your skill level.
+                </FieldDescription>
+              </Field>
+
+              <Field>
+                <FieldLabel htmlFor="speech-formality">
+                  What style of speech do you want to learn?
+                </FieldLabel>
+                <Select
+                  name="speech-formality"
+                  value={speechFormality}
+                  onValueChange={setSpeechFormality}
+                  required
+                  disabled={pending}
+                >
+                  <SelectTrigger id="speech-formality">
+                    <SelectValue placeholder="Select speech style" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {FORMALITY_LEVELS.map((level) => (
+                      <SelectItem key={level.value} value={level.value}>
+                        <span className="font-medium">{level.label}</span>
+                        <span className="text-muted-foreground"> — {level.description}</span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FieldDescription>
+                  This affects the vocabulary and tone of generated content.
                 </FieldDescription>
               </Field>
 

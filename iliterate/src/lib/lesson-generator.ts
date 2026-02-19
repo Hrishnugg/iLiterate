@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import { getLevelDescription } from "./level-system";
+import { SpeechFormality } from "@/types/database";
 
 // Initialize OpenAI
 const openai = new OpenAI({
@@ -32,6 +33,7 @@ export interface GenerateLessonOptions {
   nativeLanguage: string;
   topic: string;
   length: LessonLength;
+  formality?: SpeechFormality;
 }
 
 // ============================================================================
@@ -63,6 +65,44 @@ export const LESSON_TOPICS = [
 
 export type TopicId = (typeof LESSON_TOPICS)[number]["id"];
 
+/** Formality level descriptions for AI prompts */
+const FORMALITY_DESCRIPTIONS: Record<SpeechFormality, { style: string; instructions: string }> = {
+  casual: {
+    style: "Casual/Informal",
+    instructions: `- Use contractions freely (e.g., "can't", "won't", "gonna" equivalents in the target language)
+- Include colloquial expressions and everyday slang appropriate for the level
+- Use relaxed sentence structures typical of friendly conversation
+- Vocabulary should be what friends and family use in everyday situations
+- Avoid formal titles or honorifics unless culturally necessary`,
+  },
+  standard: {
+    style: "Standard/Neutral",
+    instructions: `- Use balanced, universally understood vocabulary
+- Mix of contractions and full forms as appropriate
+- Standard sentence structures suitable for general communication
+- Vocabulary that works in most everyday situations
+- Neutral tone that's neither too formal nor too casual`,
+  },
+  professional: {
+    style: "Professional/Business",
+    instructions: `- Use formal vocabulary appropriate for workplace settings
+- Include polite forms and formal address (e.g., "usted" in Spanish, honorifics in Japanese)
+- Avoid contractions and slang
+- Use complete, well-structured sentences
+- Include business and professional terminology relevant to the topic
+- Maintain respectful, courteous tone throughout`,
+  },
+  academic: {
+    style: "Academic/Scholarly",
+    instructions: `- Use precise, technical vocabulary appropriate for the level
+- Employ complex sentence structures and subordinate clauses
+- Avoid any colloquialisms or informal expressions
+- Include discipline-specific terminology when relevant
+- Use formal connectors and transition phrases
+- Maintain objective, analytical tone throughout`,
+  },
+};
+
 // ============================================================================
 // Lesson Generation
 // ============================================================================
@@ -71,9 +111,10 @@ export type TopicId = (typeof LESSON_TOPICS)[number]["id"];
  * Generate a lesson using Gemini AI.
  */
 export async function generateLesson(options: GenerateLessonOptions): Promise<LessonContent> {
-  const { targetLevel, language, nativeLanguage, topic, length } = options;
+  const { targetLevel, language, nativeLanguage, topic, length, formality = "standard" } = options;
   const lengthConfig = LENGTH_CONFIG[length];
   const levelDesc = getLevelDescription(targetLevel);
+  const formalityDesc = FORMALITY_DESCRIPTIONS[formality];
 
   const prompt = `Generate a reading passage for a language learner.
 
@@ -82,9 +123,13 @@ SPECIFICATIONS:
 - Target length: ${lengthConfig.targetWords} words (between ${lengthConfig.minWords}-${lengthConfig.maxWords})
 - Difficulty: Level ${targetLevel}/20 (${levelDesc.cefr} - ${levelDesc.title})
 - Topic: ${topic}
+- Speech Style: ${formalityDesc.style}
 
 LEARNER LEVEL DESCRIPTION:
 At level ${targetLevel}, the learner can: ${levelDesc.description}
+
+SPEECH FORMALITY INSTRUCTIONS:
+${formalityDesc.instructions}
 
 REQUIREMENTS:
 1. Write the passage entirely in ${language}
@@ -92,9 +137,11 @@ REQUIREMENTS:
 3. Make the content engaging and educational
 4. Include a clear title in ${language}
 5. Format the body with proper paragraphs using <p> tags
+6. IMPORTANT: Match the speech style (${formalityDesc.style}) throughout - this affects word choice, sentence structure, and tone
 
 VOCABULARY EXTRACTION:
 After the passage, identify 5-8 key vocabulary words that a learner at this level should focus on.
+These vocabulary words should match the ${formalityDesc.style} register.
 For each word, provide:
 - The word in ${language}
 - Translation in ${nativeLanguage}

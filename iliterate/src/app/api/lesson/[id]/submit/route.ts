@@ -69,9 +69,7 @@ export async function POST(
     // Grade the quiz
     const gradeResult = gradeQuiz(lesson.quiz_questions, answers);
 
-    const totalScore = gradeResult.readingScore + gradeResult.vocabularyScore;
-    const totalMaxScore = gradeResult.readingMaxScore + gradeResult.vocabularyMaxScore;
-    const percentage = totalMaxScore > 0 ? (totalScore / totalMaxScore) * 100 : 0;
+    const { gradedQuestions, score, maxScore, percentage } = gradeResult;
 
     // Calculate level adjustment based on score
     let levelAdjustment = 0;
@@ -83,24 +81,19 @@ export async function POST(
     // 50-79%: stay at same level
 
     // Calculate XP awards
-    const baseReadingXP = Math.floor((gradeResult.readingScore / Math.max(gradeResult.readingMaxScore, 1)) * 30);
-    const baseVocabXP = Math.floor((gradeResult.vocabularyScore / Math.max(gradeResult.vocabularyMaxScore, 1)) * 20);
-
-    // Bonus XP for perfect scores
-    const perfectBonus = totalScore === totalMaxScore ? 10 : 0;
-
-    const readingXpAwarded = baseReadingXP + (totalScore === totalMaxScore ? 5 : 0);
-    const vocabularyXpAwarded = baseVocabXP + (totalScore === totalMaxScore ? 5 : 0);
+    const baseXP = Math.floor((score / Math.max(maxScore, 1)) * 50);
+    const perfectBonus = score === maxScore ? 10 : 0;
+    const xpAwarded = baseXP + perfectBonus;
 
     // Update lesson with results
     const { error: updateError } = await supabase
       .from("lesson_sessions")
       .update({
         status: "completed",
-        quiz_score: totalScore,
-        quiz_max_score: totalMaxScore,
-        reading_xp_awarded: readingXpAwarded,
-        vocabulary_xp_awarded: vocabularyXpAwarded,
+        quiz_score: score,
+        quiz_max_score: maxScore,
+        reading_xp_awarded: xpAwarded,
+        vocabulary_xp_awarded: 0,
         level_adjustment: levelAdjustment,
         quiz_answers: answers,
         completed_at: new Date().toISOString(),
@@ -117,28 +110,24 @@ export async function POST(
     }
 
     // Update user's skill levels with XP
-    const { data: skillLevels, error: skillError } = await supabase
+    const { data: skillLevels } = await supabase
       .from("user_skill_levels")
       .select("*")
       .eq("user_id", user.id)
       .single();
 
     if (skillLevels) {
-      const newReadingXP = (skillLevels.reading_xp || 0) + readingXpAwarded;
-      const newVocabularyXP = (skillLevels.vocabulary_xp || 0) + vocabularyXpAwarded;
+      const newReadingXP = (skillLevels.reading_xp || 0) + xpAwarded;
 
       // Check for level ups (simple threshold: 100 XP per level)
       const xpPerLevel = 100;
       const newReadingLevel = Math.min(20, skillLevels.reading_level + Math.floor(newReadingXP / xpPerLevel));
-      const newVocabularyLevel = Math.min(20, skillLevels.vocabulary_level + Math.floor(newVocabularyXP / xpPerLevel));
 
       await supabase
         .from("user_skill_levels")
         .update({
           reading_xp: newReadingXP % xpPerLevel,
-          vocabulary_xp: newVocabularyXP % xpPerLevel,
           reading_level: newReadingLevel,
-          vocabulary_level: newVocabularyLevel,
           updated_at: new Date().toISOString(),
         })
         .eq("user_id", user.id);
@@ -147,20 +136,12 @@ export async function POST(
     return NextResponse.json({
       success: true,
       results: {
-        gradedQuestions: gradeResult.gradedQuestions,
-        readingScore: gradeResult.readingScore,
-        readingMaxScore: gradeResult.readingMaxScore,
-        vocabularyScore: gradeResult.vocabularyScore,
-        vocabularyMaxScore: gradeResult.vocabularyMaxScore,
-        totalScore,
-        totalMaxScore,
-        percentage: Math.round(percentage),
+        gradedQuestions,
+        score,
+        maxScore,
+        percentage,
         levelAdjustment,
-        xpAwarded: {
-          reading: readingXpAwarded,
-          vocabulary: vocabularyXpAwarded,
-          total: readingXpAwarded + vocabularyXpAwarded,
-        },
+        xpAwarded,
       },
       message: levelAdjustment > 0
         ? "Great job! Your next lesson will be slightly more challenging."

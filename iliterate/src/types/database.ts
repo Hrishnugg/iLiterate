@@ -36,6 +36,12 @@ export type LearningMotivation =
   | "family"
   | "entertainment";
 
+export type SpeechFormality =
+  | "casual"
+  | "standard"
+  | "professional"
+  | "academic";
+
 export interface Profile {
   id: string;
   native_language: string;
@@ -45,6 +51,7 @@ export interface Profile {
   years_learning: number;
   learning_motivation: LearningMotivation[];
   proficiency_level: ProficiencyLevel;
+  speech_formality: SpeechFormality;
   is_premium: boolean;
   daily_reviews_used: number;
   last_review_date: string | null;

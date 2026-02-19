@@ -91,10 +91,7 @@ export async function POST(request: NextRequest) {
         word: uv.vocabulary?.word || "",
         context: uv.context_sentence || undefined,
       })),
-      questionCounts: {
-        comprehension: 3,
-        vocabulary: 3,
-      },
+      questionCount: 5,
     });
 
     return NextResponse.json(quiz);

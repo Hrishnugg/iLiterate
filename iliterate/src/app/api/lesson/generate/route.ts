@@ -46,10 +46,10 @@ export async function POST(request: NextRequest) {
 
     const { topic: requestedTopic, length, useSuggestedTopic } = validationResult.data;
 
-    // Get user's profile for language and motivations
+    // Get user's profile for language, motivations, and formality
     const { data: profile } = await supabase
       .from("profiles")
-      .select("target_language, native_language, learning_motivation")
+      .select("target_language, native_language, learning_motivation, speech_formality")
       .eq("id", user.id)
       .single();
 
@@ -89,6 +89,7 @@ export async function POST(request: NextRequest) {
       nativeLanguage: profile.native_language,
       topic: topicInfo.name,
       length: length as LessonLength,
+      formality: profile.speech_formality || "standard",
     });
 
     // Save to database

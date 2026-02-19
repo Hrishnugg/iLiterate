@@ -10,12 +10,7 @@ const submitQuizSchema = z.object({
   questions: z.array(
     z.object({
       id: z.string(),
-      type: z.enum([
-        "comprehension_mcq",
-        "vocabulary_fill_blank",
-        "grammar_mcq",
-        "grammar_fill_blank",
-      ]),
+      type: z.string(),
       question: z.string(),
       options: z.array(z.string()).optional(),
       correct_answer: z.string(),
@@ -91,62 +86,33 @@ export async function POST(request: NextRequest) {
     }
 
     // Grade the quiz
-    const {
-      gradedQuestions,
-      readingScore,
-      readingMaxScore,
-      vocabularyScore,
-      vocabularyMaxScore,
-    } = gradeQuiz(questions as AssessmentQuestion[], answers);
-
-    // Calculate XP awards
-    const readingXP =
-      readingMaxScore > 0
-        ? calculateQuizXP(
-            readingScore,
-            readingMaxScore,
-            contentLevel,
-            skillLevels.reading_level,
-            "reading"
-          )
-        : { skill: "reading" as SkillType, baseXP: 0, bonusXP: 0, totalXP: 0, reason: "No reading questions" };
-
-    const vocabularyXP =
-      vocabularyMaxScore > 0
-        ? calculateQuizXP(
-            vocabularyScore,
-            vocabularyMaxScore,
-            contentLevel,
-            skillLevels.vocabulary_level,
-            "vocabulary"
-          )
-        : { skill: "vocabulary" as SkillType, baseXP: 0, bonusXP: 0, totalXP: 0, reason: "No vocabulary questions" };
-
-    // Check for level ups
-    const readingResult = checkLevelUp(
-      skillLevels.reading_level,
-      skillLevels.reading_xp,
-      readingXP.totalXP
+    const { gradedQuestions, score, maxScore, percentage } = gradeQuiz(
+      questions as AssessmentQuestion[],
+      answers
     );
 
-    const vocabularyResult = checkLevelUp(
-      skillLevels.vocabulary_level,
-      skillLevels.vocabulary_xp,
-      vocabularyXP.totalXP
+    // Calculate XP awards based on overall score
+    const xpResult = calculateQuizXP(
+      score,
+      maxScore,
+      contentLevel,
+      skillLevels.reading_level,
+      "reading"
+    );
+
+    // Check for level up
+    const levelResult = checkLevelUp(
+      skillLevels.reading_level,
+      skillLevels.reading_xp,
+      xpResult.totalXP
     );
 
     // Build level changes object
     const levelChanges: Partial<Record<SkillType, LevelChange>> = {};
-    if (readingResult.leveledUp) {
+    if (levelResult.leveledUp) {
       levelChanges.reading = {
         from: skillLevels.reading_level,
-        to: readingResult.newLevel,
-      };
-    }
-    if (vocabularyResult.leveledUp) {
-      levelChanges.vocabulary = {
-        from: skillLevels.vocabulary_level,
-        to: vocabularyResult.newLevel,
+        to: levelResult.newLevel,
       };
     }
 
@@ -154,10 +120,8 @@ export async function POST(request: NextRequest) {
     const { error: updateError } = await supabase
       .from("user_skill_levels")
       .update({
-        reading_level: readingResult.newLevel,
-        reading_xp: readingResult.remainingXP,
-        vocabulary_level: vocabularyResult.newLevel,
-        vocabulary_xp: vocabularyResult.remainingXP,
+        reading_level: levelResult.newLevel,
+        reading_xp: levelResult.remainingXP,
         updated_at: new Date().toISOString(),
       })
       .eq("user_id", user.id);
@@ -178,12 +142,12 @@ export async function POST(request: NextRequest) {
         content_id: contentId,
         assessment_type: "post_reading",
         questions: gradedQuestions,
-        reading_score: readingScore,
-        reading_max_score: readingMaxScore,
-        vocabulary_score: vocabularyScore,
-        vocabulary_max_score: vocabularyMaxScore,
-        reading_xp_awarded: readingXP.totalXP,
-        vocabulary_xp_awarded: vocabularyXP.totalXP,
+        reading_score: score,
+        reading_max_score: maxScore,
+        vocabulary_score: 0,
+        vocabulary_max_score: 0,
+        reading_xp_awarded: xpResult.totalXP,
+        vocabulary_xp_awarded: 0,
         grammar_xp_awarded: 0,
         level_changes: Object.keys(levelChanges).length > 0 ? levelChanges : null,
         time_taken_seconds: timeTakenSeconds,
@@ -196,12 +160,6 @@ export async function POST(request: NextRequest) {
       // Don't fail the request, the levels are already updated
     }
 
-    // Calculate total score for response
-    const totalScore = readingScore + vocabularyScore;
-    const totalMaxScore = readingMaxScore + vocabularyMaxScore;
-    const percentage =
-      totalMaxScore > 0 ? Math.round((totalScore / totalMaxScore) * 100) : 0;
-
     return NextResponse.json({
       success: true,
       assessment: {
@@ -210,40 +168,23 @@ export async function POST(request: NextRequest) {
         contentTitle: content?.title,
       },
       results: {
-        totalScore,
-        totalMaxScore,
+        score,
+        maxScore,
         percentage,
-        reading: {
-          score: readingScore,
-          maxScore: readingMaxScore,
-          xpAwarded: readingXP,
-          levelUp: readingResult.leveledUp
-            ? {
-                from: skillLevels.reading_level,
-                to: readingResult.newLevel,
-                newCEFR: readingResult.newCEFR,
-                crossedCEFRBoundary: readingResult.crossedCEFRBoundary,
-              }
-            : null,
-        },
-        vocabulary: {
-          score: vocabularyScore,
-          maxScore: vocabularyMaxScore,
-          xpAwarded: vocabularyXP,
-          levelUp: vocabularyResult.leveledUp
-            ? {
-                from: skillLevels.vocabulary_level,
-                to: vocabularyResult.newLevel,
-                newCEFR: vocabularyResult.newCEFR,
-                crossedCEFRBoundary: vocabularyResult.crossedCEFRBoundary,
-              }
-            : null,
-        },
+        xpAwarded: xpResult,
+        levelUp: levelResult.leveledUp
+          ? {
+              from: skillLevels.reading_level,
+              to: levelResult.newLevel,
+              newCEFR: levelResult.newCEFR,
+              crossedCEFRBoundary: levelResult.crossedCEFRBoundary,
+            }
+          : null,
       },
       gradedQuestions,
       newLevels: {
-        reading: readingResult.newLevel,
-        vocabulary: vocabularyResult.newLevel,
+        reading: levelResult.newLevel,
+        vocabulary: skillLevels.vocabulary_level,
         grammar: skillLevels.grammar_level,
       },
     });

@@ -11,10 +11,7 @@ export interface GenerateQuizParams {
   userLevel: number;
   nativeLanguage: string;
   savedVocabulary?: Array<{ word: string; context?: string }>;
-  questionCounts?: {
-    comprehension: number;
-    vocabulary: number;
-  };
+  questionCount?: number;
 }
 
 export interface GeneratedQuiz {
@@ -37,7 +34,7 @@ const LEVEL_GUIDELINES: Record<CEFRLevel, string> = {
 };
 
 /**
- * Generate a quiz for a piece of content using Gemini AI
+ * Generate a quiz for a piece of content using OpenAI
  */
 export async function generateQuiz(params: GenerateQuizParams): Promise<GeneratedQuiz> {
   const {
@@ -45,7 +42,7 @@ export async function generateQuiz(params: GenerateQuizParams): Promise<Generate
     userLevel,
     nativeLanguage,
     savedVocabulary = [],
-    questionCounts = { comprehension: 3, vocabulary: 3 },
+    questionCount = 5,
   } = params;
 
   const cefrLevel = numericLevelToCEFR(userLevel);
@@ -58,10 +55,13 @@ export async function generateQuiz(params: GenerateQuizParams): Promise<Generate
     .trim()
     .slice(0, 3000);
 
-  // Build vocabulary context for fill-in-blank questions
+  // Build vocabulary context
   const vocabContext = savedVocabulary.length > 0
-    ? `The student has saved these vocabulary words from this content: ${savedVocabulary.map(v => v.word).join(", ")}. Use some of these for fill-in-blank questions.`
-    : "Create vocabulary questions from key words that appeared in the text.";
+    ? `The student has saved these vocabulary words: ${savedVocabulary.map(v => v.word).join(", ")}. You may include questions about these words.`
+    : "";
+
+  // Determine question language based on level (14+ = target language)
+  const questionLanguage = userLevel >= 14 ? content.language : nativeLanguage;
 
   const prompt = `You are creating a language learning quiz for a student.
 
@@ -79,38 +79,33 @@ ${vocabContext}
 
 Level Guidelines: ${LEVEL_GUIDELINES[cefrLevel]}
 
-Generate a quiz with EXACTLY:
-- ${questionCounts.comprehension} reading comprehension multiple choice questions
-- ${questionCounts.vocabulary} vocabulary fill-in-the-blank questions
+Generate EXACTLY ${questionCount} multiple choice questions. All questions should be in ${questionLanguage}.
+
+Question types to include:
+- Reading comprehension (what happened, who did what, main idea)
+- Vocabulary meaning (what does this word mean in context)
+- Simple inference (why did something happen)
 
 Return your response as a JSON array with this EXACT structure:
 [
   {
     "id": "q1",
-    "type": "comprehension_mcq",
-    "question": "Question text (in ${userLevel <= 6 ? nativeLanguage : content.language})",
+    "type": "multiple_choice",
+    "question": "Question text in ${questionLanguage}",
     "options": ["Option A", "Option B", "Option C", "Option D"],
     "correct_answer": "Option A",
     "hint": "Optional hint for struggling students"
-  },
-  {
-    "id": "q2",
-    "type": "vocabulary_fill_blank",
-    "question": "Complete the sentence: La casa ___ muy grande.",
-    "context": "The house is very big. (translation for context)",
-    "correct_answer": "es",
-    "hint": "Think about the verb 'to be' for descriptions"
   }
 ]
 
 Important rules:
-1. Comprehension questions should test understanding, not just word recall
-2. For levels 1-6 (A1-A2), questions can be in the native language
-3. For levels 7+ (B1+), questions should be in the target language
-4. Fill-in-blank sentences should have clear context clues
-5. Each question needs a unique ID (q1, q2, q3, etc.)
-6. Provide 4 options for multiple choice (one correct, three plausible wrong)
-7. Hints should guide without giving away the answer`;
+1. Keep questions simple and clear - appropriate for the student's level
+2. All questions and options should be in ${questionLanguage}
+3. Each question needs a unique ID (q1, q2, q3, etc.)
+4. Provide 4 options for each question (one correct, three plausible but clearly wrong)
+5. Make wrong options plausible but distinguishable from the correct answer
+6. Hints should guide without giving away the answer
+7. Focus on understanding the content, not tricky wordplay`;
 
   const response = await openai.chat.completions.create({
     model: "gpt-4o-mini",
@@ -163,8 +158,7 @@ export async function generateQuizFromContent(
   targetLanguage: string,
   nativeLanguage: string,
   vocabulary: Array<{ word: string; translation: string; context?: string }>,
-  numComprehension: number = 3,
-  numVocabulary: number = 3
+  questionCount: number = 5
 ): Promise<AssessmentQuestion[]> {
   const cefrLevel = numericLevelToCEFR(targetLevel);
 
@@ -176,8 +170,11 @@ export async function generateQuizFromContent(
     .slice(0, 3000);
 
   const vocabContext = vocabulary.length > 0
-    ? `Key vocabulary from the text: ${vocabulary.map(v => `${v.word} (${v.translation})`).join(", ")}. Use some of these for fill-in-blank questions.`
-    : "Create vocabulary questions from key words that appeared in the text.";
+    ? `Key vocabulary from the text: ${vocabulary.map(v => `${v.word} (${v.translation})`).join(", ")}. You may include questions about these words.`
+    : "";
+
+  // Determine question language based on level (14+ = target language)
+  const questionLanguage = targetLevel >= 14 ? targetLanguage : nativeLanguage;
 
   const prompt = `You are creating a language learning quiz.
 
@@ -194,37 +191,32 @@ ${vocabContext}
 
 Level Guidelines: ${LEVEL_GUIDELINES[cefrLevel]}
 
-Generate a quiz with EXACTLY:
-- ${numComprehension} reading comprehension multiple choice questions
-- ${numVocabulary} vocabulary fill-in-the-blank questions
+Generate EXACTLY ${questionCount} multiple choice questions. All questions should be in ${questionLanguage}.
+
+Question types to include:
+- Reading comprehension (what happened, who did what, main idea)
+- Vocabulary meaning (what does this word mean in context)
+- Simple inference (why did something happen)
 
 Return your response as a JSON array with this EXACT structure:
 [
   {
     "id": "q1",
-    "type": "comprehension_mcq",
-    "question": "Question text (in ${targetLevel <= 6 ? nativeLanguage : targetLanguage})",
+    "type": "multiple_choice",
+    "question": "Question text in ${questionLanguage}",
     "options": ["Option A", "Option B", "Option C", "Option D"],
     "correct_answer": "Option A",
     "hint": "Optional hint"
-  },
-  {
-    "id": "q2",
-    "type": "vocabulary_fill_blank",
-    "question": "Complete: La casa ___ muy grande.",
-    "context": "The house is very big.",
-    "correct_answer": "es",
-    "hint": "Think about the verb 'to be'"
   }
 ]
 
 Rules:
-1. Comprehension questions test understanding, not just word recall
-2. For levels 1-6, questions can be in native language
-3. For levels 7+, questions should be in target language
-4. Fill-in-blank sentences need clear context clues
-5. Each question needs a unique ID (q1, q2, etc.)
-6. Provide 4 options for MCQ (one correct, three plausible wrong)`;
+1. Keep questions simple and clear - appropriate for the student's level
+2. All questions and options should be in ${questionLanguage}
+3. Each question needs a unique ID (q1, q2, etc.)
+4. Provide 4 options (one correct, three plausible but clearly wrong)
+5. Make wrong options plausible but distinguishable from the correct answer
+6. Focus on understanding the content, not tricky wordplay`;
 
   const response = await openai.chat.completions.create({
     model: "gpt-4o-mini",
@@ -261,38 +253,25 @@ Rules:
 }
 
 /**
- * Grade quiz answers and calculate scores per skill
+ * Grade quiz answers and calculate score
  */
 export function gradeQuiz(
   questions: AssessmentQuestion[],
   userAnswers: Record<string, string>
 ): {
   gradedQuestions: AssessmentQuestion[];
-  readingScore: number;
-  readingMaxScore: number;
-  vocabularyScore: number;
-  vocabularyMaxScore: number;
+  score: number;
+  maxScore: number;
+  percentage: number;
 } {
-  let readingScore = 0;
-  let readingMaxScore = 0;
-  let vocabularyScore = 0;
-  let vocabularyMaxScore = 0;
+  let score = 0;
+  const maxScore = questions.length;
 
   const gradedQuestions = questions.map((q) => {
     const userAnswer = userAnswers[q.id] || "";
+    const isCorrect = userAnswer === q.correct_answer;
 
-    // For fill-in-blank, do fuzzy matching (case-insensitive, trim whitespace)
-    let isCorrect: boolean;
-    if (q.type === "vocabulary_fill_blank") {
-      isCorrect = userAnswer.toLowerCase().trim() === q.correct_answer.toLowerCase().trim();
-      vocabularyMaxScore++;
-      if (isCorrect) vocabularyScore++;
-    } else {
-      // For MCQ, exact match
-      isCorrect = userAnswer === q.correct_answer;
-      readingMaxScore++;
-      if (isCorrect) readingScore++;
-    }
+    if (isCorrect) score++;
 
     return {
       ...q,
@@ -303,9 +282,8 @@ export function gradeQuiz(
 
   return {
     gradedQuestions,
-    readingScore,
-    readingMaxScore,
-    vocabularyScore,
-    vocabularyMaxScore,
+    score,
+    maxScore,
+    percentage: maxScore > 0 ? Math.round((score / maxScore) * 100) : 0,
   };
 }

@@ -50,16 +50,11 @@ export async function POST(
       .single();
 
     // Determine number of questions based on length
-    const lengthConfig = LENGTH_CONFIG[lesson.length_type as LessonLength];
-    let numComprehension = 2;
-    let numVocabulary = 2;
-
+    let questionCount = 4;
     if (lesson.length_type === "medium") {
-      numComprehension = 3;
-      numVocabulary = 2;
+      questionCount = 5;
     } else if (lesson.length_type === "long") {
-      numComprehension = 4;
-      numVocabulary = 4;
+      questionCount = 6;
     }
 
     // Generate quiz questions
@@ -69,8 +64,7 @@ export async function POST(
       profile?.target_language || "spanish",
       profile?.native_language || "english",
       lesson.vocabulary || [],
-      numComprehension,
-      numVocabulary
+      questionCount
     );
 
     // Update lesson status
