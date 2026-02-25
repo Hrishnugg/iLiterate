@@ -13,8 +13,14 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+function isCJKLanguage(lang: string): boolean {
+  const l = lang.toLowerCase();
+  return l.includes("chinese") || l.includes("japanese") || l.includes("korean");
+}
+
 interface RSVPReaderProps {
   text: string;
+  language?: string;
   initialPosition?: number;
   onPositionChange?: (index: number, totalWords: number) => void;
   onWpmChange?: (wpm: number) => void;
@@ -24,6 +30,7 @@ interface RSVPReaderProps {
 
 export function RSVPReader({
   text,
+  language,
   initialPosition = 0,
   onPositionChange,
   onWpmChange,
@@ -40,17 +47,25 @@ export function RSVPReader({
   const wpmInputRef = useRef<HTMLInputElement>(null);
 
   // Extract words from text
-  const words = useMemo(() => {
-    // Remove HTML tags
+  const [words, setWords] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
     const plainText = text.replace(/<[^>]*>/g, " ");
-
-    // Split by whitespace and filter empty strings
-    const extractedWords = plainText
-      .split(/\s+/)
-      .filter((word) => word.trim().length > 0);
-
-    return extractedWords;
-  }, [text]);
+    if (language && isCJKLanguage(language)) {
+      setIsLoading(true);
+      fetch("/api/tokenize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: plainText, language }),
+      })
+        .then((r) => r.json())
+        .then((data) => setWords(data.tokens ?? []))
+        .finally(() => setIsLoading(false));
+    } else {
+      setWords(plainText.split(/\s+/).filter((w) => w.trim().length > 0));
+    }
+  }, [text, language]);
 
   const totalWords = words.length;
   const currentWord = words[currentWordIndex] || "";
@@ -250,6 +265,10 @@ export function RSVPReader({
       onRegisterSeek(seekToPercentage);
     }
   }, [onRegisterSeek, seekToPercentage]);
+
+  if (isLoading) {
+    return <div className={cn("flex items-center justify-center h-full", className)}>Loading...</div>;
+  }
 
   if (totalWords === 0) {
     return (
