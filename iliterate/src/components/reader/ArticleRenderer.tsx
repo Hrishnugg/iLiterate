@@ -70,7 +70,7 @@ export function ArticleRenderer({ content, isLesson = false }: ArticleRendererPr
     return getTimeRemaining(200); // Normal scroll-based time remaining at 200 WPM
   }, [isRSVPMode, rsvpWordIndex, rsvpTotalWords, rsvpWpm, getTimeRemaining]);
 
-  // Memoize plain text for AudioPlayer and RSVP
+  // Memoize plain text for RSVP mode
   const plainTextContent = useMemo(
     () => content.body.replace(/<[^>]*>/g, ""),
     [content.body]
@@ -442,7 +442,7 @@ export function ArticleRenderer({ content, isLesson = false }: ArticleRendererPr
         }
         audioPlayer={
           <AudioPlayer
-            text={plainTextContent}
+            contentId={content.id}
             language={content.language}
           />
         }
