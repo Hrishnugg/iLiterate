@@ -416,9 +416,9 @@ export function RSVPReader({
                 setWpmInput(newWpm.toString());
                 onWpmChange?.(newWpm);
               }}
-              className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-gray-200 dark:bg-gray-700 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-black [&::-webkit-slider-thumb]:cursor-pointer [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-black [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:border-0"
+              className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-gray-200 dark:bg-gray-700 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-gray-500 [&::-webkit-slider-thumb]:cursor-pointer [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-gray-500 [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:border-0"
               style={{
-                background: `linear-gradient(to right, black 0%, black ${((wpm - 100) / 500) * 100}%, rgb(229 231 235) ${((wpm - 100) / 500) * 100}%, rgb(229 231 235) 100%)`
+                background: `linear-gradient(to right, var(--primary) 0%, var(--primary) ${((wpm - 100) / 500) * 100}%, rgb(229 231 235) ${((wpm - 100) / 500) * 100}%, rgb(229 231 235) 100%)`
               }}
               aria-label="Reading speed in words per minute"
               tabIndex={showSettings ? 0 : -1}
