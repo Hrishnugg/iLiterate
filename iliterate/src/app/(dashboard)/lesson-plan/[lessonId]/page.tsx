@@ -36,7 +36,7 @@ interface VocabularyItem {
 
 interface QuizQuestion {
   id: string;
-  type: "comprehension_mcq" | "vocabulary_fill_blank";
+  type: "comprehension_mcq" | "vocabulary_fill_blank" | "multiple_choice";
   question: string;
   options?: string[];
   correct_answer: string;
@@ -438,7 +438,7 @@ export default function LessonPage() {
                     </div>
                   </div>
 
-                  {question.type === "comprehension_mcq" && question.options ? (
+                  {question.options && question.options.length > 0 ? (
                     <div className="space-y-2 ml-9">
                       {question.options.map((option) => (
                         <button
