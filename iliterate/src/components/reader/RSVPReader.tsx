@@ -13,8 +13,14 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+function isCJKLanguage(lang: string): boolean {
+  const l = lang.toLowerCase();
+  return l.includes("chinese") || l.includes("japanese") || l.includes("korean");
+}
+
 interface RSVPReaderProps {
   text: string;
+  language?: string;
   initialPosition?: number;
   onPositionChange?: (index: number, totalWords: number) => void;
   onWpmChange?: (wpm: number) => void;
@@ -24,6 +30,7 @@ interface RSVPReaderProps {
 
 export function RSVPReader({
   text,
+  language,
   initialPosition = 0,
   onPositionChange,
   onWpmChange,
@@ -40,17 +47,25 @@ export function RSVPReader({
   const wpmInputRef = useRef<HTMLInputElement>(null);
 
   // Extract words from text
-  const words = useMemo(() => {
-    // Remove HTML tags
+  const [words, setWords] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
     const plainText = text.replace(/<[^>]*>/g, " ");
-
-    // Split by whitespace and filter empty strings
-    const extractedWords = plainText
-      .split(/\s+/)
-      .filter((word) => word.trim().length > 0);
-
-    return extractedWords;
-  }, [text]);
+    if (language && isCJKLanguage(language)) {
+      setIsLoading(true);
+      fetch("/api/tokenize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: plainText, language }),
+      })
+        .then((r) => r.json())
+        .then((data) => setWords(data.tokens ?? []))
+        .finally(() => setIsLoading(false));
+    } else {
+      setWords(plainText.split(/\s+/).filter((w) => w.trim().length > 0));
+    }
+  }, [text, language]);
 
   const totalWords = words.length;
   const currentWord = words[currentWordIndex] || "";
@@ -251,6 +266,10 @@ export function RSVPReader({
     }
   }, [onRegisterSeek, seekToPercentage]);
 
+  if (isLoading) {
+    return <div className={cn("flex items-center justify-center h-full", className)}>Loading...</div>;
+  }
+
   if (totalWords === 0) {
     return (
       <div
@@ -397,9 +416,9 @@ export function RSVPReader({
                 setWpmInput(newWpm.toString());
                 onWpmChange?.(newWpm);
               }}
-              className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-gray-200 dark:bg-gray-700 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-black [&::-webkit-slider-thumb]:cursor-pointer [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-black [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:border-0"
+              className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-gray-200 dark:bg-gray-700 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-gray-500 [&::-webkit-slider-thumb]:cursor-pointer [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-gray-500 [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:border-0"
               style={{
-                background: `linear-gradient(to right, black 0%, black ${((wpm - 100) / 500) * 100}%, rgb(229 231 235) ${((wpm - 100) / 500) * 100}%, rgb(229 231 235) 100%)`
+                background: `linear-gradient(to right, var(--primary) 0%, var(--primary) ${((wpm - 100) / 500) * 100}%, rgb(229 231 235) ${((wpm - 100) / 500) * 100}%, rgb(229 231 235) 100%)`
               }}
               aria-label="Reading speed in words per minute"
               tabIndex={showSettings ? 0 : -1}
