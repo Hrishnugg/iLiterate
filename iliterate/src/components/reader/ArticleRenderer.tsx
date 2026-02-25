@@ -443,6 +443,7 @@ export function ArticleRenderer({ content, isLesson = false }: ArticleRendererPr
         audioPlayer={
           <AudioPlayer
             contentId={content.id}
+            lessonId={isLesson ? content.id : undefined}
             language={content.language}
           />
         }

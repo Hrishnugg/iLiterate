@@ -88,17 +88,48 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { data: content, error: contentError } = await supabase
-      .from("content")
-      .select("id, body, language")
-      .eq("id", body.contentId)
-      .single();
+    let textBody: string;
+    let language: string;
 
-    if (contentError || !content) {
-      return NextResponse.json({ error: "Content not found" }, { status: 404 });
+    if (body.lessonId) {
+      // Fetch from lesson_sessions table
+      const { data: lesson, error: lessonError } = await supabase
+        .from("lesson_sessions")
+        .select("id, content_body")
+        .eq("id", body.lessonId)
+        .single();
+
+      if (lessonError || !lesson) {
+        return NextResponse.json({ error: "Content not found" }, { status: 404 });
+      }
+
+      textBody = lesson.content_body || "";
+
+      // Language lives on the user's profile
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("target_language")
+        .eq("id", user.id)
+        .single();
+
+      language = profile?.target_language || "en";
+    } else {
+      // Fetch from content table
+      const { data: content, error: contentError } = await supabase
+        .from("content")
+        .select("id, body, language")
+        .eq("id", body.contentId)
+        .single();
+
+      if (contentError || !content) {
+        return NextResponse.json({ error: "Content not found" }, { status: 404 });
+      }
+
+      textBody = content.body || "";
+      language = content.language || "en";
     }
 
-    const readableText = extractReadableText(content.body || "");
+    const readableText = extractReadableText(textBody);
     if (!readableText) {
       return NextResponse.json(
         { error: "Content does not contain readable text for audio playback" },
@@ -116,7 +147,7 @@ export async function POST(request: NextRequest) {
     for (const chunk of chunks) {
       const speech = await generateReaderSpeech({
         text: chunk,
-        language: content.language || "en",
+        language: language,
       });
 
       audioSegments.push(speech.audioBytes);

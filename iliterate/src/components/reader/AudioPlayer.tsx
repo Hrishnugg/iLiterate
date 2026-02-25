@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 
 interface AudioPlayerProps {
   contentId: string;
+  lessonId?: string;
   language: string;
   className?: string;
 }
@@ -35,7 +36,7 @@ function formatTime(seconds: number): string {
   return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
 }
 
-export function AudioPlayer({ contentId, language, className }: AudioPlayerProps) {
+export function AudioPlayer({ contentId, lessonId, language, className }: AudioPlayerProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -138,7 +139,7 @@ export function AudioPlayer({ contentId, language, className }: AudioPlayerProps
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ contentId }),
+      body: JSON.stringify(lessonId ? { lessonId } : { contentId }),
     });
 
     if (!response.ok) {
