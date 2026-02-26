@@ -1,3 +1,4 @@
 fastapi
 uvicorn
 lindera-python-cjk
+wordfreq[cjk]
