@@ -10,6 +10,7 @@ import {
   SkipBack,
   Settings,
   StopCircle,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -43,7 +44,10 @@ export function RSVPReader({
   const [showSettings, setShowSettings] = useState(false);
   const [isEditingWpm, setIsEditingWpm] = useState(false);
   const [wpmInput, setWpmInput] = useState(wpm.toString());
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const [adaptiveSpeed, setAdaptiveSpeed] = useState(false);
+  const [wordDifficulties, setWordDifficulties] = useState<number[]>([]);
+  const [isLoadingDifficulties, setIsLoadingDifficulties] = useState(false);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const wpmInputRef = useRef<HTMLInputElement>(null);
 
   // Extract words from text
@@ -67,6 +71,24 @@ export function RSVPReader({
     }
   }, [text, language]);
 
+  // Fetch word difficulty multipliers when adaptive speed is on
+  useEffect(() => {
+    if (!adaptiveSpeed || words.length === 0) {
+      setWordDifficulties([]);
+      return;
+    }
+    setIsLoadingDifficulties(true);
+    fetch("/api/word-difficulty", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ words, language: language ?? "english" }),
+    })
+      .then((r) => r.json())
+      .then((data) => setWordDifficulties(data.difficulties ?? []))
+      .catch(() => setWordDifficulties([]))
+      .finally(() => setIsLoadingDifficulties(false));
+  }, [adaptiveSpeed, words, language]);
+
   const totalWords = words.length;
   const currentWord = words[currentWordIndex] || "";
   const progressPercent = totalWords > 0 ? (currentWordIndex / totalWords) * 100 : 0;
@@ -86,23 +108,27 @@ export function RSVPReader({
     return `${minutes}m ${seconds}s`;
   }, [currentWordIndex, totalWords, wpm]);
 
-  // Calculate milliseconds per word
+  // Calculate base milliseconds per word
   const msPerWord = useMemo(() => {
     return (60 / wpm) * 1000;
   }, [wpm]);
 
-  // Clear interval
+  // Cancel any pending timeout
   const clearPlayback = useCallback(() => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
     }
   }, []);
 
-  // Play/Pause toggle
+  // Play/Pause toggle – restart from beginning if already at the end
   const togglePlay = useCallback(() => {
+    if (!isPlaying && currentWordIndex >= totalWords - 1) {
+      setCurrentWordIndex(0);
+      setTimeout(() => onPositionChange?.(0, totalWords), 0);
+    }
     setIsPlaying((prev) => !prev);
-  }, []);
+  }, [isPlaying, currentWordIndex, totalWords, onPositionChange]);
 
   // Stop and reset
   const stop = useCallback(() => {
@@ -114,10 +140,9 @@ export function RSVPReader({
 
   // Skip forward/backward
   const skip = useCallback(
-    (words: number) => {
+    (count: number) => {
       setCurrentWordIndex((prev) => {
-        const next = Math.max(0, Math.min(totalWords - 1, prev + words));
-        // Defer the callback to avoid render-phase update
+        const next = Math.max(0, Math.min(totalWords - 1, prev + count));
         setTimeout(() => onPositionChange?.(next, totalWords), 0);
         return next;
       });
@@ -136,51 +161,44 @@ export function RSVPReader({
     [totalWords, onPositionChange]
   );
 
-  // Interval effect for word advancement
+  // Per-word timeout effect – supports variable delays for adaptive speed
   useEffect(() => {
-    if (isPlaying) {
-      // Start playing from the beginning if at the end
-      if (currentWordIndex >= totalWords - 1) {
-        setCurrentWordIndex(0);
-        setTimeout(() => onPositionChange?.(0, totalWords), 0);
-      }
-
-      intervalRef.current = setInterval(() => {
-        setCurrentWordIndex((prev) => {
-          const next = prev + 1;
-          if (next >= totalWords) {
-            // Stop at the end
-            clearPlayback();
-            setIsPlaying(false);
-            return prev; // Stay at last word
-          }
-          // Defer the callback to avoid render-phase update
-          setTimeout(() => onPositionChange?.(next, totalWords), 0);
-          return next;
-        });
-      }, msPerWord);
-    } else {
+    if (!isPlaying) {
       clearPlayback();
+      return;
     }
 
-    return () => {
-      clearPlayback();
-    };
-  }, [isPlaying, msPerWord, totalWords, onPositionChange, clearPlayback]);
+    const multiplier =
+      adaptiveSpeed && wordDifficulties[currentWordIndex] != null
+        ? wordDifficulties[currentWordIndex]
+        : 1.0;
+    const delay = msPerWord * multiplier;
+
+    timeoutRef.current = setTimeout(() => {
+      setCurrentWordIndex((prev) => {
+        const next = prev + 1;
+        if (next >= totalWords) {
+          setIsPlaying(false);
+          return prev;
+        }
+        setTimeout(() => onPositionChange?.(next, totalWords), 0);
+        return next;
+      });
+    }, delay);
+
+    return () => clearPlayback();
+  }, [isPlaying, currentWordIndex, msPerWord, totalWords, adaptiveSpeed, wordDifficulties, onPositionChange, clearPlayback]);
 
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Space for play/pause
       if (e.code === "Space" && e.target === document.body) {
         e.preventDefault();
         togglePlay();
       }
-      // Escape to stop (could be used to exit RSVP mode in parent)
       if (e.code === "Escape") {
         stop();
       }
-      // Arrow keys for single word navigation
       if (e.code === "ArrowRight") {
         e.preventDefault();
         skip(1);
@@ -224,7 +242,6 @@ export function RSVPReader({
       setWpm(newWpm);
       onWpmChange?.(newWpm);
     } else {
-      // Reset to current WPM if invalid
       setWpmInput(wpm.toString());
     }
     setIsEditingWpm(false);
@@ -236,17 +253,16 @@ export function RSVPReader({
     setWpmInput(wpm.toString());
   };
 
-  // Notify parent when component mounts (deferred to avoid render-phase update)
+  // Notify parent when component mounts
   useEffect(() => {
     if (totalWords > 0 && onPositionChange) {
-      // Use setTimeout to defer the callback until after render completes
       const timeoutId = setTimeout(() => {
         onPositionChange(currentWordIndex, totalWords);
       }, 0);
       return () => clearTimeout(timeoutId);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [totalWords]); // Only run when totalWords changes (on mount)
+  }, [totalWords]);
 
   // Notify parent of initial WPM
   useEffect(() => {
@@ -257,7 +273,7 @@ export function RSVPReader({
       return () => clearTimeout(timeoutId);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Only run on mount
+  }, []);
 
   // Register seek function with parent on mount
   useEffect(() => {
@@ -416,9 +432,9 @@ export function RSVPReader({
                 setWpmInput(newWpm.toString());
                 onWpmChange?.(newWpm);
               }}
-              className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-gray-200 dark:bg-gray-700 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-gray-500 [&::-webkit-slider-thumb]:cursor-pointer [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-gray-500 [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:border-0"
+              className="w-full h-2 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:cursor-pointer [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-primary [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:border-0"
               style={{
-                background: `linear-gradient(to right, var(--primary) 0%, var(--primary) ${((wpm - 100) / 500) * 100}%, rgb(229 231 235) ${((wpm - 100) / 500) * 100}%, rgb(229 231 235) 100%)`
+                background: `linear-gradient(to right, var(--primary) 0%, var(--primary) ${((wpm - 100) / 500) * 100}%, var(--muted) ${((wpm - 100) / 500) * 100}%, var(--muted) 100%)`
               }}
               aria-label="Reading speed in words per minute"
               tabIndex={showSettings ? 0 : -1}
@@ -428,6 +444,45 @@ export function RSVPReader({
               <span>Normal (250)</span>
               <span>Fast (600)</span>
             </div>
+          </div>
+
+          {/* Adaptive speed toggle */}
+          <div className="space-y-1.5 pt-1">
+            <div className="flex items-center justify-between text-sm">
+              <div>
+                <span className="text-muted-foreground">Adaptive Speed</span>
+                <p className="text-xs text-muted-foreground/70 mt-0.5">
+                  Slows down for rare or complex words
+                </p>
+              </div>
+              {isLoadingDifficulties ? (
+                <Loader2 className="h-5 w-5 animate-spin text-primary shrink-0" aria-label="Analysing text" />
+              ) : (
+                <button
+                  role="switch"
+                  aria-checked={adaptiveSpeed}
+                  onClick={() => setAdaptiveSpeed((prev) => !prev)}
+                  tabIndex={showSettings ? 0 : -1}
+                  className={cn(
+                    "relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                    adaptiveSpeed ? "bg-primary" : "bg-muted-foreground/30"
+                  )}
+                  aria-label="Toggle adaptive speed"
+                >
+                  <span
+                    className={cn(
+                      "inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform",
+                      adaptiveSpeed ? "translate-x-[18px]" : "translate-x-[3px]"
+                    )}
+                  />
+                </button>
+              )}
+            </div>
+            {isLoadingDifficulties && (
+              <div className="h-1 w-full overflow-hidden rounded-full bg-muted">
+                <div className="h-full w-1/3 rounded-full bg-primary animate-loading-bar" />
+              </div>
+            )}
           </div>
 
           {/* Help text */}
