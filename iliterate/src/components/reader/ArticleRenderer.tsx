@@ -452,6 +452,7 @@ export function ArticleRenderer({ content, isLesson = false }: ArticleRendererPr
           <RSVPReader
             text={plainTextContent}
             language={content.language}
+            initialPosition={rsvpWordIndex}
             onPositionChange={(index, totalWords) => {
               setRsvpWordIndex(index);
               setRsvpTotalWords(totalWords);
