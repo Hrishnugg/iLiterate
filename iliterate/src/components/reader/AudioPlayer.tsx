@@ -9,179 +9,242 @@ import {
   SkipForward,
   SkipBack,
   Settings,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface AudioPlayerProps {
-  text: string;
+  contentId: string;
+  lessonId?: string;
   language: string;
   className?: string;
 }
 
-interface SpeechSettings {
-  rate: number; // 0.1 to 10
-  pitch: number; // 0 to 2
-  volume: number; // 0 to 1
+interface PlaybackSettings {
+  rate: number;
+  volume: number;
 }
 
-export function AudioPlayer({ text, language, className }: AudioPlayerProps) {
+function formatTime(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds <= 0) {
+    return "0:00";
+  }
+
+  const totalSeconds = Math.floor(seconds);
+  const minutes = Math.floor(totalSeconds / 60);
+  const remainingSeconds = totalSeconds % 60;
+  return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
+}
+
+export function AudioPlayer({ contentId, lessonId, language, className }: AudioPlayerProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [settings, setSettings] = useState<SpeechSettings>({
+  const [error, setError] = useState<string | null>(null);
+  const [settings, setSettings] = useState<PlaybackSettings>({
     rate: 1,
-    pitch: 1,
     volume: 1,
   });
-  const [currentCharIndex, setCurrentCharIndex] = useState(0);
-  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioUrlRef = useRef<string | null>(null);
+  const generatedContentRef = useRef<string | null>(null);
 
-  // Check if speech synthesis is supported
-  const isSupported = typeof window !== "undefined" && "speechSynthesis" in window;
+  const clearAudioUrl = useCallback(() => {
+    if (!audioUrlRef.current) return;
+    URL.revokeObjectURL(audioUrlRef.current);
+    audioUrlRef.current = null;
+  }, []);
 
-  // Get voices for the language
-  const getVoice = useCallback(() => {
-    if (!isSupported) return null;
-    const voices = window.speechSynthesis.getVoices();
-    
-    // Try to find a voice matching the language
-    const langVoice = voices.find(
-      (v) => v.lang.toLowerCase().startsWith(language.toLowerCase())
-    );
-    
-    // Fallback to any voice
-    return langVoice || voices[0];
-  }, [language, isSupported]);
+  const detachAudioElement = useCallback(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
 
-  // Stop any ongoing speech
-  const stop = useCallback(() => {
-    if (!isSupported) return;
-    window.speechSynthesis.cancel();
+    audio.pause();
+    audio.onplay = null;
+    audio.onpause = null;
+    audio.onended = null;
+    audio.onloadedmetadata = null;
+    audio.ontimeupdate = null;
+    audio.onerror = null;
+    audio.src = "";
+    audioRef.current = null;
+  }, []);
+
+  const resetPlaybackState = useCallback(() => {
     setIsPlaying(false);
     setIsPaused(false);
-    setCurrentCharIndex(0);
-  }, [isSupported]);
+    setCurrentTime(0);
+    setDuration(0);
+  }, []);
 
-  // Play/Pause toggle
-  const togglePlay = useCallback(() => {
-    if (!isSupported) return;
+  const releaseAudio = useCallback(() => {
+    detachAudioElement();
+    clearAudioUrl();
+    generatedContentRef.current = null;
+    resetPlaybackState();
+  }, [detachAudioElement, clearAudioUrl, resetPlaybackState]);
 
-    if (isPlaying) {
-      if (isPaused) {
-        window.speechSynthesis.resume();
-        setIsPaused(false);
-      } else {
-        window.speechSynthesis.pause();
-        setIsPaused(true);
-      }
-    } else {
-      // Start new playback
-      const utterance = new SpeechSynthesisUtterance(text);
-      const voice = getVoice();
-      
-      if (voice) {
-        utterance.voice = voice;
-      }
-      
-      utterance.lang = language;
-      utterance.rate = settings.rate;
-      utterance.pitch = settings.pitch;
-      utterance.volume = settings.volume;
+  const bindAudioEvents = useCallback(
+    (audio: HTMLAudioElement) => {
+      audio.playbackRate = settings.rate;
+      audio.volume = settings.volume;
 
-      utterance.onstart = () => {
+      audio.onplay = () => {
         setIsPlaying(true);
         setIsPaused(false);
       };
 
-      utterance.onend = () => {
+      audio.onpause = () => {
+        setIsPlaying(false);
+        setIsPaused(audio.currentTime > 0 && !audio.ended);
+      };
+
+      audio.onended = () => {
         setIsPlaying(false);
         setIsPaused(false);
-        setCurrentCharIndex(0);
+        setCurrentTime(0);
       };
 
-      utterance.onpause = () => {
-        setIsPaused(true);
+      audio.onloadedmetadata = () => {
+        setDuration(Number.isFinite(audio.duration) ? audio.duration : 0);
+        setCurrentTime(audio.currentTime);
       };
 
-      utterance.onresume = () => {
-        setIsPaused(false);
+      audio.ontimeupdate = () => {
+        setCurrentTime(audio.currentTime);
       };
 
-      utterance.onboundary = (event) => {
-        setCurrentCharIndex(event.charIndex);
+      audio.onerror = () => {
+        setError("Audio playback failed. Please try again.");
+        releaseAudio();
       };
+    },
+    [releaseAudio, settings.rate, settings.volume]
+  );
 
-      utterance.onerror = (event) => {
-        // "interrupted" and "canceled" are expected when stop/skip/cancel is called
-        if (event.error === "interrupted" || event.error === "canceled") return;
-        console.error("Speech synthesis error:", event.error);
-        setIsPlaying(false);
-        setIsPaused(false);
-      };
-
-      utteranceRef.current = utterance;
-      window.speechSynthesis.speak(utterance);
+  const ensureAudio = useCallback(async () => {
+    if (audioRef.current && generatedContentRef.current === contentId) {
+      return audioRef.current;
     }
-  }, [isPlaying, isPaused, text, language, settings, getVoice, isSupported]);
 
-  // Skip forward/backward
+    releaseAudio();
+    setIsLoading(true);
+    setError(null);
+
+    const response = await fetch("/api/tts", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(lessonId ? { lessonId } : { contentId }),
+    });
+
+    if (!response.ok) {
+      let message = "Failed to generate audio";
+      try {
+        const payload = await response.json();
+        if (
+          payload &&
+          typeof payload === "object" &&
+          typeof (payload as { error?: unknown }).error === "string"
+        ) {
+          message = (payload as { error: string }).error;
+        }
+      } catch {
+        // Ignore invalid JSON and keep default message.
+      }
+      throw new Error(message);
+    }
+
+    const audioBlob = await response.blob();
+    const objectUrl = URL.createObjectURL(audioBlob);
+    const audio = new Audio(objectUrl);
+
+    audioUrlRef.current = objectUrl;
+    generatedContentRef.current = contentId;
+    audioRef.current = audio;
+    bindAudioEvents(audio);
+
+    setIsLoading(false);
+    return audio;
+  }, [bindAudioEvents, contentId, releaseAudio]);
+
+  const togglePlay = useCallback(async () => {
+    if (isLoading) return;
+
+    setError(null);
+
+    try {
+      const audio = await ensureAudio();
+      if (audio.paused) {
+        await audio.play();
+      } else {
+        audio.pause();
+      }
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to start audio playback";
+      setError(message);
+      releaseAudio();
+    } finally {
+      setIsLoading(false);
+    }
+  }, [ensureAudio, isLoading, releaseAudio]);
+
+  const stop = useCallback(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    audio.pause();
+    audio.currentTime = 0;
+    setCurrentTime(0);
+    setIsPlaying(false);
+    setIsPaused(false);
+  }, []);
+
   const skip = useCallback((seconds: number) => {
-    if (!isSupported || !isPlaying) return;
-    
-    // Cancel current and restart from new position (approximate)
-    window.speechSynthesis.cancel();
-    
-    // Estimate characters per second based on rate
-    const charsPerSecond = 15 * settings.rate;
-    const charOffset = Math.floor(seconds * charsPerSecond);
-    const newIndex = Math.max(0, Math.min(text.length - 1, currentCharIndex + charOffset));
-    
-    setCurrentCharIndex(newIndex);
-    
-    // Create new utterance from new position
-    const remainingText = text.slice(newIndex);
-    const utterance = new SpeechSynthesisUtterance(remainingText);
-    const voice = getVoice();
-    
-    if (voice) {
-      utterance.voice = voice;
-    }
-    
-    utterance.lang = language;
-    utterance.rate = settings.rate;
-    utterance.pitch = settings.pitch;
-    utterance.volume = settings.volume;
+    const audio = audioRef.current;
+    if (!audio) return;
 
-    utterance.onstart = () => {
-      setIsPlaying(true);
-      setIsPaused(false);
-    };
+    const nextTime = Math.max(
+      0,
+      Math.min(
+        Number.isFinite(audio.duration) ? audio.duration : audio.currentTime + seconds,
+        audio.currentTime + seconds
+      )
+    );
+    audio.currentTime = nextTime;
+    setCurrentTime(nextTime);
+  }, []);
 
-    utterance.onend = () => {
-      setIsPlaying(false);
-      setIsPaused(false);
-      setCurrentCharIndex(0);
-    };
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.playbackRate = settings.rate;
+  }, [settings.rate]);
 
-    window.speechSynthesis.speak(utterance);
-  }, [isPlaying, currentCharIndex, text, language, settings, getVoice, isSupported]);
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.volume = settings.volume;
+  }, [settings.volume]);
 
-  // Cleanup on unmount
+  useEffect(() => {
+    releaseAudio();
+    setError(null);
+  }, [contentId, releaseAudio]);
+
   useEffect(() => {
     return () => {
-      if (isSupported) {
-        window.speechSynthesis.cancel();
-      }
+      releaseAudio();
     };
-  }, [isSupported]);
+  }, [releaseAudio]);
 
-  if (!isSupported) {
-    return (
-      <div className={cn("text-sm text-muted-foreground", className)}>
-        Audio playback not supported in this browser.
-      </div>
-    );
-  }
+  const progress = duration > 0 ? Math.round((currentTime / duration) * 100) : 0;
+  const hasAudio = Boolean(audioRef.current);
 
   return (
     <div className={cn("space-y-3", className)}>
@@ -191,7 +254,7 @@ export function AudioPlayer({ text, language, className }: AudioPlayerProps) {
           variant="outline"
           size="sm"
           onClick={() => skip(-10)}
-          disabled={!isPlaying}
+          disabled={!hasAudio || isLoading}
         >
           <SkipBack className="h-4 w-4" />
         </Button>
@@ -201,8 +264,14 @@ export function AudioPlayer({ text, language, className }: AudioPlayerProps) {
           size="sm"
           onClick={togglePlay}
           className="gap-2"
+          disabled={isLoading}
         >
-          {isPlaying && !isPaused ? (
+          {isLoading ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Generating...
+            </>
+          ) : isPlaying && !isPaused ? (
             <>
               <Pause className="h-4 w-4" />
               Pause
@@ -219,12 +288,12 @@ export function AudioPlayer({ text, language, className }: AudioPlayerProps) {
           variant="outline"
           size="sm"
           onClick={() => skip(10)}
-          disabled={!isPlaying}
+          disabled={!hasAudio || isLoading}
         >
           <SkipForward className="h-4 w-4" />
         </Button>
 
-        {isPlaying && (
+        {(isPlaying || isPaused) && (
           <Button
             variant="ghost"
             size="sm"
@@ -263,35 +332,6 @@ export function AudioPlayer({ text, language, className }: AudioPlayerProps) {
               onChange={(e) => {
                 const newRate = parseFloat(e.target.value);
                 setSettings((s) => ({ ...s, rate: newRate }));
-                // Restart with new rate if playing
-                if (isPlaying) {
-                  stop();
-                  setTimeout(() => togglePlay(), 100);
-                }
-              }}
-              className="w-full"
-            />
-          </div>
-
-          {/* Pitch control */}
-          <div className="space-y-1">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-muted-foreground">Pitch</span>
-              <span>{settings.pitch.toFixed(1)}</span>
-            </div>
-            <input
-              type="range"
-              min="0.5"
-              max="1.5"
-              step="0.1"
-              value={settings.pitch}
-              onChange={(e) => {
-                const newPitch = parseFloat(e.target.value);
-                setSettings((s) => ({ ...s, pitch: newPitch }));
-                if (isPlaying) {
-                  stop();
-                  setTimeout(() => togglePlay(), 100);
-                }
               }}
               className="w-full"
             />
@@ -319,14 +359,22 @@ export function AudioPlayer({ text, language, className }: AudioPlayerProps) {
               className="w-full"
             />
           </div>
+
+          <div className="text-xs text-muted-foreground">
+            Voice: Auto ({language})
+          </div>
         </div>
       )}
 
       {/* Progress indicator */}
-      {isPlaying && (
+      {(isPlaying || isPaused) && (
         <div className="text-xs text-muted-foreground">
-          Reading: {Math.round((currentCharIndex / text.length) * 100)}%
+          Reading: {progress}% ({formatTime(currentTime)} / {formatTime(duration)})
         </div>
+      )}
+
+      {error && (
+        <div className="text-xs text-destructive">{error}</div>
       )}
     </div>
   );

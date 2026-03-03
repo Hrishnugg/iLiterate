@@ -11,6 +11,7 @@ interface PendingQuiz {
   title: string;
   difficulty_level: string;
   progress_percent: number;
+  source?: "content" | "lesson";
 }
 
 interface CompletedQuiz {
@@ -99,7 +100,7 @@ export default function QuizzesPage() {
                     </p>
                   </div>
                   <Button asChild>
-                    <Link href={`/quizzes/${quiz.id}`}>Take Quiz</Link>
+                    <Link href={quiz.source === "lesson" ? `/lesson-plan/${quiz.id}` : `/quizzes/${quiz.id}`}>Take Quiz</Link>
                   </Button>
                 </div>
               ))}

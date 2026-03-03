@@ -41,7 +41,7 @@ export async function GET() {
       .gte("progress_percent", 80);
 
     // Filter to only content without assessments
-    const pending = (progressData || [])
+    const pendingFromContent = (progressData || [])
       .filter((p) => !completedContentIds.has(p.content_id))
       .map((p) => {
         const contentData = p.content as unknown;
@@ -51,8 +51,27 @@ export async function GET() {
           title: content?.title || "Untitled",
           difficulty_level: content?.difficulty_level || "A1",
           progress_percent: Math.round(p.progress_percent),
+          source: "content" as const,
         };
       });
+
+    // Get lesson sessions in "quiz" state (reading done, quiz not yet completed)
+    const { data: pendingLessons } = await supabase
+      .from("lesson_sessions")
+      .select("id, title, target_level")
+      .eq("user_id", user.id)
+      .eq("status", "quiz")
+      .order("updated_at", { ascending: false });
+
+    const pendingFromLessons = (pendingLessons || []).map((l) => ({
+      id: l.id,
+      title: l.title || "Lesson Quiz",
+      difficulty_level: `Level ${l.target_level}`,
+      progress_percent: 100,
+      source: "lesson" as const,
+    }));
+
+    const pending = [...pendingFromContent, ...pendingFromLessons];
 
     // Get completed assessments with content info
     const { data: completedAssessments } = await supabase

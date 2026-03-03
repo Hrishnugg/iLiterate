@@ -240,10 +240,10 @@ Rules:
     throw new Error("Invalid JSON in quiz response");
   }
 
-  // Validate and normalize questions
+  // Validate and normalize questions — always set type to comprehension_mcq
   return questions.map((q, index) => ({
     id: q.id || `q${index + 1}`,
-    type: q.type,
+    type: "comprehension_mcq" as const,
     question: q.question,
     options: q.options,
     correct_answer: q.correct_answer,

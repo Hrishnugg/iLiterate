@@ -43,6 +43,15 @@ export const translateRequestSchema = z.object({
   lessonId: uuidSchema.optional(),
 });
 
+// Reader TTS request validation
+export const ttsRequestSchema = z.object({
+  contentId: uuidSchema.optional(),
+  lessonId: uuidSchema.optional(),
+}).refine(
+  (data) => data.contentId || data.lessonId,
+  { message: "Either contentId or lessonId is required" }
+);
+
 // Highlight request validation
 export const highlightRequestSchema = z.object({
   contentId: uuidSchema.optional(),
