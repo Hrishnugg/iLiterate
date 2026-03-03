@@ -108,6 +108,61 @@ export function FlashcardReview({ onClose }: FlashcardReviewProps) {
     setIsFlipped(true);
   };
 
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (!reviewState || isLoading || isSubmitting || reviewState.limitReached) {
+        return;
+      }
+
+      if (event.repeat) {
+        return;
+      }
+
+      const target = event.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.tagName === "SELECT" ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+
+      const key = event.key;
+
+      if (key === " " || key === "Spacebar") {
+        if (!isFlipped) {
+          event.preventDefault();
+          handleFlip();
+        }
+        return;
+      }
+
+      if (!isFlipped) {
+        return;
+      }
+
+      const responseByKey: Partial<Record<string, ResponseQuality>> = {
+        "1": "again",
+        "2": "hard",
+        "3": "good",
+        "4": "easy",
+      };
+
+      const response = responseByKey[key];
+      if (!response) {
+        return;
+      }
+
+      event.preventDefault();
+      handleResponse(response);
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [reviewState, isLoading, isSubmitting, isFlipped, handleResponse]);
+
   // Loading state
   if (isLoading) {
     return (
