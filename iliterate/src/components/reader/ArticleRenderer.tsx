@@ -29,6 +29,8 @@ interface ArticleRendererProps {
 export function ArticleRenderer({ content, isLesson = false }: ArticleRendererProps) {
   const [highlights, setHighlights] = useState<Highlight[]>([]);
   const [lookups, setLookups] = useState<TranslationLookup[]>([]);
+  const [flashcardTerms, setFlashcardTerms] = useState<Set<string>>(new Set());
+  const [addingLookupId, setAddingLookupId] = useState<string | null>(null);
   const [selection, setSelection] = useState<TextSelection | null>(null);
   const [popoverPosition, setPopoverPosition] = useState({ x: 0, y: 0, bottom: 0 });
   const [tocItems, setTocItems] = useState<TOCItem[]>([]);
@@ -40,6 +42,7 @@ export function ArticleRenderer({ content, isLesson = false }: ArticleRendererPr
   const [rsvpWpm, setRsvpWpm] = useState(250);
   const rsvpSeekFnRef = useRef<((percentage: number) => void) | null>(null);
   const contentContainerRef = useRef<HTMLDivElement>(null);
+  const normalizeTerm = useCallback((term: string) => term.trim().toLowerCase(), []);
 
   // Reading progress tracking
   const {
@@ -126,6 +129,29 @@ export function ArticleRenderer({ content, isLesson = false }: ArticleRendererPr
     }
   }, [content.id, isLesson]);
 
+  const loadFlashcardTerms = useCallback(async () => {
+    try {
+      const response = await fetch("/api/vocabulary");
+      if (!response.ok) return;
+
+      const data = await response.json();
+      const terms = new Set<string>();
+
+      if (Array.isArray(data)) {
+        for (const item of data) {
+          const word = item?.vocabulary?.word;
+          if (typeof word === "string" && word.trim().length > 0) {
+            terms.add(normalizeTerm(word));
+          }
+        }
+      }
+
+      setFlashcardTerms(terms);
+    } catch (error) {
+      console.error("Failed to load flashcard terms:", error);
+    }
+  }, [normalizeTerm]);
+
   // Generate TOC from content headings (for HTML content) - memoized
   const generateTOC = useCallback(() => {
     if (typeof window === "undefined") return;
@@ -152,8 +178,9 @@ export function ArticleRenderer({ content, isLesson = false }: ArticleRendererPr
   useEffect(() => {
     loadHighlights();
     loadLookups();
+    loadFlashcardTerms();
     generateTOC();
-  }, [loadHighlights, loadLookups, generateTOC]);
+  }, [loadHighlights, loadLookups, loadFlashcardTerms, generateTOC]);
 
   // Handle text selection from any content type
   const handleSelection = useCallback((sel: TextSelection | null) => {
@@ -271,6 +298,12 @@ export function ArticleRenderer({ content, isLesson = false }: ArticleRendererPr
 
     if (response.ok) {
       const result = await response.json();
+      const normalized = normalizeTerm(text);
+      setFlashcardTerms((prev) => {
+        const next = new Set(prev);
+        next.add(normalized);
+        return next;
+      });
       if (result.message === "Word already in your vocabulary") {
         toast.info("Word already in your flashcards");
       } else {
@@ -279,7 +312,56 @@ export function ArticleRenderer({ content, isLesson = false }: ArticleRendererPr
     } else {
       toast.error("Failed to add to flashcards");
     }
-  }, [content.language, content.id, selection, handleAddNote]);
+  }, [content.language, content.id, selection, handleAddNote, isLesson, normalizeTerm]);
+
+  const handleAddLookupToFlashcards = useCallback(async (lookup: TranslationLookup) => {
+    const sourceWord = lookup.source_text;
+    const normalized = normalizeTerm(sourceWord);
+
+    if (flashcardTerms.has(normalized)) {
+      toast.info("Word already in your flashcards");
+      return;
+    }
+
+    setAddingLookupId(lookup.id);
+
+    try {
+      const response = await fetch("/api/vocabulary", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          word: sourceWord,
+          language: lookup.source_lang || content.language,
+          translation: lookup.translated_text,
+          transliteration: lookup.transliteration || undefined,
+          ...(isLesson ? { lessonId: content.id } : { contentId: content.id }),
+          contextSentence: lookup.source_text,
+        }),
+      });
+
+      if (!response.ok) {
+        toast.error("Failed to add to flashcards");
+        return;
+      }
+
+      const result = await response.json();
+      setFlashcardTerms((prev) => {
+        const next = new Set(prev);
+        next.add(normalized);
+        return next;
+      });
+
+      if (result.message === "Word already in your vocabulary") {
+        toast.info("Word already in your flashcards");
+      } else {
+        toast.success("Added to flashcards!");
+      }
+    } catch {
+      toast.error("Failed to add to flashcards");
+    } finally {
+      setAddingLookupId(null);
+    }
+  }, [content.id, content.language, isLesson, flashcardTerms, normalizeTerm]);
 
   // Handle highlight delete
   const handleDeleteHighlight = useCallback(async (highlightId: string) => {
@@ -426,6 +508,8 @@ export function ArticleRenderer({ content, isLesson = false }: ArticleRendererPr
           <RightSidebar
             highlights={highlights}
             lookups={lookups}
+            flashcardTerms={flashcardTerms}
+            addingLookupId={addingLookupId}
             progress={displayProgress}
             wordsRead={displayWordsRead}
             totalWords={displayTotalWords}
@@ -436,6 +520,7 @@ export function ArticleRenderer({ content, isLesson = false }: ArticleRendererPr
             onHighlightClick={handleHighlightClick}
             onDeleteHighlight={handleDeleteHighlight}
             onLookupClick={handleLookupClick}
+            onAddLookupToFlashcards={handleAddLookupToFlashcards}
             onClearLookups={handleClearLookups}
             onRemoveLookup={handleRemoveLookup}
           />

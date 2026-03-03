@@ -2,12 +2,15 @@
 
 import { TranslationLookup } from "@/types/database";
 import { cn } from "@/lib/utils";
-import { Clock, X } from "lucide-react";
+import { BookPlus, Clock, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface RecentLookupsPanelProps {
   lookups: TranslationLookup[];
+  flashcardTerms?: Set<string>;
+  addingLookupId?: string | null;
   onLookupClick?: (lookup: TranslationLookup) => void;
+  onAddToFlashcards?: (lookup: TranslationLookup) => void;
   onClear?: () => void;
   onRemove?: (id: string) => void;
   className?: string;
@@ -15,13 +18,17 @@ interface RecentLookupsPanelProps {
 
 export function RecentLookupsPanel({
   lookups,
+  flashcardTerms,
+  addingLookupId,
   onLookupClick,
+  onAddToFlashcards,
   onClear,
   onRemove,
   className,
 }: RecentLookupsPanelProps) {
   // Show last 15 lookups
   const recentLookups = lookups.slice(0, 15);
+  const normalizeTerm = (term: string) => term.trim().toLowerCase();
 
   if (recentLookups.length === 0) {
     return (
@@ -58,6 +65,12 @@ export function RecentLookupsPanel({
 
       <div className="space-y-2">
         {recentLookups.map((lookup, index) => (
+          (() => {
+            const normalizedSource = normalizeTerm(lookup.source_text);
+            const isAlreadyFlashcard = flashcardTerms?.has(normalizedSource) ?? false;
+            const isSaving = addingLookupId === lookup.id;
+
+            return (
           <div
             key={lookup.id}
             className="group relative flex items-start gap-2 rounded-md p-2 transition-colors hover:bg-accent"
@@ -86,6 +99,23 @@ export function RecentLookupsPanel({
               </div>
             </button>
 
+            {!isAlreadyFlashcard && onAddToFlashcards && (
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={isSaving}
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  onAddToFlashcards(lookup);
+                }}
+                className="h-6 px-2 text-xs text-muted-foreground opacity-0 group-hover:opacity-100"
+              >
+                <BookPlus className="mr-1 h-3 w-3" />
+                {isSaving ? "Adding..." : "Add"}
+              </Button>
+            )}
+
             {onRemove && (
               <Button
                 variant="ghost"
@@ -97,6 +127,8 @@ export function RecentLookupsPanel({
               </Button>
             )}
           </div>
+            );
+          })()
         ))}
       </div>
     </div>

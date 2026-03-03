@@ -9,6 +9,8 @@ import { Separator } from "@/components/ui/separator";
 interface RightSidebarProps {
   highlights: Highlight[];
   lookups: TranslationLookup[];
+  flashcardTerms?: Set<string>;
+  addingLookupId?: string | null;
   progress: number;
   wordsRead: number;
   totalWords: number;
@@ -19,6 +21,7 @@ interface RightSidebarProps {
   onHighlightClick?: (highlight: Highlight) => void;
   onDeleteHighlight?: (highlightId: string) => void;
   onLookupClick?: (lookup: TranslationLookup) => void;
+  onAddLookupToFlashcards?: (lookup: TranslationLookup) => void;
   onClearLookups?: () => void;
   onRemoveLookup?: (id: string) => void;
 }
@@ -26,6 +29,8 @@ interface RightSidebarProps {
 export function RightSidebar({
   highlights,
   lookups,
+  flashcardTerms,
+  addingLookupId,
   progress,
   wordsRead,
   totalWords,
@@ -36,6 +41,7 @@ export function RightSidebar({
   onHighlightClick,
   onDeleteHighlight,
   onLookupClick,
+  onAddLookupToFlashcards,
   onClearLookups,
   onRemoveLookup,
 }: RightSidebarProps) {
@@ -66,7 +72,10 @@ export function RightSidebar({
       {/* Recent Lookups Section */}
       <RecentLookupsPanel
         lookups={lookups}
+        flashcardTerms={flashcardTerms}
+        addingLookupId={addingLookupId}
         onLookupClick={onLookupClick}
+        onAddToFlashcards={onAddLookupToFlashcards}
         onClear={onClearLookups}
         onRemove={onRemoveLookup}
       />
