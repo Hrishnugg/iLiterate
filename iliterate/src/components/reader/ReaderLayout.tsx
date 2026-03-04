@@ -71,6 +71,8 @@ export function ReaderLayout({
                 size="icon"
                 onClick={() => setLeftOpen(!leftOpen)}
                 className={cn("h-8 w-8", leftOpen && "bg-accent")}
+                title="Toggle table of contents"
+                aria-label="Toggle table of contents"
               >
                 <PanelLeft className="h-4 w-4" />
               </Button>
@@ -111,6 +113,8 @@ export function ReaderLayout({
               size="icon"
               onClick={() => setRightOpen(!rightOpen)}
               className={cn("h-8 w-8", rightOpen && "bg-accent")}
+              title="Toggle notes sidebar"
+              aria-label="Toggle notes sidebar"
             >
               <PanelRight className="h-4 w-4" />
             </Button>
