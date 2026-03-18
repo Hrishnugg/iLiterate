@@ -56,14 +56,16 @@ export async function GET() {
       .eq("user_id", user.id)
       .single();
 
+    // Fetch profile for proficiency level and target language
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("proficiency_level, target_language")
+      .eq("id", user.id)
+      .single();
+
     // Create default skill levels if not exists
     if (!skillLevels) {
       // Check user's profile for proficiency level to set starting level
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("proficiency_level")
-        .eq("id", user.id)
-        .single();
 
       const startingLevel = profile?.proficiency_level
         ? PROFICIENCY_TO_LEVEL[profile.proficiency_level] || 1
@@ -150,6 +152,7 @@ export async function GET() {
     return NextResponse.json({
       skillLevels,
       progressInfo,
+      targetLanguage: profile?.target_language ?? null,
       recentAssessments: recentAssessments || [],
     });
   } catch (error) {

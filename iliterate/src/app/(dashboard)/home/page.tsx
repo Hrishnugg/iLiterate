@@ -56,8 +56,8 @@ export default function HomePage() {
             cefr = progress.progressInfo.overall.cefr ?? "A1";
             xpProgress = progress.progressInfo.overall.progress ?? 0;
           }
-          if (progress?.skillLevels?.target_language) {
-            language = progress.skillLevels.target_language;
+          if (progress?.targetLanguage) {
+            language = progress.targetLanguage;
           }
         }
 
