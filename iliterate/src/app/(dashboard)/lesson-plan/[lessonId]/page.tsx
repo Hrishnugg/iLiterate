@@ -18,8 +18,14 @@ import {
   TrendingUp,
   TrendingDown,
   Minus,
+  Clock,
+  FileText,
+  Languages,
+  RotateCcw,
+  ArrowLeft,
 } from "lucide-react";
 import { Content, numericLevelToCEFR } from "@/types/database";
+import { Separator } from "@/components/ui/separator";
 import { ArticleRenderer } from "@/components/reader/ArticleRenderer";
 
 interface TopicInfo {
@@ -73,6 +79,8 @@ interface LessonData {
   length: string;
   wordCount: number;
   vocabulary: VocabularyItem[];
+  summary?: string;
+  grammarPoints?: string[];
   status: "reading" | "quiz" | "completed";
   quizQuestions?: QuizQuestion[];
   quizScore?: number;
@@ -90,7 +98,11 @@ export default function LessonPage() {
   const [error, setError] = useState<string | null>(null);
 
   // Reading state
+  const [hasStartedReading, setHasStartedReading] = useState(false);
   const [isCompletingReading, setIsCompletingReading] = useState(false);
+
+  // Re-read state
+  const [isRereadMode, setIsRereadMode] = useState(false);
 
   // Quiz state
   const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -220,7 +232,7 @@ export default function LessonPage() {
   const cefrLevel = numericLevelToCEFR(lesson.targetLevel);
 
   // Quiz Results View
-  if (quizResults || lesson.status === "completed") {
+  if ((quizResults || lesson.status === "completed") && !isRereadMode) {
     return (
       <div className="space-y-6 max-w-3xl mx-auto">
         <Button variant="ghost" onClick={() => router.push("/lesson-plan")}>
@@ -378,10 +390,23 @@ export default function LessonPage() {
               </>
             )}
 
-            <Button className="w-full" onClick={() => router.push("/lesson-plan")}>
-              Start New Lesson
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => {
+                  setIsRereadMode(true);
+                  setHasStartedReading(false);
+                }}
+              >
+                <RotateCcw className="mr-2 h-4 w-4" />
+                Re-Read Article
+              </Button>
+              <Button className="flex-1" onClick={() => router.push("/lesson-plan")}>
+                Start New Lesson
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -516,6 +541,113 @@ export default function LessonPage() {
     );
   }
 
+  // Pre-Reading Brief View (also shown during re-read of completed lessons)
+  if ((lesson.status === "reading" || isRereadMode) && !hasStartedReading) {
+    const estimatedTime = Math.ceil(lesson.wordCount / 200);
+
+    return (
+      <div className="space-y-6 max-w-3xl mx-auto">
+        <Button variant="ghost" onClick={() => router.push("/lesson-plan")}>
+          <ChevronLeft className="mr-2 h-4 w-4" />
+          Back to Lessons
+        </Button>
+
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="inline-flex items-center gap-1 rounded-full bg-muted px-3 py-1 text-sm">
+                {lesson.topic.icon} {lesson.topic.name}
+              </span>
+            </div>
+            <CardTitle className="text-2xl">{lesson.title}</CardTitle>
+            <div className="flex flex-wrap items-center gap-2 mt-2">
+              <span className="inline-flex items-center rounded-full bg-primary/10 text-primary px-2.5 py-0.5 text-xs font-medium">
+                {cefrLevel}
+              </span>
+              <span className="inline-flex items-center gap-1 text-sm text-muted-foreground">
+                <FileText className="h-3.5 w-3.5" />
+                {lesson.wordCount} words
+              </span>
+              <span className="inline-flex items-center gap-1 text-sm text-muted-foreground">
+                <Clock className="h-3.5 w-3.5" />
+                ~{estimatedTime} min read
+              </span>
+            </div>
+          </CardHeader>
+
+          <CardContent className="space-y-6">
+            {/* Summary Section */}
+            {lesson.summary && (
+              <>
+                <div>
+                  <h3 className="font-semibold mb-2 flex items-center gap-2">
+                    <BookOpen className="h-4 w-4" />
+                    About This Reading
+                  </h3>
+                  <p className="text-muted-foreground">{lesson.summary}</p>
+                </div>
+                <Separator />
+              </>
+            )}
+
+            {/* Vocabulary Section */}
+            <div>
+              <h3 className="font-semibold mb-3 flex items-center gap-2">
+                <Languages className="h-4 w-4" />
+                Key Vocabulary
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {lesson.vocabulary.map((item, index) => (
+                  <div
+                    key={index}
+                    className="rounded-lg border p-3 space-y-1"
+                  >
+                    <p className="font-bold">{item.word}</p>
+                    <p className="text-sm text-muted-foreground">{item.translation}</p>
+                    <p className="text-sm italic text-muted-foreground/80">{item.context}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Grammar Tips Section */}
+            {lesson.grammarPoints && lesson.grammarPoints.length > 0 && (
+              <>
+                <Separator />
+                <div>
+                  <h3 className="font-semibold mb-3 flex items-center gap-2">
+                    <Lightbulb className="h-4 w-4" />
+                    Grammar Tips
+                  </h3>
+                  <ul className="space-y-2">
+                    {lesson.grammarPoints.map((point, index) => (
+                      <li
+                        key={index}
+                        className="flex items-start gap-2 text-sm text-muted-foreground"
+                      >
+                        <Lightbulb className="h-4 w-4 mt-0.5 text-yellow-500 shrink-0" />
+                        {point}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </>
+            )}
+
+            <Button
+              className="w-full"
+              size="lg"
+              onClick={() => setHasStartedReading(true)}
+            >
+              Start Reading
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   // Reading View - Use ArticleRenderer
   // Convert lesson data to Content format
   const contentForReader: Content = {
@@ -539,26 +671,40 @@ export default function LessonPage() {
       {/* Article Reader */}
       <ArticleRenderer content={contentForReader} isLesson />
 
-      {/* Floating "Finish Reading" Button */}
+      {/* Floating Button */}
       <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
-        <Button
-          size="lg"
-          onClick={completeReading}
-          disabled={isCompletingReading}
-          className="shadow-lg"
-        >
-          {isCompletingReading ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Creating Quiz...
-            </>
-          ) : (
-            <>
-              <BookOpen className="mr-2 h-4 w-4" />
-              I&apos;ve Finished Reading - Take Quiz
-            </>
-          )}
-        </Button>
+        {isRereadMode ? (
+          <Button
+            size="lg"
+            className="shadow-lg"
+            onClick={() => {
+              setIsRereadMode(false);
+              setHasStartedReading(false);
+            }}
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Results
+          </Button>
+        ) : (
+          <Button
+            size="lg"
+            onClick={completeReading}
+            disabled={isCompletingReading}
+            className="shadow-lg"
+          >
+            {isCompletingReading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Creating Quiz...
+              </>
+            ) : (
+              <>
+                <BookOpen className="mr-2 h-4 w-4" />
+                I&apos;ve Finished Reading - Take Quiz
+              </>
+            )}
+          </Button>
+        )}
       </div>
     </div>
   );

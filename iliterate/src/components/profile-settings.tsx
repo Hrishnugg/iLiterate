@@ -4,7 +4,8 @@ import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { User } from "@supabase/supabase-js";
 import { useTheme } from "next-themes";
-import { Sun, Moon, Monitor } from "lucide-react";
+import { AtSign, Sun, Moon, Monitor } from "lucide-react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -65,6 +66,7 @@ const FORMALITY_LEVELS = [
 
 interface Profile {
   id: string;
+  display_name: string | null;
   native_language: string;
   target_language: string;
   age_group: string | null;
@@ -77,12 +79,24 @@ interface Profile {
   updated_at: string;
 }
 
+interface SocialProfile {
+  id: string;
+  username: string | null;
+  display_name: string;
+  avatar_seed: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 interface ProfileSettingsProps {
   user: User;
   profile: Profile | null;
+  socialProfile: SocialProfile | null;
 }
 
-export function ProfileSettings({ user, profile }: ProfileSettingsProps) {
+const USERNAME_PATTERN = /^[a-z0-9_]{3,24}$/;
+
+export function ProfileSettings({ user, profile, socialProfile }: ProfileSettingsProps) {
   const router = useRouter();
   const { theme, setTheme } = useTheme();
   const [isLoading, setIsLoading] = useState(false);
@@ -91,6 +105,12 @@ export function ProfileSettings({ user, profile }: ProfileSettingsProps) {
 
   // Store initial values to track changes
   const initialValues = useMemo(() => ({
+    displayName:
+      socialProfile?.display_name ||
+      user.user_metadata?.full_name ||
+      user.email?.split("@")[0] ||
+      "",
+    username: socialProfile?.username || "",
     targetLanguage: profile?.target_language || "",
     nativeLanguage: profile?.native_language || "",
     ageGroup: profile?.age_group || "",
@@ -98,8 +118,10 @@ export function ProfileSettings({ user, profile }: ProfileSettingsProps) {
     yearsLearning: profile?.years_learning?.toString() || "0",
     speechFormality: profile?.speech_formality || "standard",
     motivations: profile?.learning_motivation || [],
-  }), [profile]);
+  }), [profile, socialProfile, user.email, user.user_metadata]);
 
+  const [displayName, setDisplayName] = useState(initialValues.displayName);
+  const [username, setUsername] = useState(initialValues.username);
   const [targetLanguage, setTargetLanguage] = useState(initialValues.targetLanguage);
   const [nativeLanguage, setNativeLanguage] = useState(initialValues.nativeLanguage);
   const [ageGroup, setAgeGroup] = useState(initialValues.ageGroup);
@@ -115,6 +137,8 @@ export function ProfileSettings({ user, profile }: ProfileSettingsProps) {
       motivations.some((m) => !initialValues.motivations.includes(m));
 
     return (
+      displayName !== initialValues.displayName ||
+      username !== initialValues.username ||
       targetLanguage !== initialValues.targetLanguage ||
       nativeLanguage !== initialValues.nativeLanguage ||
       ageGroup !== initialValues.ageGroup ||
@@ -123,7 +147,7 @@ export function ProfileSettings({ user, profile }: ProfileSettingsProps) {
       speechFormality !== initialValues.speechFormality ||
       motivationsChanged
     );
-  }, [targetLanguage, nativeLanguage, ageGroup, educationLevel, yearsLearning, speechFormality, motivations, initialValues]);
+  }, [displayName, username, targetLanguage, nativeLanguage, ageGroup, educationLevel, yearsLearning, speechFormality, motivations, initialValues]);
 
   const handleMotivationChange = (id: string, checked: boolean) => {
     setMotivations((prev) =>
@@ -138,10 +162,51 @@ export function ProfileSettings({ user, profile }: ProfileSettingsProps) {
 
     try {
       const supabase = createClient();
+      const trimmedDisplayName = displayName.trim();
+      const normalizedUsername = username.trim().toLowerCase();
+
+      if (!trimmedDisplayName) {
+        setError("Display name is required.");
+        return;
+      }
+
+      if (!USERNAME_PATTERN.test(normalizedUsername)) {
+        setError("Username must be 3-24 characters and use only lowercase letters, numbers, or underscores.");
+        return;
+      }
+
+      const socialResponse = await fetch("/api/social/public-profile", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          displayName: trimmedDisplayName,
+          username: normalizedUsername,
+        }),
+      });
+
+      const socialPayload = await socialResponse.json().catch(() => null);
+      if (!socialResponse.ok) {
+        setError(socialPayload?.error || "Failed to save social profile");
+        return;
+      }
+
+      const { error: authUpdateError } = await supabase.auth.updateUser({
+        data: {
+          full_name: trimmedDisplayName,
+        },
+      });
+
+      if (authUpdateError) {
+        setError(authUpdateError.message);
+        return;
+      }
 
       const { error: updateError } = await supabase
         .from("profiles")
         .update({
+          display_name: displayName || null,
           target_language: targetLanguage,
           native_language: nativeLanguage,
           age_group: ageGroup,
@@ -159,6 +224,7 @@ export function ProfileSettings({ user, profile }: ProfileSettingsProps) {
       }
 
       setSuccess(true);
+      toast.success("Profile updated");
       router.refresh();
     } catch (err) {
       console.error("Update error:", err);
@@ -184,10 +250,48 @@ export function ProfileSettings({ user, profile }: ProfileSettingsProps) {
         </CardHeader>
         <CardContent className="space-y-4">
           <Field>
+            <FieldLabel>Display name</FieldLabel>
+            <Input
+              value={displayName}
+              onChange={(event) => setDisplayName(event.target.value)}
+              disabled={isLoading}
+            />
+            <FieldDescription>
+              This name appears in your social workspace and profile greeting.
+            </FieldDescription>
+          </Field>
+          <Field>
+            <FieldLabel>Username</FieldLabel>
+            <div className="relative">
+              <AtSign className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+              <Input
+                value={username}
+                onChange={(event) => setUsername(event.target.value.replace(/\s+/g, "").toLowerCase())}
+                className="pl-9"
+                disabled={isLoading}
+              />
+            </div>
+            <FieldDescription>
+              Lowercase letters, numbers, and underscores only.
+            </FieldDescription>
+          </Field>
+          <Field>
             <FieldLabel>Email</FieldLabel>
             <Input value={user.email || ""} disabled />
             <FieldDescription>
               Your email address cannot be changed.
+            </FieldDescription>
+          </Field>
+          <Field>
+            <FieldLabel>Display name</FieldLabel>
+            <Input
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              placeholder="Choose a display name"
+              maxLength={30}
+            />
+            <FieldDescription>
+              Shown on the leaderboard. Leave blank to appear as &quot;Anonymous&quot;.
             </FieldDescription>
           </Field>
           <Field>

@@ -10,6 +10,7 @@ interface ReaderLayoutProps {
   leftSidebar?: React.ReactNode;
   rightSidebar: React.ReactNode;
   audioPlayer?: React.ReactNode;
+  bookmarkButton?: React.ReactNode;
   title?: string;
   contentScrollRef?: React.RefObject<HTMLDivElement | null>;
   hideLeftSidebar?: boolean;
@@ -23,6 +24,7 @@ export function ReaderLayout({
   leftSidebar,
   rightSidebar,
   audioPlayer,
+  bookmarkButton,
   title,
   contentScrollRef,
   hideLeftSidebar = false,
@@ -37,7 +39,8 @@ export function ReaderLayout({
   // Open right sidebar when requested (e.g. highlight clicked)
   useEffect(() => {
     if (requestRightOpen) {
-      setRightOpen(true);
+      const frame = window.requestAnimationFrame(() => setRightOpen(true));
+      return () => window.cancelAnimationFrame(frame);
     }
   }, [requestRightOpen]);
 
@@ -84,6 +87,7 @@ export function ReaderLayout({
             )}
           </div>
           <div className="flex items-center gap-2">
+            {bookmarkButton}
             {onToggleRSVP && (
               <Button
                 variant={isRSVPMode ? "default" : "ghost"}

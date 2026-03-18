@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { gradeQuiz } from "@/lib/quiz-generator";
 import { calculateQuizXP, checkLevelUp } from "@/lib/level-system";
+import { awardPoints, calculateQuizPoints, calculatePerfectQuizBonus } from "@/lib/points";
 import { z } from "zod";
 import { AssessmentQuestion, SkillType, LevelChange } from "@/types/database";
 
@@ -158,6 +159,20 @@ export async function POST(request: NextRequest) {
     if (assessmentError) {
       console.error("Failed to save assessment:", assessmentError);
       // Don't fail the request, the levels are already updated
+    }
+
+    // Award leaderboard points
+    const quizPts = calculateQuizPoints(score, maxScore);
+    if (quizPts > 0) {
+      await awardPoints(supabase, user.id, quizPts, "quiz_completion", contentId, {
+        score,
+        maxScore,
+        percentage,
+      });
+    }
+    const perfectBonus = calculatePerfectQuizBonus(score, maxScore);
+    if (perfectBonus > 0) {
+      await awardPoints(supabase, user.id, perfectBonus, "perfect_quiz", contentId);
     }
 
     return NextResponse.json({

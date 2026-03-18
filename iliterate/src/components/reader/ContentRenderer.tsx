@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useEffect, useRef, useState, useCallback } from "react";
+import DOMPurify from "dompurify";
 import dynamic from "next/dynamic";
 import { Content, Highlight } from "@/types/database";
 import { TextSelection } from "./TextHighlighter";
@@ -81,7 +82,7 @@ export function ContentRenderer({
     let lastWasSpace = false;
 
     for (let i = 0; i < nfc.length; i++) {
-      let ch = normalizeChar(nfc[i]);
+      const ch = normalizeChar(nfc[i]);
 
       if (/\s/.test(ch)) {
         if (!lastWasSpace) {
@@ -172,7 +173,6 @@ export function ContentRenderer({
       // Score by context_after match
       if (contextAfter) {
         const normalizedContext = normalizeText(contextAfter);
-        const searchLen = fullText.length; // Need the search text length
         const afterStart = idx + (contextAfter.length > 0 ? 1 : 0); // approximate
         const textAfter = normalizeText(fullText.slice(afterStart, afterStart + contextAfter.length));
         let matchLen = 0;
@@ -321,8 +321,6 @@ export function ContentRenderer({
   const processedBody = useMemo(() => {
     if (!isMounted) return "";
 
-    // Dynamic import of DOMPurify to avoid SSR issues
-    const DOMPurify = require("dompurify");
     // Prepend title as h1 so it's inside the selectable/highlightable area
     const titleHtml = content.title
       ? `<h1 id="article-title">${content.title.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</h1>`
@@ -418,6 +416,7 @@ export function ContentRenderer({
   useEffect(() => {
     if (!contentRef.current || !onHighlightClick) return;
 
+    const contentElement = contentRef.current;
     const handleClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       if (target.tagName === "MARK" && target.dataset.highlightId) {
@@ -429,8 +428,8 @@ export function ContentRenderer({
       }
     };
 
-    contentRef.current.addEventListener("click", handleClick);
-    return () => contentRef.current?.removeEventListener("click", handleClick);
+    contentElement.addEventListener("click", handleClick);
+    return () => contentElement.removeEventListener("click", handleClick);
   }, [highlights, onHighlightClick]);
 
   // Handle focused highlight - scroll into view

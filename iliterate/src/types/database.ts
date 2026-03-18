@@ -180,6 +180,112 @@ export interface TranslationLookup {
 }
 
 // ============================================================================
+// Social Graph & Messaging Types
+// ============================================================================
+
+export type FriendshipStatus = "pending" | "accepted" | "declined";
+
+export type SocialRelationshipState =
+  | "none"
+  | "incoming"
+  | "outgoing"
+  | "friends";
+
+export type SocialSearchMatch = "username" | "display_name" | "email";
+
+export type RelationshipState = SocialRelationshipState;
+
+export interface PublicProfile {
+  id: string;
+  username: string | null;
+  display_name: string;
+  avatar_seed: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Friendship {
+  id: string;
+  requester_id: string;
+  recipient_id: string;
+  user_one_id: string;
+  user_two_id: string;
+  status: FriendshipStatus;
+  responded_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FriendshipWithProfile {
+  friendship: Friendship;
+  profile: PublicProfile;
+}
+
+export interface DirectConversation {
+  id: string;
+  user_one_id: string;
+  user_two_id: string;
+  last_message_preview: string | null;
+  last_message_at: string | null;
+  created_at: string;
+  updated_at: string;
+  friend?: PublicProfile | null;
+  unread_count?: number;
+}
+
+export interface ConversationRead {
+  conversation_id: string;
+  user_id: string;
+  last_read_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DirectMessage {
+  id: string;
+  conversation_id: string;
+  sender_id: string;
+  body: string;
+  created_at: string;
+}
+
+export interface FriendRequestSummary {
+  friendship: Friendship;
+  profile: PublicProfile;
+  direction: "incoming" | "outgoing";
+}
+
+export interface FriendSummary {
+  friendship: Friendship;
+  profile: PublicProfile;
+  conversation_id: string | null;
+  unread_count: number;
+}
+
+export interface ConversationSummary {
+  conversation: DirectConversation;
+  profile: PublicProfile;
+  unread_count: number;
+  last_read_at: string | null;
+}
+
+export interface SocialSearchResult {
+  profile: PublicProfile;
+  relationship: SocialRelationshipState;
+  matched_by: SocialSearchMatch;
+  friendship: Friendship | null;
+  friendship_id?: string | null;
+}
+
+export interface SocialSummary {
+  public_profile: PublicProfile | null;
+  incoming_requests: FriendRequestSummary[];
+  outgoing_requests: FriendRequestSummary[];
+  friends: FriendSummary[];
+  conversations: ConversationSummary[];
+}
+
+// ============================================================================
 // Skill-Based Progress Tracking Types
 // ============================================================================
 
@@ -276,6 +382,47 @@ export interface GeneratedContent {
   prompt_used: string | null;
   model_used: string;
   created_at: string;
+}
+
+// ============================================================================
+// Bookmarks
+// ============================================================================
+
+export interface Bookmark {
+  id: string;
+  user_id: string;
+  item_type: "content" | "lesson";
+  item_id: string;
+  created_at: string;
+}
+
+// ============================================================================
+// Points & Leaderboard Types
+// ============================================================================
+
+export type PointSource =
+  | "quiz_completion"
+  | "reading_completion"
+  | "lesson_completion"
+  | "flashcard_review"
+  | "streak_bonus"
+  | "perfect_quiz";
+
+export interface PointEvent {
+  id: string;
+  user_id: string;
+  points: number;
+  source: PointSource;
+  source_id: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface LeaderboardEntry {
+  rank: number;
+  userId: string;
+  displayName: string;
+  points: number;
 }
 
 // ============================================================================

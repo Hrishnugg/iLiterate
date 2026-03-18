@@ -4,8 +4,22 @@ import { vi, describe, it, expect, afterEach } from "vitest";
 import { Deck } from "../Deck";
 
 afterEach(() => {
+  vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
+
+function mockFetchResponse(body: unknown, init?: ResponseInit) {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue(
+      new Response(JSON.stringify(body), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+        ...init,
+      })
+    )
+  );
+}
 
 describe("Deck component", () => {
   const mockCards = [
@@ -32,10 +46,7 @@ describe("Deck component", () => {
   ];
 
   it("renders empty state when API returns no cards", async () => {
-    (globalThis as any).fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => [],
-    });
+    mockFetchResponse([]);
 
     render(<Deck contentId="book1" />);
 
@@ -45,7 +56,7 @@ describe("Deck component", () => {
   });
 
   it("renders error state when fetch fails", async () => {
-    (globalThis as any).fetch = vi.fn().mockResolvedValue({ ok: false });
+    mockFetchResponse({ error: "Failed to fetch vocabulary" }, { status: 500 });
 
     render(<Deck contentId="book2" />);
 
@@ -55,10 +66,7 @@ describe("Deck component", () => {
   });
 
   it("renders cards, flips on click, and navigates between cards", async () => {
-    (globalThis as any).fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => mockCards,
-    });
+    mockFetchResponse(mockCards);
 
     render(<Deck contentId="book3" contentTitle="My Book" />);
 

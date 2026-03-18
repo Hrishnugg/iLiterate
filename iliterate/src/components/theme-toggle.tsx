@@ -51,10 +51,20 @@ export function ThemeToggle() {
     }
   };
 
+  // Defer the entire DropdownMenu to avoid Radix ID hydration mismatch
+  if (!mounted) {
+    return (
+      <SidebarMenuButton tooltip="Change theme">
+        <Sun className="transition-transform duration-200" />
+        <span>Theme</span>
+      </SidebarMenuButton>
+    );
+  }
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <SidebarMenuButton tooltip="Change theme">
+        <SidebarMenuButton>
           {getIcon()}
           <span>{getThemeLabel()}</span>
         </SidebarMenuButton>
@@ -66,7 +76,7 @@ export function ThemeToggle() {
         >
           <Sun className="mr-2 size-4" />
           <span>Light</span>
-          {theme === "light" && mounted && (
+          {theme === "light" && (
             <span className="ml-auto text-xs">✓</span>
           )}
         </DropdownMenuItem>
@@ -76,7 +86,7 @@ export function ThemeToggle() {
         >
           <Moon className="mr-2 size-4" />
           <span>Dark</span>
-          {theme === "dark" && mounted && (
+          {theme === "dark" && (
             <span className="ml-auto text-xs">✓</span>
           )}
         </DropdownMenuItem>
@@ -86,7 +96,7 @@ export function ThemeToggle() {
         >
           <Monitor className="mr-2 size-4" />
           <span>System</span>
-          {theme === "system" && mounted && (
+          {theme === "system" && (
             <span className="ml-auto text-xs">✓</span>
           )}
         </DropdownMenuItem>

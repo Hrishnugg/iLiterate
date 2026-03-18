@@ -9,6 +9,7 @@ const PROTECTED_ROUTES = [
   "/quizzes",
   "/profile",
   "/home",
+  "/social",
 ];
 
 // Routes only accessible when NOT authenticated
