@@ -1,6 +1,8 @@
 import Link from "next/link";
 import LanguageShowcase from "@/components/LanguageShowcase";
 import ThemeToggle from "@/components/ThemeToggle";
+import { BlurFade } from "@/components/BlurFade";
+import { BlurText } from "@/components/BlurText";
 import { EB_Garamond, DM_Sans } from "next/font/google";
 
 const ebGaramond = EB_Garamond({
@@ -27,20 +29,10 @@ export default function Home() {
         .lp-display { font-family: var(--font-display), 'Georgia', serif; }
         .lp-body    { font-family: var(--font-body), system-ui, sans-serif; }
 
-        @keyframes lp-fade-up {
-          from { opacity: 0; transform: translateY(28px); filter: blur(12px); }
-          to   { opacity: 1; transform: translateY(0);    filter: blur(0px); }
-        }
         @keyframes lp-float {
           0%, 100% { transform: translateY(0); }
           50%      { transform: translateY(-10px); }
         }
-
-        .lp-au-1 { animation: lp-fade-up 0.75s 0.05s both ease-out; }
-        .lp-au-2 { animation: lp-fade-up 0.75s 0.15s both ease-out; }
-        .lp-au-3 { animation: lp-fade-up 0.75s 0.25s both ease-out; }
-        .lp-au-4 { animation: lp-fade-up 0.75s 0.35s both ease-out; }
-        .lp-au-5 { animation: lp-fade-up 0.75s 0.45s both ease-out; }
 
         .lp-float-slow { animation: lp-float 9s ease-in-out infinite; }
         .lp-float-med  { animation: lp-float 7s 1.5s ease-in-out infinite; }
@@ -264,7 +256,7 @@ export default function Home() {
         <div className="max-w-6xl mx-auto text-center">
           {/* Main headline */}
           <h1
-            className="lp-display lp-au-1"
+            className="lp-display"
             style={{
               fontSize: "clamp(3rem, 8vw, 7rem)",
               lineHeight: 1,
@@ -273,13 +265,17 @@ export default function Home() {
               color: "#1C1917",
             }}
           >
-            Read the{" "}
-            <em style={{ fontStyle: "italic", color: "#2E5D3B" }}>world.</em>
+            <BlurText text="Read the " delay={0.05} />
+            <BlurText
+              text="world."
+              delay={0.05 + 9 * 0.03}
+              style={{ fontStyle: "italic", color: "#2E5D3B" }}
+            />
           </h1>
 
           {/* Tagline */}
           <p
-            className="lp-body lp-au-2 mt-3 mx-auto"
+            className="lp-body mt-3 mx-auto"
             style={{
               fontSize: "clamp(0.875rem, 1.5vw, 1rem)",
               color: "#5C4F3A",
@@ -287,12 +283,18 @@ export default function Home() {
               maxWidth: "30rem",
             }}
           >
-            Read real content in any language. Tap to translate, save words,
-            review with flashcards.
+            <BlurText
+              text="Read real content in any language. Tap to translate, save words, review with flashcards."
+              by="word"
+              delay={0.5}
+              duration={0.3}
+              stagger={0.04}
+            />
           </p>
 
           {/* CTA buttons */}
-          <div className="lp-au-3 flex flex-wrap justify-center gap-3 mt-10">
+          <BlurFade delay={0.21} duration={0.75}>
+          <div className="flex flex-wrap justify-center gap-3 mt-10">
             <Link
               href="/signup"
               className="lp-btn-green inline-flex items-center gap-2.5 rounded-full px-7 py-3.5 lp-body font-medium"
@@ -323,6 +325,7 @@ export default function Home() {
               Sign In
             </Link>
           </div>
+          </BlurFade>
         </div>
       </section>
 
