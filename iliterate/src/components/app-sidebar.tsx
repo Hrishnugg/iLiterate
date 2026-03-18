@@ -10,6 +10,7 @@ import {
   TrendingUp,
   GraduationCap,
   Users,
+  Trophy,
 } from "lucide-react";
 
 import {
@@ -33,6 +34,7 @@ const navItems = [
   { title: "Quizzes", href: "/quizzes", icon: ClipboardCheck },
   { title: "Social", href: "/social", icon: Users },
   { title: "Progress", href: "/progress", icon: TrendingUp },
+  { title: "Leaderboard", href: "/leaderboard", icon: Trophy },
 ];
 
 export function AppSidebar() {

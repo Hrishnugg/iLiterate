@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { gradeQuiz } from "@/lib/quiz-generator";
+import { awardPoints, calculateLessonPoints, calculatePerfectQuizBonus } from "@/lib/points";
 import { z } from "zod";
 
 const submitSchema = z.object({
@@ -115,6 +116,18 @@ export async function POST(
       .select("*")
       .eq("user_id", user.id)
       .single();
+
+    // Award leaderboard points
+    const lessonPts = calculateLessonPoints(percentage / 100);
+    await awardPoints(supabase, user.id, lessonPts, "lesson_completion", id, {
+      score,
+      maxScore,
+      percentage,
+    });
+    const perfectPts = calculatePerfectQuizBonus(score, maxScore);
+    if (perfectPts > 0) {
+      await awardPoints(supabase, user.id, perfectPts, "perfect_quiz", id);
+    }
 
     if (skillLevels) {
       const newReadingXP = (skillLevels.reading_xp || 0) + xpAwarded;

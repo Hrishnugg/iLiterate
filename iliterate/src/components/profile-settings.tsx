@@ -66,6 +66,7 @@ const FORMALITY_LEVELS = [
 
 interface Profile {
   id: string;
+  display_name: string | null;
   native_language: string;
   target_language: string;
   age_group: string | null;
@@ -205,6 +206,7 @@ export function ProfileSettings({ user, profile, socialProfile }: ProfileSetting
       const { error: updateError } = await supabase
         .from("profiles")
         .update({
+          display_name: displayName || null,
           target_language: targetLanguage,
           native_language: nativeLanguage,
           age_group: ageGroup,
@@ -278,6 +280,18 @@ export function ProfileSettings({ user, profile, socialProfile }: ProfileSetting
             <Input value={user.email || ""} disabled />
             <FieldDescription>
               Your email address cannot be changed.
+            </FieldDescription>
+          </Field>
+          <Field>
+            <FieldLabel>Display name</FieldLabel>
+            <Input
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              placeholder="Choose a display name"
+              maxLength={30}
+            />
+            <FieldDescription>
+              Shown on the leaderboard. Leave blank to appear as &quot;Anonymous&quot;.
             </FieldDescription>
           </Field>
           <Field>
