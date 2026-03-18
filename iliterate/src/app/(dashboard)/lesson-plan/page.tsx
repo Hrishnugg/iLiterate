@@ -2,11 +2,26 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, BookOpen, Clock, Target, ChevronRight, Trophy, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import {
+  Loader2,
+  ArrowRight,
+  Globe,
+  UtensilsCrossed,
+  Home,
+  Landmark,
+  Briefcase,
+  Newspaper,
+  TreePine,
+  Monitor,
+  Users,
+  Heart,
+  Film,
+  BookOpen,
+} from "lucide-react";
 import { numericLevelToCEFR } from "@/types/database";
 import { DowngradeLevelDialog } from "@/components/lesson/DowngradeLevelDialog";
+import { cn } from "@/lib/utils";
 
 interface TopicInfo {
   id: string;
@@ -46,25 +61,25 @@ interface LessonData {
 }
 
 const TOPICS = [
-  { id: "travel", name: "Travel & Tourism", icon: "✈️" },
-  { id: "food", name: "Food & Dining", icon: "🍽️" },
-  { id: "daily_life", name: "Daily Life", icon: "🏠" },
-  { id: "culture", name: "Culture & Traditions", icon: "🎭" },
-  { id: "work", name: "Work & Career", icon: "💼" },
-  { id: "news", name: "News & Current Events", icon: "📰" },
-  { id: "nature", name: "Nature & Environment", icon: "🌿" },
-  { id: "technology", name: "Technology", icon: "💻" },
-  { id: "relationships", name: "People & Relationships", icon: "👥" },
-  { id: "health", name: "Health & Wellness", icon: "🏃" },
-  { id: "entertainment", name: "Entertainment", icon: "🎬" },
-  { id: "education", name: "Education & Learning", icon: "📚" },
+  { id: "travel", name: "Travel", Icon: Globe },
+  { id: "food", name: "Food", Icon: UtensilsCrossed },
+  { id: "daily_life", name: "Daily Life", Icon: Home },
+  { id: "culture", name: "Culture", Icon: Landmark },
+  { id: "work", name: "Work", Icon: Briefcase },
+  { id: "news", name: "News", Icon: Newspaper },
+  { id: "nature", name: "Nature", Icon: TreePine },
+  { id: "technology", name: "Technology", Icon: Monitor },
+  { id: "relationships", name: "Relationships", Icon: Users },
+  { id: "health", name: "Health", Icon: Heart },
+  { id: "entertainment", name: "Entertainment", Icon: Film },
+  { id: "education", name: "Education", Icon: BookOpen },
 ] as const;
 
 const LENGTH_OPTIONS = [
-  { id: "short", label: "Short", description: "~1 min read", words: "50-100 words" },
-  { id: "medium", label: "Medium", description: "~5 min read", words: "200-400 words" },
-  { id: "long", label: "Long", description: "~10 min read", words: "600-1000 words" },
-] as const;
+  { id: "short" as const, label: "Short", time: "~1 min" },
+  { id: "medium" as const, label: "Medium", time: "~5 min" },
+  { id: "long" as const, label: "Long", time: "~10 min" },
+];
 
 export default function LessonPlanPage() {
   const router = useRouter();
@@ -76,9 +91,10 @@ export default function LessonPlanPage() {
   const [currentLesson, setCurrentLesson] = useState<LessonData | null>(null);
   const [recentLessons, setRecentLessons] = useState<LessonHistoryItem[]>([]);
 
-  const [selectedLength, setSelectedLength] = useState<"short" | "medium" | "long">("medium");
+  const [selectedLength, setSelectedLength] = useState<
+    "short" | "medium" | "long"
+  >("medium");
   const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
-  const [showTopicSelector, setShowTopicSelector] = useState(false);
   const [showDowngradeDialog, setShowDowngradeDialog] = useState(false);
 
   useEffect(() => {
@@ -89,26 +105,24 @@ export default function LessonPlanPage() {
     try {
       setIsLoading(true);
 
-      // Fetch user's skill level
       const progressResponse = await fetch("/api/progress");
       if (progressResponse.ok) {
         const progressData = await progressResponse.json();
         setUserLevel(progressData.skillLevels?.reading_level || 1);
       }
 
-      // Fetch lesson history
       const historyResponse = await fetch("/api/lesson/history?limit=5");
       if (historyResponse.ok) {
         const historyData = await historyResponse.json();
         setRecentLessons(historyData.lessons || []);
 
-        // Check for an active (non-completed) lesson
         const activeLesson = historyData.lessons?.find(
           (l: LessonHistoryItem) => l.status !== "completed"
         );
         if (activeLesson) {
-          // Fetch full lesson details
-          const lessonResponse = await fetch(`/api/lesson/${activeLesson.id}`);
+          const lessonResponse = await fetch(
+            `/api/lesson/${activeLesson.id}`
+          );
           if (lessonResponse.ok) {
             const lessonData = await lessonResponse.json();
             setCurrentLesson(lessonData.lesson);
@@ -146,306 +160,228 @@ export default function LessonPlanPage() {
       const data = await response.json();
       setCurrentLesson(data.lesson);
       setSelectedTopic(null);
-      setShowTopicSelector(false);
-
-      // Navigate to the lesson
       router.push(`/lesson-plan/${data.lesson.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to generate lesson");
+      setError(
+        err instanceof Error ? err.message : "Failed to generate lesson"
+      );
     } finally {
       setIsGenerating(false);
     }
   };
 
-  const continueLesson = () => {
-    if (currentLesson) {
-      router.push(`/lesson-plan/${currentLesson.id}`);
-    }
-  };
-
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="flex items-center justify-center py-24">
+        <Loader2 className="size-6 animate-spin text-primary" />
       </div>
     );
   }
 
   const cefrLevel = numericLevelToCEFR(userLevel);
+  const completedLessons = recentLessons.filter(
+    (l) => l.status === "completed"
+  );
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold">Lesson Plan</h1>
-        <p className="text-muted-foreground mt-1">
-          Practice reading with content tailored to your level
-        </p>
+    <div className="flex flex-col gap-10">
+      {/* Page header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-semibold tracking-tight">
+            Lesson Plan
+          </h1>
+          <p className="mt-1 text-muted-foreground">
+            Personalized reading lessons tailored to your level
+          </p>
+        </div>
+        <div className="flex items-center gap-2 rounded-md border bg-primary/5 px-4 py-2">
+          <span className="text-sm font-medium text-primary">Japanese</span>
+          <span className="font-mono text-sm font-semibold text-primary">
+            {cefrLevel}
+          </span>
+        </div>
       </div>
 
-      {/* Current Level Display */}
-      <Card>
-        <CardContent>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                <Target className="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Current Reading Level</p>
-                <p className="text-xl font-bold">
-                  Level {userLevel} <span className="text-muted-foreground">({cefrLevel})</span>
-                </p>
-              </div>
-            </div>
-            <div className="text-right">
-              <p className="text-sm text-muted-foreground">CEFR Level</p>
-              <p className="text-2xl font-bold text-primary">{cefrLevel}</p>
-              {userLevel > 3 && (
-                <button
-                  onClick={() => setShowDowngradeDialog(true)}
-                  className="text-xs text-muted-foreground hover:text-orange-500 hover:underline mt-1"
-                >
-                  Level too hard?
-                </button>
-              )}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Downgrade Level Dialog */}
       <DowngradeLevelDialog
         open={showDowngradeDialog}
         onOpenChange={setShowDowngradeDialog}
         onDowngradeComplete={fetchData}
       />
 
-      {/* Active Lesson Card */}
+      {/* Active lesson banner */}
       {currentLesson && currentLesson.status !== "completed" && (
-        <Card className="border-primary">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <BookOpen className="h-5 w-5 text-primary" />
-              Continue Your Lesson
-            </CardTitle>
-            <CardDescription>
-              {currentLesson.status === "reading" ? "You have a reading in progress" : "Ready to take the quiz"}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="font-semibold text-lg">{currentLesson.title}</h3>
-                <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
-                  <span>{currentLesson.topic.icon} {currentLesson.topic.name}</span>
-                  <span>•</span>
-                  <span>Level {currentLesson.targetLevel}</span>
-                  <span>•</span>
-                  <span>{currentLesson.wordCount} words</span>
-                </div>
-              </div>
-              <Button onClick={continueLesson}>
-                {currentLesson.status === "reading" ? "Continue Reading" : "Take Quiz"}
-                <ChevronRight className="ml-1 h-4 w-4" />
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        <button
+          onClick={() => router.push(`/lesson-plan/${currentLesson.id}`)}
+          className="group flex w-full items-center justify-between rounded-lg bg-primary px-6 py-5 text-left text-primary-foreground transition-colors hover:bg-primary/90"
+        >
+          <div className="flex flex-col gap-1">
+            <span className="text-xs font-medium uppercase tracking-wider opacity-60">
+              Continue Lesson
+            </span>
+            <span className="text-lg font-semibold">{currentLesson.title}</span>
+            <span className="text-xs opacity-70">
+              {currentLesson.status === "reading"
+                ? "Reading in progress"
+                : "Ready to take the quiz"}
+            </span>
+          </div>
+          <div className="flex items-center gap-2 rounded-md bg-primary-foreground/15 px-4 py-2 text-sm font-medium">
+            Continue
+            <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
+          </div>
+        </button>
       )}
 
-      {/* New Lesson */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <BookOpen className="h-5 w-5" />
-            New Lesson
-          </CardTitle>
-          <CardDescription>
-            Practice reading with content tailored to your current level
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {error && (
-            <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
-              {error}
-            </div>
-          )}
-
-          {/* Length Selection */}
-          <div>
-            <label className="text-sm font-medium mb-3 block">Reading Length</label>
-            <div className="grid grid-cols-3 gap-3">
-              {LENGTH_OPTIONS.map((option) => (
-                <button
-                  key={option.id}
-                  onClick={() => setSelectedLength(option.id)}
-                  className={`p-4 rounded-lg border-2 text-left transition-all ${
-                    selectedLength === option.id
-                      ? "border-primary bg-primary/5"
-                      : "border-border hover:border-primary/50"
-                  }`}
-                >
-                  <div className="flex items-center gap-2 mb-1">
-                    <Clock className="h-4 w-4" />
-                    <span className="font-medium">{option.label}</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground">{option.description}</p>
-                  <p className="text-xs text-muted-foreground">{option.words}</p>
-                </button>
-              ))}
-            </div>
+      {/* New Lesson section */}
+      <div className="flex flex-col gap-5">
+        <div className="flex items-center justify-between">
+          <span className="text-base font-semibold">Start a New Lesson</span>
+          {/* Length segmented control */}
+          <div className="flex overflow-hidden rounded-md border bg-card">
+            {LENGTH_OPTIONS.map((opt, idx) => (
+              <button
+                key={opt.id}
+                onClick={() => setSelectedLength(opt.id)}
+                className={cn(
+                  "px-4 py-1.5 text-xs font-medium transition-colors",
+                  idx < LENGTH_OPTIONS.length - 1 && "border-r",
+                  selectedLength === opt.id
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {opt.label}
+              </button>
+            ))}
           </div>
+        </div>
 
-          {/* Topic Selection */}
-          <div>
-            <label className="text-sm font-medium mb-3 block">Topic</label>
-            {!showTopicSelector ? (
-              <div className="flex items-center gap-3">
-                <div className="flex-1 p-3 rounded-lg bg-muted/50 text-sm">
-                  {selectedTopic ? (
-                    <span>
-                      {TOPICS.find(t => t.id === selectedTopic)?.icon}{" "}
-                      {TOPICS.find(t => t.id === selectedTopic)?.name}
-                    </span>
-                  ) : (
-                    <span className="text-muted-foreground">
-                      A topic will be suggested based on your learning goals
-                    </span>
+        {error && (
+          <div className="rounded-md bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            {error}
+          </div>
+        )}
+
+        {/* Visual topic grid */}
+        <div className="flex flex-wrap gap-3">
+          {TOPICS.map((topic) => {
+            const isSelected = selectedTopic === topic.id;
+            return (
+              <button
+                key={topic.id}
+                onClick={() =>
+                  setSelectedTopic(isSelected ? null : topic.id)
+                }
+                className={cn(
+                  "flex w-[140px] flex-col justify-between rounded-lg border p-4 text-left transition-colors",
+                  isSelected
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "bg-card hover:bg-accent/50"
+                )}
+                style={{ height: 90 }}
+              >
+                <topic.Icon
+                  className={cn(
+                    "size-5",
+                    isSelected
+                      ? "text-primary-foreground"
+                      : "text-muted-foreground"
                   )}
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowTopicSelector(true)}
-                >
-                  {selectedTopic ? "Change" : "Choose Topic"}
-                </Button>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                  {TOPICS.map((topic) => (
-                    <button
-                      key={topic.id}
-                      onClick={() => {
-                        setSelectedTopic(topic.id);
-                        setShowTopicSelector(false);
-                      }}
-                      className={`p-3 rounded-lg border text-left text-sm transition-all ${
-                        selectedTopic === topic.id
-                          ? "border-primary bg-primary/5"
-                          : "border-border hover:border-primary/50"
-                      }`}
-                    >
-                      <span className="mr-2">{topic.icon}</span>
-                      {topic.name}
-                    </button>
-                  ))}
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setSelectedTopic(null);
-                    setShowTopicSelector(false);
-                  }}
-                >
-                  Surprise Me
-                </Button>
-              </div>
-            )}
-          </div>
+                />
+                <span className="text-sm font-medium">{topic.name}</span>
+              </button>
+            );
+          })}
+        </div>
 
-          {/* Begin Lesson Button */}
-          <Button
-            className="w-full"
-            size="lg"
-            onClick={generateLesson}
-            disabled={isGenerating}
-          >
-            {isGenerating ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Preparing Lesson...
-              </>
-            ) : (
-              <>
-                <BookOpen className="mr-2 h-4 w-4" />
-                Begin Lesson
-              </>
-            )}
-          </Button>
-        </CardContent>
-      </Card>
+        <Button
+          className="w-fit"
+          size="lg"
+          onClick={generateLesson}
+          disabled={isGenerating}
+        >
+          {isGenerating ? (
+            <>
+              <Loader2 className="mr-2 size-4 animate-spin" />
+              Preparing Lesson...
+            </>
+          ) : (
+            <>
+              Begin Lesson
+              <ArrowRight className="ml-2 size-4" />
+            </>
+          )}
+        </Button>
+      </div>
 
-      {/* Recent Lessons */}
-      {recentLessons.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Trophy className="h-5 w-5" />
-              Recent Lessons
-            </CardTitle>
-            <CardDescription>Your lesson history and performance</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {recentLessons.filter(l => l.status === "completed").slice(0, 5).map((lesson) => (
-                <div
+      {/* Recent lessons — horizontal strip */}
+      {completedLessons.length > 0 && (
+        <div className="flex flex-col gap-4">
+          <span className="text-base font-semibold">Recent Lessons</span>
+          <div className="flex gap-3 overflow-x-auto pb-2">
+            {completedLessons.map((lesson) => {
+              const totalXP =
+                (lesson.readingXpAwarded || 0) +
+                (lesson.vocabularyXpAwarded || 0);
+              const pct = lesson.percentage ?? 0;
+              const isGood = pct >= 70;
+
+              return (
+                <button
                   key={lesson.id}
-                  className="flex items-center justify-between p-4 rounded-lg border"
+                  onClick={() => router.push(`/lesson-plan/${lesson.id}`)}
+                  className="flex w-[220px] shrink-0 flex-col gap-2.5 rounded-lg border bg-card p-4 text-left transition-colors hover:bg-accent/50"
                 >
-                  <div className="flex items-center gap-4">
-                    <div
-                      className={`h-10 w-10 rounded-full flex items-center justify-center text-white font-bold text-sm ${
-                        lesson.percentage && lesson.percentage >= 80
-                          ? "bg-green-500"
-                          : lesson.percentage && lesson.percentage >= 50
-                          ? "bg-yellow-500"
-                          : "bg-red-500"
-                      }`}
+                  <div className="flex items-center justify-between">
+                    <span
+                      className={cn(
+                        "font-mono text-2xl font-bold",
+                        isGood ? "text-primary" : "text-chart-4"
+                      )}
                     >
-                      {lesson.percentage ?? 0}%
-                    </div>
-                    <div>
-                      <p className="font-medium">{lesson.title}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {lesson.topic.icon} {lesson.topic.name} • Level {lesson.targetLevel}
-                      </p>
-                    </div>
+                      {pct}%
+                    </span>
+                    <span
+                      className={cn(
+                        "font-mono text-xs font-medium",
+                        isGood ? "text-primary" : "text-chart-4"
+                      )}
+                    >
+                      +{totalXP} XP
+                    </span>
                   </div>
-                  <div className="flex items-center gap-4">
-                    <div className="text-right">
-                      <p className="font-medium text-yellow-600 dark:text-yellow-400">
-                        +{(lesson.readingXpAwarded || 0) + (lesson.vocabularyXpAwarded || 0)} XP
-                      </p>
-                      <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                        {lesson.levelAdjustment === 1 && (
-                          <>
-                            <TrendingUp className="h-3 w-3 text-green-500" />
-                            <span className="text-green-500">Level up</span>
-                          </>
-                        )}
-                        {lesson.levelAdjustment === -1 && (
-                          <>
-                            <TrendingDown className="h-3 w-3 text-red-500" />
-                            <span className="text-red-500">Review</span>
-                          </>
-                        )}
-                        {lesson.levelAdjustment === 0 && (
-                          <>
-                            <Minus className="h-3 w-3" />
-                            <span>Same level</span>
-                          </>
-                        )}
-                      </div>
-                    </div>
+                  <div className="flex flex-col gap-0.5">
+                    <span className="truncate text-sm font-medium">
+                      {lesson.title}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {lesson.topic.name} ·{" "}
+                      {lesson.length
+                        ? lesson.length.charAt(0).toUpperCase() +
+                          lesson.length.slice(1)
+                        : ""}{" "}
+                      ·{" "}
+                      {new Date(lesson.createdAt).toLocaleDateString(
+                        undefined,
+                        { month: "short", day: "numeric" }
+                      )}
+                    </span>
                   </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {userLevel > 3 && (
+        <button
+          onClick={() => setShowDowngradeDialog(true)}
+          className="w-fit text-xs text-muted-foreground hover:text-destructive hover:underline"
+        >
+          Feeling overwhelmed? Lower your level
+        </button>
       )}
     </div>
   );

@@ -659,337 +659,336 @@ export function SocialHub() {
 
   const activeConversationFriend = activeConversation?.friend;
 
-  const leftColumn = (
-    <Card className="overflow-hidden">
-      <CardHeader className="border-b bg-muted/20">
-        <CardTitle className="flex items-center gap-2 text-base">
-          <Sparkles className="size-4 text-primary" />
-          Social workspace
-        </CardTitle>
-        <CardDescription>
-          Search learners, manage requests, and jump into active chats.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-5 px-5 py-5">
-        <div className="space-y-3">
-          <div className="relative">
-            <Search className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
-            <Input
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-              className="pl-9"
-              placeholder="Search by username, name, or exact email"
-            />
-          </div>
+  // Helper: generate avatar initials + color from name
+  const getInitials = (name: string) => {
+    const parts = name.split(" ").filter(Boolean);
+    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+    return name.slice(0, 2).toUpperCase();
+  };
+  const avatarColors = ["bg-primary", "bg-chart-4", "bg-chart-3", "bg-[#5C7A8A]", "bg-[#8A5C7A]"];
+  const getAvatarColor = (id: string) => {
+    let hash = 0;
+    for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) | 0;
+    return avatarColors[Math.abs(hash) % avatarColors.length];
+  };
 
-          {searchQuery.trim() ? (
-            <div className="rounded-2xl border bg-background/80">
-              <div className="flex items-center justify-between border-b px-4 py-3">
-                <p className="text-sm font-medium">Search results</p>
-                {isSearching ? <Loader2 className="size-4 animate-spin text-primary" /> : null}
+  const leftColumn = (
+    <div className="flex h-full flex-col">
+      {/* Header: Messages + Add Friends */}
+      <div className="flex flex-col gap-3 border-b px-4 py-4">
+        <div className="flex items-center justify-between">
+          <span className="text-lg font-semibold tracking-tight">Messages</span>
+          <Button
+            variant="outline"
+            size="icon"
+            className="size-8"
+            title="Find friends"
+            onClick={() => setActiveTab("friends")}
+          >
+            <UserRoundPlus className="size-4" />
+          </Button>
+        </div>
+        {/* Search — context-aware placeholder */}
+        <div className="relative">
+          <Search className="text-muted-foreground absolute left-3 top-1/2 size-4 -translate-y-1/2" />
+          <Input
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            className="pl-9 h-9 bg-muted/50 border-0"
+            placeholder={activeTab === "friends" || activeTab === "requests" ? "Search by username, name, or email..." : "Search conversations..."}
+          />
+        </div>
+      </div>
+
+      {/* Tabs — always visible, below search */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-1 flex-col min-h-0">
+        <TabsList variant="line" className="w-full justify-start px-4 shrink-0 border-b">
+          <TabsTrigger value="chats" className="text-xs">Chats</TabsTrigger>
+          <TabsTrigger value="friends" className="text-xs">Friends ({friends.length})</TabsTrigger>
+          <TabsTrigger value="requests" className="text-xs">Requests ({pendingCount})</TabsTrigger>
+        </TabsList>
+
+        {/* Chats tab — conversation list */}
+        <TabsContent value="chats" className="flex-1 overflow-y-auto mt-0">
+          {/* Search results when on chats tab */}
+          {searchQuery.trim() && (
+            <div className="border-b">
+              <div className="flex items-center justify-between px-4 py-2">
+                <p className="text-xs font-medium text-muted-foreground">Search results</p>
+                {isSearching ? <Loader2 className="size-3 animate-spin text-primary" /> : null}
               </div>
-              <div className="max-h-72 overflow-y-auto">
+              <div className="max-h-48 overflow-y-auto">
                 {searchResults.length > 0 ? (
                   searchResults.map((result) => (
-                    <div
-                      key={result.profile.id}
-                      className="flex items-center justify-between gap-3 border-b px-4 py-3 last:border-b-0"
-                    >
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-medium">{result.profile.display_name}</p>
-                        <p className="text-muted-foreground flex items-center gap-1 text-xs">
-                          <AtSign className="size-3" />
-                          {result.profile.username ?? "pending"}
-                          <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] uppercase tracking-[0.12em]">
-                            {result.matched_by}
-                          </span>
-                        </p>
+                    <div key={result.profile.id} className="flex items-center justify-between gap-3 px-4 py-2.5">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className={cn("flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-primary-foreground", getAvatarColor(result.profile.id))}>
+                          {getInitials(result.profile.display_name ?? "?")}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium">{result.profile.display_name}</p>
+                          <p className="text-xs text-muted-foreground">@{result.profile.username ?? "pending"}</p>
+                        </div>
                       </div>
                       {result.relationship === "none" ? (
-                        <Button size="sm" onClick={() => void handleSendFriendRequest(result.profile.id).catch((error) => {
-                          const message = error instanceof Error ? error.message : "Failed to send friend request";
-                          toast.error(message);
+                        <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => void handleSendFriendRequest(result.profile.id).catch((error) => {
+                          toast.error(error instanceof Error ? error.message : "Failed to send request");
                         })}>
-                          <UserRoundPlus className="size-4" />
                           Add
                         </Button>
-                      ) : result.relationship === "incoming" && result.friendship_id ? (
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            onClick={() => void handleFriendshipAction(result.friendship_id!, "accept").catch((error) => {
-                              const message = error instanceof Error ? error.message : "Failed to accept friend request";
-                              toast.error(message);
-                            })}
-                          >
-                            Accept
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => void handleFriendshipAction(result.friendship_id!, "decline").catch((error) => {
-                              const message = error instanceof Error ? error.message : "Failed to decline friend request";
-                              toast.error(message);
-                            })}
-                          >
-                            Decline
-                          </Button>
-                        </div>
-                      ) : result.relationship === "outgoing" && result.friendship_id ? (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => void handleFriendshipAction(result.friendship_id!, "cancel").catch((error) => {
-                            const message = error instanceof Error ? error.message : "Failed to cancel request";
-                            toast.error(message);
-                          })}
-                        >
-                          Cancel
+                      ) : result.relationship === "friends" ? (
+                        <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => void openConversationWithFriend(result.profile.id).catch(() => toast.error("Failed"))}>
+                          <MessageCircle className="size-3 mr-1" />
+                          Chat
                         </Button>
                       ) : (
-                        <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+                        <span className="rounded bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
                           {relationshipLabel[result.relationship]}
                         </span>
                       )}
                     </div>
                   ))
                 ) : !isSearching ? (
-                  <p className="text-muted-foreground px-4 py-6 text-sm">
-                    No matching learners yet.
-                  </p>
+                  <p className="text-muted-foreground px-4 py-3 text-xs">No matching learners.</p>
                 ) : null}
               </div>
             </div>
-          ) : null}
-        </div>
-
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList variant="line" className="w-full justify-start">
-            <TabsTrigger value="requests">Requests ({pendingCount})</TabsTrigger>
-            <TabsTrigger value="friends">Friends ({friends.length})</TabsTrigger>
-            <TabsTrigger value="chats">Chats ({conversations.length})</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="requests" className="space-y-4">
-            <div className="rounded-2xl border">
-              <div className="border-b px-4 py-3 text-sm font-medium">Incoming requests</div>
-              {incomingRequests.length ? (
-                incomingRequests.map(({ friendship, profile }) => (
-                  <div key={friendship.id} className="flex items-center justify-between gap-3 border-b px-4 py-3 last:border-b-0">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">{profile.display_name}</p>
-                      <p className="text-muted-foreground text-xs">@{profile.username ?? "pending"}</p>
+          )}
+          {conversations.length ? (
+            conversations.map((conversation) => (
+              <button
+                key={conversation.id}
+                type="button"
+                onClick={() => void openConversation(conversation.id).catch((error) => {
+                  toast.error(error instanceof Error ? error.message : "Failed to load conversation");
+                })}
+                className={cn(
+                  "flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-accent/50",
+                  activeConversation?.id === conversation.id && "bg-primary/5"
+                )}
+              >
+                <div className={cn("flex size-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-primary-foreground", getAvatarColor(conversation.friend.id))}>
+                  {getInitials(conversation.friend.display_name ?? "?")}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <span className="truncate text-sm font-medium">{conversation.friend.display_name}</span>
+                    <div className="flex shrink-0 items-center gap-1.5 ml-2">
+                      <span className="text-xs text-muted-foreground">{formatTimestamp(conversation.last_message_at)}</span>
+                      {conversation.unread_count ? (
+                        <div className="size-2 rounded-full bg-primary" />
+                      ) : null}
                     </div>
-                    <div className="flex gap-2">
-                      <Button size="sm" onClick={() => void handleFriendshipAction(friendship.id, "accept").catch((error) => {
-                        const message = error instanceof Error ? error.message : "Failed to accept friend request";
-                        toast.error(message);
+                  </div>
+                  <p className={cn(
+                    "truncate text-xs mt-0.5",
+                    conversation.unread_count ? "font-medium text-foreground" : "text-muted-foreground"
+                  )}>
+                    {conversation.last_message_preview || "No messages yet"}
+                  </p>
+                </div>
+              </button>
+            ))
+          ) : (
+            <div className="px-4 py-8 text-center">
+              <p className="text-sm text-muted-foreground">No conversations yet.</p>
+              <p className="text-xs text-muted-foreground mt-1">Add friends to start chatting.</p>
+            </div>
+          )}
+        </TabsContent>
+
+        {/* Friends tab */}
+        <TabsContent value="friends" className="flex-1 overflow-y-auto mt-0 px-4 py-3 space-y-2">
+          {/* Search results for finding new friends */}
+          {searchQuery.trim() && (
+            <div className="space-y-1 pb-3 border-b mb-3">
+              <div className="flex items-center justify-between pb-1">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Search Results</p>
+                {isSearching ? <Loader2 className="size-3 animate-spin text-primary" /> : null}
+              </div>
+              {searchResults.length > 0 ? (
+                searchResults.map((result) => (
+                  <div
+                    key={result.profile.id}
+                    className="flex items-center justify-between gap-2 py-2"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className={cn("flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-primary-foreground", getAvatarColor(result.profile.id))}>
+                        {getInitials(result.profile.display_name ?? "?")}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">{result.profile.display_name}</p>
+                        <p className="text-xs text-muted-foreground">@{result.profile.username ?? "pending"}</p>
+                      </div>
+                    </div>
+                    {result.relationship === "none" ? (
+                      <Button size="sm" className="h-7 text-xs" onClick={() => void handleSendFriendRequest(result.profile.id).catch((error) => {
+                        toast.error(error instanceof Error ? error.message : "Failed to send request");
                       })}>
+                        <UserRoundPlus className="size-3 mr-1" />
+                        Add
+                      </Button>
+                    ) : result.relationship === "incoming" && result.friendship_id ? (
+                      <Button size="sm" className="h-7 text-xs" onClick={() => void handleFriendshipAction(result.friendship_id!, "accept").catch(() => toast.error("Failed"))}>
                         Accept
                       </Button>
-                      <Button size="sm" variant="outline" onClick={() => void handleFriendshipAction(friendship.id, "decline").catch((error) => {
-                        const message = error instanceof Error ? error.message : "Failed to decline friend request";
-                        toast.error(message);
-                      })}>
-                        Decline
-                      </Button>
-                    </div>
+                    ) : result.relationship === "outgoing" ? (
+                      <span className="rounded bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">Pending</span>
+                    ) : (
+                      <span className="rounded bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">Friends</span>
+                    )}
                   </div>
                 ))
-              ) : (
-                <p className="text-muted-foreground px-4 py-6 text-sm">No incoming requests right now.</p>
-              )}
+              ) : !isSearching ? (
+                <p className="text-xs text-muted-foreground py-2">No matching learners found.</p>
+              ) : null}
             </div>
+          )}
 
-            <div className="rounded-2xl border">
-              <div className="border-b px-4 py-3 text-sm font-medium">Outgoing requests</div>
-              {outgoingRequests.length ? (
-                outgoingRequests.map(({ friendship, profile }) => (
-                  <div key={friendship.id} className="flex items-center justify-between gap-3 border-b px-4 py-3 last:border-b-0">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">{profile.display_name}</p>
-                      <p className="text-muted-foreground text-xs">@{profile.username ?? "pending"}</p>
-                    </div>
-                    <Button size="sm" variant="outline" onClick={() => void handleFriendshipAction(friendship.id, "cancel").catch((error) => {
-                      const message = error instanceof Error ? error.message : "Failed to cancel request";
-                      toast.error(message);
-                    })}>
-                      Cancel
-                    </Button>
-                  </div>
-                ))
-              ) : (
-                <p className="text-muted-foreground px-4 py-6 text-sm">No outgoing requests yet.</p>
-              )}
+          {/* Existing friends list */}
+          {!searchQuery.trim() && !friends.length && (
+            <div className="py-6 text-center">
+              <p className="text-sm font-medium">No friends yet</p>
+              <p className="text-xs text-muted-foreground mt-1">Type a username or email above to find learners.</p>
             </div>
-          </TabsContent>
-
-          <TabsContent value="friends" className="space-y-3">
-            {friends.length ? (
-              friends.map(({ friendship, profile }) => (
-                <div
-                  key={friendship.id}
-                  className="flex items-center justify-between gap-3 rounded-2xl border px-4 py-4 transition-colors hover:bg-muted/30"
-                >
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">{profile.display_name}</p>
-                    <p className="text-muted-foreground text-xs">@{profile.username ?? "pending"}</p>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => void openConversationWithFriend(profile.id).catch((error) => {
-                        const message = error instanceof Error ? error.message : "Failed to open conversation";
-                        toast.error(message);
-                      })}
-                    >
-                      <MessageCircle className="size-4" />
-                      Message
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        void handleFriendshipAction(friendship.id, "remove").catch((error) => {
-                          const message = error instanceof Error ? error.message : "Failed to remove friend";
-                          toast.error(message);
-                        });
-                      }}
-                    >
-                      Remove
-                    </Button>
-                  </div>
+          )}
+          {friends.map(({ friendship, profile }) => (
+            <div key={friendship.id} className="flex items-center justify-between gap-2 py-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className={cn("flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-primary-foreground", getAvatarColor(profile.id))}>
+                  {getInitials(profile.display_name ?? "?")}
                 </div>
-              ))
-            ) : (
-              <div className="rounded-2xl border border-dashed px-4 py-8 text-center">
-                <p className="font-medium">No study partners yet</p>
-                <p className="text-muted-foreground mt-1 text-sm">
-                  Search by username or exact email to start building your circle.
-                </p>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium">{profile.display_name}</p>
+                  <p className="text-xs text-muted-foreground">@{profile.username ?? "pending"}</p>
+                </div>
               </div>
-            )}
-          </TabsContent>
+              <div className="flex gap-1">
+                <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => void openConversationWithFriend(profile.id).catch(() => toast.error("Failed"))}>
+                  <MessageCircle className="size-3" />
+                </Button>
+                <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground" onClick={() => void handleFriendshipAction(friendship.id, "remove").catch(() => toast.error("Failed"))}>
+                  Remove
+                </Button>
+              </div>
+            </div>
+          ))}
+          {!friends.length && (
+            <p className="text-xs text-muted-foreground py-4 text-center">No friends yet. Search to find learners.</p>
+          )}
+        </TabsContent>
 
-          <TabsContent value="chats" className="space-y-3">
-            {conversations.length ? (
-              conversations.map((conversation) => (
-                <button
-                  key={conversation.id}
-                  type="button"
-                  onClick={() => void openConversation(conversation.id).catch((error) => {
-                    const message = error instanceof Error ? error.message : "Failed to load conversation";
-                    toast.error(message);
-                  })}
-                  className={cn(
-                    "flex w-full items-start justify-between gap-3 rounded-2xl border px-4 py-4 text-left transition-colors hover:bg-muted/30",
-                    activeConversation?.id === conversation.id && "border-primary/40 bg-primary/5"
-                  )}
-                >
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">{conversation.friend.display_name}</p>
-                    <p className="text-muted-foreground truncate text-xs">
-                      {conversation.last_message_preview || "No messages yet"}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-muted-foreground text-xs">
-                      {formatTimestamp(conversation.last_message_at)}
-                    </p>
-                    {conversation.unread_count ? (
-                      <span className="mt-2 inline-flex min-w-6 items-center justify-center rounded-full bg-primary px-2 py-0.5 text-[11px] font-medium text-primary-foreground">
-                        {conversation.unread_count}
-                      </span>
-                    ) : null}
-                  </div>
-                </button>
-              ))
-            ) : (
-              <div className="rounded-2xl border border-dashed px-4 py-8 text-center">
-                <p className="font-medium">No active chats yet</p>
-                <p className="text-muted-foreground mt-1 text-sm">
-                  Once a friend request is accepted, conversations show up here automatically.
-                </p>
+        {/* Requests tab */}
+        <TabsContent value="requests" className="flex-1 overflow-y-auto mt-0 px-4 py-3 space-y-2">
+          {incomingRequests.length > 0 && (
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider pb-1">Incoming</p>
+          )}
+          {incomingRequests.map(({ friendship, profile }) => (
+            <div key={friendship.id} className="flex items-center justify-between gap-2 py-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className={cn("flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-primary-foreground", getAvatarColor(profile.id))}>
+                  {getInitials(profile.display_name ?? "?")}
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium">{profile.display_name}</p>
+                  <p className="text-xs text-muted-foreground">@{profile.username ?? "pending"}</p>
+                </div>
               </div>
-            )}
-          </TabsContent>
-        </Tabs>
-      </CardContent>
-    </Card>
+              <div className="flex gap-1">
+                <Button size="sm" className="h-7 text-xs" onClick={() => void handleFriendshipAction(friendship.id, "accept").catch(() => toast.error("Failed"))}>Accept</Button>
+                <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => void handleFriendshipAction(friendship.id, "decline").catch(() => toast.error("Failed"))}>Decline</Button>
+              </div>
+            </div>
+          ))}
+          {outgoingRequests.length > 0 && (
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider pb-1 pt-2">Outgoing</p>
+          )}
+          {outgoingRequests.map(({ friendship, profile }) => (
+            <div key={friendship.id} className="flex items-center justify-between gap-2 py-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className={cn("flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-primary-foreground", getAvatarColor(profile.id))}>
+                  {getInitials(profile.display_name ?? "?")}
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium">{profile.display_name}</p>
+                  <p className="text-xs text-muted-foreground">Pending</p>
+                </div>
+              </div>
+              <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => void handleFriendshipAction(friendship.id, "cancel").catch(() => toast.error("Failed"))}>Cancel</Button>
+            </div>
+          ))}
+          {!incomingRequests.length && !outgoingRequests.length && (
+            <p className="text-xs text-muted-foreground py-4 text-center">No requests.</p>
+          )}
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 
   const rightColumn = (
-    <Card className="overflow-hidden">
+    <div className="flex h-full flex-col">
       {activeConversationFriend ? (
         <>
-          <CardHeader className="border-b bg-muted/20">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <CardTitle className="text-lg">{activeConversationFriend.display_name}</CardTitle>
-                <CardDescription className="mt-1 flex items-center gap-2">
-                  <span>@{activeConversationFriend.username ?? "pending"}</span>
-                  <span className="hidden sm:inline">•</span>
-                  <span>{formatTimestamp(activeConversation?.last_message_at)}</span>
-                </CardDescription>
-              </div>
-              {isMobile ? (
-                <Button variant="outline" size="sm" onClick={() => setActiveConversation(null)}>
-                  Back
-                </Button>
-              ) : null}
+          {/* Chat header with avatar */}
+          <div className="flex items-center gap-3 border-b px-6 py-4 shrink-0">
+            <div className={cn("flex size-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-primary-foreground", getAvatarColor(activeConversationFriend.id))}>
+              {getInitials(activeConversationFriend.display_name ?? "?")}
             </div>
-          </CardHeader>
-          <CardContent className="flex min-h-[28rem] flex-col px-0 py-0">
-            <div className="flex-1 space-y-3 overflow-y-auto px-5 py-5">
-              {messages.length ? (
-                messages.map((message) => {
-                  const isOwnMessage = message.sender_id === publicProfile.id;
+            <div>
+              <p className="text-sm font-semibold">{activeConversationFriend.display_name}</p>
+              <p className="text-xs text-muted-foreground">
+                @{activeConversationFriend.username ?? "pending"} · {formatTimestamp(activeConversation?.last_message_at)}
+              </p>
+            </div>
+            {isMobile ? (
+              <Button variant="outline" size="sm" className="ml-auto" onClick={() => setActiveConversation(null)}>
+                Back
+              </Button>
+            ) : null}
+          </div>
 
-                  return (
+          {/* Messages */}
+          <div className="flex-1 space-y-4 overflow-y-auto px-6 py-6">
+            {messages.length ? (
+              messages.map((message) => {
+                const isOwnMessage = message.sender_id === publicProfile.id;
+
+                return (
+                  <div
+                    key={message.id}
+                    className={cn(
+                      "flex flex-col",
+                      isOwnMessage ? "items-end" : "items-start"
+                    )}
+                  >
                     <div
-                      key={message.id}
                       className={cn(
-                        "flex",
-                        isOwnMessage ? "justify-end" : "justify-start"
+                        "max-w-[70%] px-4 py-2.5 text-sm",
+                        isOwnMessage
+                          ? "rounded-lg rounded-br-sm bg-primary text-primary-foreground"
+                          : "rounded-lg rounded-bl-sm border bg-card text-foreground"
                       )}
                     >
-                      <div
-                        className={cn(
-                          "max-w-[82%] rounded-2xl px-4 py-3 text-sm shadow-sm",
-                          isOwnMessage
-                            ? "bg-primary text-primary-foreground"
-                            : "bg-muted text-foreground"
-                        )}
-                      >
-                        <p className="whitespace-pre-wrap">{message.body}</p>
-                        <p
-                          className={cn(
-                            "mt-2 text-[11px]",
-                            isOwnMessage
-                              ? "text-primary-foreground/70"
-                              : "text-muted-foreground"
-                          )}
-                        >
-                          {formatTimestamp(message.created_at)}
-                        </p>
-                      </div>
+                      <p className="whitespace-pre-wrap leading-relaxed">{message.body}</p>
                     </div>
-                  );
-                })
-              ) : (
-                <div className="flex h-full min-h-60 items-center justify-center rounded-2xl border border-dashed">
-                  <div className="max-w-sm text-center">
-                    <p className="font-medium">Start the first conversation</p>
-                    <p className="text-muted-foreground mt-1 text-sm">
-                      Use the composer below to open the chat with a quick hello.
+                    <p className="mt-1 text-[10px] text-muted-foreground">
+                      {formatTimestamp(message.created_at)}
                     </p>
                   </div>
-                </div>
-              )}
-              <div ref={messagesEndRef} />
-            </div>
+                );
+              })
+            ) : (
+              <div className="flex h-full items-center justify-center">
+                <p className="text-sm text-muted-foreground">
+                  Send a message to start the conversation.
+                </p>
+              </div>
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+
+          {/* Composer */}
+          <div className="shrink-0 border-t">
             <MessageComposer
               disabled={!activeConversation}
               isSending={isSendingMessage}
@@ -997,71 +996,47 @@ export function SocialHub() {
                 try {
                   await handleSendMessage(body);
                 } catch (error) {
-                  const message = error instanceof Error ? error.message : "Failed to send message";
-                  toast.error(message);
+                  toast.error(error instanceof Error ? error.message : "Failed to send message");
                 }
               }}
             />
-          </CardContent>
+          </div>
         </>
       ) : (
-        <CardContent className="flex min-h-[32rem] items-center justify-center px-8 py-12">
-          <div className="max-w-md text-center">
-            <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-              <MessageCircle className="size-6" />
+        <div className="flex h-full items-center justify-center">
+          <div className="max-w-xs text-center">
+            <div className="mx-auto flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <MessageCircle className="size-5" />
             </div>
-            <h2 className="mt-5 text-xl font-semibold">Pick a conversation</h2>
-            <p className="text-muted-foreground mt-2 text-sm leading-6">
-              Open a chat from your friends list or accept a request to start messaging another learner.
+            <h2 className="mt-4 text-base font-semibold">Pick a conversation</h2>
+            <p className="text-muted-foreground mt-1 text-sm">
+              Select a chat from the left or add friends to start messaging.
             </p>
           </div>
-        </CardContent>
+        </div>
       )}
-    </Card>
+    </div>
   );
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold">Social</h1>
-        <p className="text-muted-foreground mt-1">
-          Build a small circle of study partners and keep your language practice moving between sessions.
-        </p>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card className="bg-gradient-to-br from-card to-primary/5">
-          <CardContent className="flex items-center justify-between py-6">
-            <div>
-              <p className="text-muted-foreground text-sm">Study partners</p>
-              <p className="mt-2 text-3xl font-semibold">{friends.length}</p>
+    <div className={cn(
+      "flex flex-col",
+      isMobile ? "h-full" : "h-screen"
+    )}>
+      <div className={cn(
+        "flex flex-1 min-h-0",
+        isMobile ? "flex-col" : "flex-row"
+      )}>
+        {isMobile ? (activeConversation ? rightColumn : leftColumn) : (
+          <>
+            <div className="w-[340px] shrink-0 border-r bg-card overflow-y-auto">
+              {leftColumn}
             </div>
-            <Users className="size-5 text-primary" />
-          </CardContent>
-        </Card>
-        <Card className="bg-gradient-to-br from-card to-amber-500/5">
-          <CardContent className="flex items-center justify-between py-6">
-            <div>
-              <p className="text-muted-foreground text-sm">Pending requests</p>
-              <p className="mt-2 text-3xl font-semibold">{pendingCount}</p>
+            <div className="flex-1 min-w-0">
+              {rightColumn}
             </div>
-            <BellDot className="size-5 text-amber-600" />
-          </CardContent>
-        </Card>
-        <Card className="bg-gradient-to-br from-card to-sky-500/5">
-          <CardContent className="flex items-center justify-between py-6">
-            <div>
-              <p className="text-muted-foreground text-sm">Unread messages</p>
-              <p className="mt-2 text-3xl font-semibold">{unreadCount}</p>
-            </div>
-            <MessageCircle className="size-5 text-sky-600" />
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className={cn("grid gap-6", isMobile ? "grid-cols-1" : "lg:grid-cols-[360px_minmax(0,1fr)]")}>
-        {isMobile ? (activeConversation ? rightColumn : leftColumn) : leftColumn}
-        {!isMobile ? rightColumn : null}
+          </>
+        )}
       </div>
     </div>
   );

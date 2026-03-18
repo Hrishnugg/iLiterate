@@ -1,9 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Volume2, Lightbulb } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface VocabularyItem {
@@ -39,7 +36,11 @@ interface FlashcardCardProps {
   onFlip: () => void;
 }
 
-export function FlashcardCard({ card, isFlipped, onFlip }: FlashcardCardProps) {
+export function FlashcardCard({
+  card,
+  isFlipped,
+  onFlip,
+}: FlashcardCardProps) {
   const [showPronunciation, setShowPronunciation] = useState(false);
   const [showHint, setShowHint] = useState(false);
 
@@ -47,32 +48,20 @@ export function FlashcardCard({ card, isFlipped, onFlip }: FlashcardCardProps) {
 
   const getTranslation = () => {
     if (vocab.definitions?.translation) return vocab.definitions.translation;
-    if (vocab.definitions?.definitions?.[0]) return vocab.definitions.definitions[0];
+    if (vocab.definitions?.definitions?.[0])
+      return vocab.definitions.definitions[0];
     return "No translation";
   };
 
   const handleCardClick = () => {
-    if (!isFlipped) {
-      onFlip();
-    }
-  };
-
-  const handlePronunciationClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setShowPronunciation(!showPronunciation);
-  };
-
-  const handleHintClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setShowHint(!showHint);
+    if (!isFlipped) onFlip();
   };
 
   return (
-    <div className="perspective-1000 w-full max-w-xl mx-auto">
+    <div className="perspective-1000 w-full max-w-lg">
       <div
         className={cn(
-          "relative transition-transform duration-500 transform-style-3d cursor-pointer",
-          isFlipped && "rotate-y-180"
+          "relative cursor-pointer transition-transform duration-500"
         )}
         style={{
           transformStyle: "preserve-3d",
@@ -80,67 +69,67 @@ export function FlashcardCard({ card, isFlipped, onFlip }: FlashcardCardProps) {
         }}
         onClick={handleCardClick}
       >
-        {/* Front of card */}
-        <Card
+        {/* Front */}
+        <div
           className={cn(
-            "min-h-[400px] backface-hidden",
+            "flex min-h-[360px] flex-col items-center justify-center rounded-lg border bg-card p-10",
             isFlipped && "invisible"
           )}
           style={{ backfaceVisibility: "hidden" }}
         >
-          <CardContent className="flex flex-col items-center justify-center min-h-[400px] p-8">
-            <h2 className="text-4xl font-bold text-center mb-4">{vocab.word}</h2>
+          <span className="font-mono text-5xl font-semibold tracking-tight">
+            {vocab.word}
+          </span>
 
-            {/* Hint buttons */}
-            <div className="flex gap-2 mb-6">
-              {vocab.pronunciation && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handlePronunciationClick}
-                  className="gap-2"
-                >
-                  <Volume2 className="h-4 w-4" />
-                  Pronunciation
-                </Button>
+          {/* Pronunciation — tap to reveal */}
+          {vocab.pronunciation && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowPronunciation(!showPronunciation);
+              }}
+              className="mt-4 text-sm text-muted-foreground transition-colors hover:text-foreground"
+            >
+              {showPronunciation ? vocab.pronunciation : "Show pronunciation"}
+            </button>
+          )}
+
+          {/* Divider */}
+          <div className="my-5 h-px w-12 bg-border" />
+
+          {/* Context sentence hint */}
+          {card.context_sentence && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowHint(!showHint);
+              }}
+              className="max-w-sm text-center text-sm text-muted-foreground transition-colors hover:text-foreground"
+            >
+              {showHint ? (
+                <span className="italic">{card.context_sentence}</span>
+              ) : (
+                "Show context"
               )}
-              {card.context_sentence && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleHintClick}
-                  className="gap-2"
-                >
-                  <Lightbulb className="h-4 w-4" />
-                  Hint
-                </Button>
-              )}
-            </div>
+            </button>
+          )}
 
-            {/* Pronunciation hint */}
-            {showPronunciation && vocab.pronunciation && (
-              <p className="text-lg text-muted-foreground mb-2">
-                {vocab.pronunciation}
-              </p>
-            )}
+          {vocab.part_of_speech && (
+            <span className="mt-4 rounded bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
+              {vocab.part_of_speech}
+            </span>
+          )}
 
-            {/* Context hint */}
-            {showHint && card.context_sentence && (
-              <p className="text-sm text-muted-foreground italic text-center max-w-xs">
-                &ldquo;{card.context_sentence}&rdquo;
-              </p>
-            )}
+          {/* Tap hint */}
+          <p className="mt-8 text-xs text-muted-foreground/50">
+            Tap or press Space to reveal
+          </p>
+        </div>
 
-            <Button variant="default" className="mt-6" onClick={onFlip}>
-              Show Answer
-            </Button>
-          </CardContent>
-        </Card>
-
-        {/* Back of card */}
-        <Card
+        {/* Back */}
+        <div
           className={cn(
-            "min-h-[400px] absolute inset-0 backface-hidden",
+            "absolute inset-0 flex min-h-[360px] flex-col items-center justify-center rounded-lg border bg-card p-10",
             !isFlipped && "invisible"
           )}
           style={{
@@ -148,44 +137,47 @@ export function FlashcardCard({ card, isFlipped, onFlip }: FlashcardCardProps) {
             transform: "rotateY(180deg)",
           }}
         >
-          <CardContent className="flex flex-col items-center justify-center min-h-[400px] p-8">
-            <h2 className="text-3xl font-bold text-center mb-2">{vocab.word}</h2>
+          <span className="font-mono text-3xl font-semibold tracking-tight">
+            {vocab.word}
+          </span>
 
-            {vocab.pronunciation && (
-              <p className="text-lg text-muted-foreground mb-3">
-                {vocab.pronunciation}
-              </p>
-            )}
+          {vocab.pronunciation && (
+            <span className="mt-2 text-sm text-muted-foreground">
+              {vocab.pronunciation}
+            </span>
+          )}
 
-            <p className="text-2xl font-semibold text-primary mb-3 text-center">
-              {getTranslation()}
-            </p>
+          <div className="my-4 h-px w-12 bg-border" />
 
-            {vocab.part_of_speech && (
-              <span className="text-sm bg-muted px-3 py-1 rounded-full mb-3">
-                {vocab.part_of_speech}
-              </span>
-            )}
+          <span className="text-2xl font-semibold text-primary">
+            {getTranslation()}
+          </span>
 
-            {vocab.definitions?.definitions && vocab.definitions.definitions.length > 1 && (
-              <div className="text-sm text-muted-foreground mb-3 text-center max-w-md">
+          {vocab.part_of_speech && (
+            <span className="mt-3 rounded bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
+              {vocab.part_of_speech}
+            </span>
+          )}
+
+          {vocab.definitions?.definitions &&
+            vocab.definitions.definitions.length > 1 && (
+              <div className="mt-3 max-w-sm text-center text-sm text-muted-foreground">
                 {vocab.definitions.definitions.slice(1, 3).map((def, i) => (
                   <p key={i}>{def}</p>
                 ))}
               </div>
             )}
 
-            {card.context_sentence && (
-              <p className="text-sm text-muted-foreground italic text-center max-w-md mt-2">
-                &ldquo;{card.context_sentence}&rdquo;
-              </p>
-            )}
+          {card.context_sentence && (
+            <p className="mt-4 max-w-sm text-center text-xs italic text-muted-foreground">
+              {card.context_sentence}
+            </p>
+          )}
 
-            <div className="mt-4 text-xs text-muted-foreground">
-              Reviewed {card.times_reviewed} times ({card.times_correct} correct)
-            </div>
-          </CardContent>
-        </Card>
+          <span className="mt-6 text-[10px] text-muted-foreground/50">
+            Reviewed {card.times_reviewed}x ({card.times_correct} correct)
+          </span>
+        </div>
       </div>
     </div>
   );

@@ -1,6 +1,5 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
 import { formatInterval } from "@/lib/spaced-repetition";
 import { cn } from "@/lib/utils";
 
@@ -22,32 +21,35 @@ interface ReviewButtonsProps {
 const buttonConfig: {
   response: ResponseQuality;
   label: string;
-  variant: "destructive" | "outline" | "default" | "secondary";
+  key: string;
   className: string;
 }[] = [
   {
     response: "again",
     label: "Again",
-    variant: "destructive",
-    className: "flex-1",
+    key: "1",
+    className:
+      "border-destructive/40 text-destructive hover:bg-destructive/10",
   },
   {
     response: "hard",
     label: "Hard",
-    variant: "outline",
-    className: "flex-1 border-orange-500 text-orange-600 hover:bg-orange-50 hover:text-orange-700",
+    key: "2",
+    className: "border-chart-4/40 text-chart-4 hover:bg-chart-4/10",
   },
   {
     response: "good",
     label: "Good",
-    variant: "default",
-    className: "flex-1",
+    key: "3",
+    className:
+      "border-primary/40 bg-primary/5 text-primary hover:bg-primary/10",
   },
   {
     response: "easy",
     label: "Easy",
-    variant: "secondary",
-    className: "flex-1 bg-green-100 text-green-700 hover:bg-green-200",
+    key: "4",
+    className:
+      "bg-primary text-primary-foreground hover:bg-primary/90 border-primary",
   },
 ];
 
@@ -57,20 +59,25 @@ export function ReviewButtons({
   disabled = false,
 }: ReviewButtonsProps) {
   return (
-    <div className="flex gap-2 w-full max-w-xl mx-auto">
-      {buttonConfig.map(({ response, label, variant, className }) => (
-        <Button
+    <div className="mx-auto flex w-full max-w-lg gap-3">
+      {buttonConfig.map(({ response, label, key, className }) => (
+        <button
           key={response}
-          variant={variant}
-          className={cn("flex-col h-auto py-3", className)}
+          className={cn(
+            "flex flex-1 flex-col items-center gap-1 rounded-lg border px-4 py-4 text-sm font-medium transition-colors disabled:opacity-50",
+            className
+          )}
           onClick={() => onResponse(response)}
           disabled={disabled}
         >
-          <span className="font-semibold">{label}</span>
-          <span className="text-xs opacity-80">
+          <span>{label}</span>
+          <span className="font-mono text-[10px] opacity-60">
             {formatInterval(intervalPreview[response])}
           </span>
-        </Button>
+          <kbd className="mt-1 rounded border bg-background/50 px-1.5 py-0.5 font-mono text-[9px] opacity-40">
+            {key}
+          </kbd>
+        </button>
       ))}
     </div>
   );

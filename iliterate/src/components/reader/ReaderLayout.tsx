@@ -1,9 +1,22 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { PanelLeft, PanelRight, Headphones, Zap } from "lucide-react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import {
+  ArrowLeft,
+  PanelRight,
+  Headphones,
+  Zap,
+  PanelLeft,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
+import { useRouter } from "next/navigation";
 
 interface ReaderLayoutProps {
   children: React.ReactNode;
@@ -32,135 +45,187 @@ export function ReaderLayout({
   onToggleRSVP,
   requestRightOpen,
 }: ReaderLayoutProps) {
-  const [leftOpen, setLeftOpen] = useState(!hideLeftSidebar);
-  const [rightOpen, setRightOpen] = useState(true);
+  const router = useRouter();
+  const [rightOpen, setRightOpen] = useState(false);
+  const [leftOpen, setLeftOpen] = useState(false);
   const [showAudio, setShowAudio] = useState(false);
+  const [toolbarVisible, setToolbarVisible] = useState(true);
+  const lastScrollY = useRef(0);
+  const toolbarTimeout = useRef<NodeJS.Timeout | null>(null);
 
-  // Open right sidebar when requested (e.g. highlight clicked)
+  const showLeftSidebar = !hideLeftSidebar && leftSidebar;
+
+  // Open right sheet when requested (e.g. highlight clicked)
   useEffect(() => {
     if (requestRightOpen) {
-      const frame = window.requestAnimationFrame(() => setRightOpen(true));
-      return () => window.cancelAnimationFrame(frame);
+      setRightOpen(true);
     }
   }, [requestRightOpen]);
 
-  // Don't render left sidebar at all if it should be hidden and there's no content
-  const showLeftSidebar = !hideLeftSidebar && leftSidebar;
+  // Floating toolbar: show on scroll up, hide on scroll down
+  const handleScroll = useCallback(() => {
+    const container = contentScrollRef?.current;
+    if (!container) return;
+
+    const currentY = container.scrollTop;
+    if (currentY < lastScrollY.current || currentY < 100) {
+      setToolbarVisible(true);
+    } else if (currentY > lastScrollY.current && currentY > 100) {
+      setToolbarVisible(false);
+    }
+    lastScrollY.current = currentY;
+
+    // Always show toolbar after stopping scroll
+    if (toolbarTimeout.current) clearTimeout(toolbarTimeout.current);
+    toolbarTimeout.current = setTimeout(() => setToolbarVisible(true), 1500);
+  }, [contentScrollRef]);
+
+  useEffect(() => {
+    const container = contentScrollRef?.current;
+    if (!container || isRSVPMode) return;
+
+    container.addEventListener("scroll", handleScroll, { passive: true });
+    return () => container.removeEventListener("scroll", handleScroll);
+  }, [contentScrollRef, handleScroll, isRSVPMode]);
 
   return (
-    <div className="flex h-[calc(100vh-3.5rem)] overflow-hidden">
-      {/* Left Sidebar - Table of Contents */}
-      {showLeftSidebar && (
-        <aside
-          className={cn(
-            "flex-shrink-0 border-r bg-muted/30 transition-all duration-300 ease-in-out overflow-hidden",
-            leftOpen ? "w-64 opacity-100" : "w-0 opacity-0"
-          )}
-        >
-          <div className="h-full w-64 overflow-y-auto p-4">
-            {leftSidebar}
-          </div>
-        </aside>
-      )}
+    <div className="relative flex h-screen flex-col overflow-hidden">
+      {/* Thin progress-colored top bar — placeholder for reading progress */}
 
-      {/* Main Content Area */}
-      <div className="flex flex-1 flex-col min-w-0">
-        {/* Toolbar */}
-        <div className="flex items-center justify-between border-b px-4 py-2">
-          <div className="flex items-center gap-2">
-            {showLeftSidebar && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setLeftOpen(!leftOpen)}
-                className={cn("h-8 w-8", leftOpen && "bg-accent")}
-                title="Toggle table of contents"
-                aria-label="Toggle table of contents"
-              >
-                <PanelLeft className="h-4 w-4" />
-              </Button>
-            )}
-            {title && (
-              <span className={cn("text-sm font-medium truncate max-w-xs", showLeftSidebar && "ml-2")}>
-                {title}
-              </span>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
+      {/* Floating toolbar */}
+      <div
+        className={cn(
+          "absolute left-0 right-0 top-0 z-20 flex items-center justify-center px-6 pt-4 transition-all duration-300",
+          toolbarVisible
+            ? "translate-y-0 opacity-100"
+            : "-translate-y-full opacity-0"
+        )}
+      >
+        <div className="flex items-center gap-3 rounded-lg border bg-background/85 px-4 py-2 shadow-sm backdrop-blur-sm">
+          {/* Back button */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-8"
+            onClick={() => router.back()}
+            title="Go back"
+          >
+            <ArrowLeft className="size-4" />
+          </Button>
+
+          <div className="h-4 w-px bg-border" />
+
+          {/* Title */}
+          {title && (
+            <span className="max-w-[280px] truncate text-sm font-medium">
+              {title}
+            </span>
+          )}
+
+          <div className="h-4 w-px bg-border" />
+
+          {/* Action buttons */}
+          <div className="flex items-center gap-1">
             {bookmarkButton}
+
             {onToggleRSVP && (
               <Button
                 variant={isRSVPMode ? "default" : "ghost"}
                 size="icon"
                 onClick={onToggleRSVP}
-                className="h-8 w-8"
+                className="size-8"
                 title="RSVP Speed Reader"
               >
-                <Zap className="h-4 w-4" />
+                <Zap className="size-4" />
               </Button>
             )}
+
             {audioPlayer && (
-              <>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setShowAudio(!showAudio)}
-                  className={cn("h-8 w-8", showAudio && "bg-accent")}
-                  title="Audio playback"
-                >
-                  <Headphones className="h-4 w-4" />
-                </Button>
-              </>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowAudio(!showAudio)}
+                className={cn("size-8", showAudio && "bg-accent")}
+                title="Audio playback"
+              >
+                <Headphones className="size-4" />
+              </Button>
             )}
+
+            {showLeftSidebar && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setLeftOpen(true)}
+                className="size-8"
+                title="Table of Contents"
+              >
+                <PanelLeft className="size-4" />
+              </Button>
+            )}
+
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => setRightOpen(!rightOpen)}
-              className={cn("h-8 w-8", rightOpen && "bg-accent")}
-              title="Toggle notes sidebar"
-              aria-label="Toggle notes sidebar"
+              onClick={() => setRightOpen(true)}
+              className={cn("size-8", rightOpen && "bg-accent")}
+              title="Notes & Lookups"
             >
-              <PanelRight className="h-4 w-4" />
+              <PanelRight className="size-4" />
             </Button>
           </div>
         </div>
-
-        {/* Audio player bar */}
-        {audioPlayer && showAudio && (
-          <div className="border-b bg-muted/30 px-4 py-2">
-            {audioPlayer}
-          </div>
-        )}
-
-        {/* Content */}
-        <div
-          ref={contentScrollRef}
-          className={cn(
-            "flex-1",
-            isRSVPMode ? "overflow-hidden" : "overflow-y-auto"
-          )}
-        >
-          {isRSVPMode ? (
-            children
-          ) : (
-            <article className="mx-auto max-w-3xl px-8 py-12">
-              {children}
-            </article>
-          )}
-        </div>
       </div>
 
-      {/* Right Sidebar - Notes & Recent Lookups */}
-      <aside
+      {/* Audio player bar — below toolbar when visible */}
+      {audioPlayer && showAudio && (
+        <div className="z-10 border-b bg-muted/30 px-4 py-2 pt-16">
+          {audioPlayer}
+        </div>
+      )}
+
+      {/* Main content — full bleed, centered article */}
+      <div
+        ref={contentScrollRef}
         className={cn(
-          "flex-shrink-0 border-l bg-muted/30 transition-all duration-300 ease-in-out overflow-hidden",
-          rightOpen ? "w-80 opacity-100" : "w-0 opacity-0"
+          "flex-1",
+          isRSVPMode ? "overflow-hidden" : "overflow-y-auto"
         )}
       >
-        <div className="h-full w-80 overflow-y-auto">
-          {rightSidebar}
-        </div>
-      </aside>
+        {isRSVPMode ? (
+          children
+        ) : (
+          <article className="mx-auto max-w-[65ch] px-8 pb-24 pt-20">
+            {children}
+          </article>
+        )}
+      </div>
+
+      {/* Right Sheet — Notes & Lookups */}
+      <Sheet open={rightOpen} onOpenChange={setRightOpen}>
+        <SheetContent side="right" className="w-[360px] overflow-y-auto p-0">
+          <SheetHeader className="border-b px-5 py-4">
+            <SheetTitle className="text-sm font-semibold">
+              Notes & Lookups
+            </SheetTitle>
+          </SheetHeader>
+          <div>{rightSidebar}</div>
+        </SheetContent>
+      </Sheet>
+
+      {/* Left Sheet — Table of Contents */}
+      {showLeftSidebar && (
+        <Sheet open={leftOpen} onOpenChange={setLeftOpen}>
+          <SheetContent side="left" className="w-[300px] overflow-y-auto p-0">
+            <SheetHeader className="border-b px-5 py-4">
+              <SheetTitle className="text-sm font-semibold">
+                Table of Contents
+              </SheetTitle>
+            </SheetHeader>
+            <div className="p-4">{leftSidebar}</div>
+          </SheetContent>
+        </Sheet>
+      )}
     </div>
   );
 }

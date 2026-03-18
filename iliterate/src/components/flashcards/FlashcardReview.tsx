@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { FlashcardCard, FlashcardData } from "./FlashcardCard";
 import { ReviewButtons, ResponseQuality } from "./ReviewButtons";
-import { ReviewProgress } from "./ReviewProgress";
 import { UpgradePrompt } from "./UpgradePrompt";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Loader2, PartyPopper, X } from "lucide-react";
+import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
+import { cn } from "@/lib/utils";
 
 interface ReviewState {
   cards: FlashcardData[];
@@ -51,68 +51,100 @@ export function FlashcardReview({ onClose }: FlashcardReviewProps) {
     fetchCards();
   }, [fetchCards]);
 
-  const handleResponse = async (response: ResponseQuality) => {
-    if (!reviewState || isSubmitting) return;
+  const handleResponse = useCallback(
+    async (response: ResponseQuality) => {
+      if (!reviewState || isSubmitting) return;
 
-    const currentCard = reviewState.cards[currentIndex];
-    if (!currentCard) return;
+      const currentCard = reviewState.cards[currentIndex];
+      if (!currentCard) return;
 
-    try {
-      setIsSubmitting(true);
-      const res = await fetch("/api/vocabulary/review", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          cardId: currentCard.id,
-          response,
-        }),
-      });
+      try {
+        setIsSubmitting(true);
+        const res = await fetch("/api/vocabulary/review", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ cardId: currentCard.id, response }),
+        });
 
-      if (!res.ok) {
-        const data = await res.json();
-        if (data.limitReached) {
-          setReviewState((prev) =>
-            prev ? { ...prev, limitReached: true } : null
-          );
-          return;
+        if (!res.ok) {
+          const data = await res.json();
+          if (data.limitReached) {
+            setReviewState((prev) =>
+              prev ? { ...prev, limitReached: true } : null
+            );
+            return;
+          }
+          throw new Error(data.error || "Failed to submit review");
         }
-        throw new Error(data.error || "Failed to submit review");
+
+        const result = await res.json();
+
+        setCompletedCount((prev) => prev + 1);
+        setReviewState((prev) =>
+          prev
+            ? {
+                ...prev,
+                dailyReviewsUsed: result.dailyReviewsUsed,
+                remainingReviews: result.remainingReviews,
+                limitReached: result.limitReached,
+              }
+            : null
+        );
+
+        setIsFlipped(false);
+        setCurrentIndex((prev) => prev + 1);
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : "Failed to submit review"
+        );
+      } finally {
+        setIsSubmitting(false);
       }
+    },
+    [reviewState, currentIndex, isSubmitting]
+  );
 
-      const result = await res.json();
-
-      // Update state
-      setCompletedCount((prev) => prev + 1);
-      setReviewState((prev) =>
-        prev
-          ? {
-              ...prev,
-              dailyReviewsUsed: result.dailyReviewsUsed,
-              remainingReviews: result.remainingReviews,
-              limitReached: result.limitReached,
-            }
-          : null
-      );
-
-      // Move to next card
-      setIsFlipped(false);
-      setCurrentIndex((prev) => prev + 1);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to submit review");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleFlip = () => {
+  const handleFlip = useCallback(() => {
     setIsFlipped(true);
-  };
+  }, []);
 
-  // Loading state
+  // Keyboard shortcuts
+  const isActiveReview =
+    !isLoading &&
+    !error &&
+    reviewState &&
+    !reviewState.limitReached &&
+    currentIndex < reviewState.cards.length;
+
+  const shortcuts = useMemo(
+    () => ({
+      " ": () => {
+        if (!isFlipped) handleFlip();
+      },
+      "1": () => {
+        if (isFlipped && !isSubmitting) handleResponse("again");
+      },
+      "2": () => {
+        if (isFlipped && !isSubmitting) handleResponse("hard");
+      },
+      "3": () => {
+        if (isFlipped && !isSubmitting) handleResponse("good");
+      },
+      "4": () => {
+        if (isFlipped && !isSubmitting) handleResponse("easy");
+      },
+      Escape: onClose,
+    }),
+    [isFlipped, isSubmitting, handleFlip, handleResponse, onClose]
+  );
+
+  useKeyboardShortcuts(shortcuts, !!isActiveReview);
+
+  // Loading state — zen
   if (isLoading) {
     return (
-      <div className="fixed inset-0 bg-background z-50 flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-background">
+        <Loader2 className="size-6 animate-spin text-primary" />
       </div>
     );
   }
@@ -120,46 +152,46 @@ export function FlashcardReview({ onClose }: FlashcardReviewProps) {
   // Error state
   if (error) {
     return (
-      <div className="fixed inset-0 bg-background z-50 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md">
-          <CardContent className="pt-6 text-center">
-            <p className="text-destructive mb-4">{error}</p>
-            <div className="flex gap-2 justify-center">
-              <Button onClick={fetchCards}>Try Again</Button>
-              <Button variant="outline" onClick={onClose}>
-                Close
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-background p-4">
+        <div className="flex max-w-sm flex-col items-center gap-4 text-center">
+          <p className="text-sm text-destructive">{error}</p>
+          <div className="flex gap-2">
+            <Button size="sm" onClick={fetchCards}>
+              Try Again
+            </Button>
+            <Button size="sm" variant="outline" onClick={onClose}>
+              Close
+            </Button>
+          </div>
+        </div>
       </div>
     );
   }
 
   if (!reviewState) return null;
 
-  // No cards due
+  // No cards due — celebration
   if (reviewState.cards.length === 0 && !reviewState.limitReached) {
     return (
-      <div className="fixed inset-0 bg-background z-50 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md">
-          <CardContent className="pt-6 text-center">
-            <PartyPopper className="h-12 w-12 mx-auto text-primary mb-4" />
-            <h3 className="text-lg font-semibold mb-2">All caught up!</h3>
-            <p className="text-muted-foreground mb-4">
-              No cards are due for review right now. Check back later!
-            </p>
-            <Button onClick={onClose}>Done</Button>
-          </CardContent>
-        </Card>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-background p-4">
+        <div className="flex flex-col items-center gap-4 text-center">
+          <PartyPopper className="size-12 text-primary" />
+          <h3 className="text-xl font-semibold tracking-tight">
+            All caught up!
+          </h3>
+          <p className="text-sm text-muted-foreground">
+            No cards are due for review right now.
+          </p>
+          <Button onClick={onClose}>Done</Button>
+        </div>
       </div>
     );
   }
 
-  // Limit reached (paywall)
+  // Limit reached
   if (reviewState.limitReached) {
     return (
-      <div className="fixed inset-0 bg-background z-50 flex items-center justify-center p-4">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-background p-4">
         <UpgradePrompt
           dailyReviewsUsed={reviewState.dailyReviewsUsed}
           dailyLimit={reviewState.dailyLimit}
@@ -169,53 +201,64 @@ export function FlashcardReview({ onClose }: FlashcardReviewProps) {
     );
   }
 
-  // All cards completed
+  // Session complete — celebration
   if (currentIndex >= reviewState.cards.length) {
     return (
-      <div className="fixed inset-0 bg-background z-50 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md">
-          <CardContent className="pt-6 text-center">
-            <PartyPopper className="h-12 w-12 mx-auto text-primary mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Session Complete!</h3>
-            <p className="text-muted-foreground mb-4">
-              You reviewed {completedCount} cards.
-              {!reviewState.isPremium && (
-                <span className="block mt-1">
-                  {reviewState.remainingReviews} reviews remaining today.
-                </span>
-              )}
-            </p>
-            <Button onClick={onClose}>Done</Button>
-          </CardContent>
-        </Card>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-background p-4">
+        <div className="flex flex-col items-center gap-4 text-center">
+          <PartyPopper className="size-12 text-primary" />
+          <h3 className="text-xl font-semibold tracking-tight">
+            Session Complete
+          </h3>
+          <p className="font-mono text-5xl font-bold tracking-tighter text-primary">
+            {completedCount}
+          </p>
+          <p className="text-sm text-muted-foreground">
+            cards reviewed
+            {!reviewState.isPremium && (
+              <span className="block mt-1">
+                {reviewState.remainingReviews} reviews remaining today
+              </span>
+            )}
+          </p>
+          <Button onClick={onClose}>Done</Button>
+        </div>
       </div>
     );
   }
 
   const currentCard = reviewState.cards[currentIndex];
+  const progress =
+    reviewState.cards.length > 0
+      ? (completedCount / reviewState.cards.length) * 100
+      : 0;
 
   return (
-    <div className="fixed inset-0 bg-background z-50 flex flex-col overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b flex-shrink-0">
-        <h2 className="font-semibold">Review Session</h2>
-        <Button variant="ghost" size="icon" onClick={onClose}>
-          <X className="h-5 w-5" />
-        </Button>
+    <div className="fixed inset-0 z-50 flex flex-col bg-background">
+      {/* Floating progress pill + close button */}
+      <div className="absolute left-0 right-0 top-0 z-10 flex items-center justify-between px-6 pt-6">
+        <div />
+        <div className="flex items-center gap-3 rounded-full border bg-card px-4 py-2 shadow-sm">
+          <span className="font-mono text-xs font-medium">
+            {completedCount + 1} / {reviewState.cards.length}
+          </span>
+          <div className="h-1.5 w-24 overflow-hidden rounded-full bg-border">
+            <div
+              className="h-full rounded-full bg-primary transition-all duration-300"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+        </div>
+        <button
+          onClick={onClose}
+          className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+        >
+          <X className="size-4" />
+        </button>
       </div>
 
-      {/* Progress */}
-      <div className="p-4 flex-shrink-0">
-        <ReviewProgress
-          completed={completedCount}
-          total={reviewState.cards.length}
-          remainingReviews={reviewState.remainingReviews}
-          isPremium={reviewState.isPremium}
-        />
-      </div>
-
-      {/* Card */}
-      <div className="flex-1 flex items-center justify-center p-4 overflow-auto">
+      {/* Card — fills the center */}
+      <div className="flex flex-1 items-center justify-center px-6">
         <FlashcardCard
           card={currentCard}
           isFlipped={isFlipped}
@@ -223,17 +266,18 @@ export function FlashcardReview({ onClose }: FlashcardReviewProps) {
         />
       </div>
 
-      {/* Review Buttons */}
-      <div className="p-4 border-t flex-shrink-0">
-        {isFlipped ? (
-          <ReviewButtons
-            intervalPreview={currentCard.intervalPreview}
-            onResponse={handleResponse}
-            disabled={isSubmitting}
-          />
-        ) : (
-          <div className="h-[68px]" /> // Placeholder to prevent layout shift
+      {/* Review buttons dock at bottom */}
+      <div
+        className={cn(
+          "flex-shrink-0 px-6 pb-8 pt-4 transition-opacity duration-200",
+          isFlipped ? "opacity-100" : "pointer-events-none opacity-0"
         )}
+      >
+        <ReviewButtons
+          intervalPreview={currentCard.intervalPreview}
+          onResponse={handleResponse}
+          disabled={isSubmitting}
+        />
       </div>
     </div>
   );

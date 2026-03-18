@@ -1,13 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { SkillLevelCard } from "@/components/progress/SkillLevelCard";
-import { OverallProgressCard } from "@/components/progress/OverallProgressCard";
 import { SkillWeightsEditor } from "@/components/progress/SkillWeightsEditor";
 import { DowngradeLevelDialog } from "@/components/lesson/DowngradeLevelDialog";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, ClipboardCheck, Calendar } from "lucide-react";
+import { Loader2, BookOpen, Layers, FileText } from "lucide-react";
 import { CEFRLevel } from "@/types/database";
+import { cn } from "@/lib/utils";
 
 interface SkillProgress {
   level: number;
@@ -58,6 +56,12 @@ interface ProgressData {
   }>;
 }
 
+const skillMeta = {
+  reading: { label: "Reading", icon: BookOpen },
+  vocabulary: { label: "Vocabulary", icon: Layers },
+  grammar: { label: "Grammar", icon: FileText },
+} as const;
+
 export default function ProgressPage() {
   const [data, setData] = useState<ProgressData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -71,7 +75,9 @@ export default function ProgressPage() {
       const result = await response.json();
       setData(result);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load progress");
+      setError(
+        err instanceof Error ? err.message : "Failed to load progress"
+      );
     } finally {
       setIsLoading(false);
     }
@@ -83,16 +89,18 @@ export default function ProgressPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="flex items-center justify-center py-24">
+        <Loader2 className="size-6 animate-spin text-primary" />
       </div>
     );
   }
 
   if (error || !data) {
     return (
-      <div className="text-center py-12">
-        <p className="text-destructive">{error || "Failed to load progress"}</p>
+      <div className="py-24 text-center">
+        <p className="text-sm text-destructive">
+          {error || "Failed to load progress"}
+        </p>
       </div>
     );
   }
@@ -100,73 +108,89 @@ export default function ProgressPage() {
   const { progressInfo, recentAssessments } = data;
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold">Your Progress</h1>
-        <p className="text-muted-foreground mt-1">
-          Track your language learning journey across all skills
-        </p>
-      </div>
-
-      {/* Overall Progress */}
-      <div className="space-y-2">
-        <OverallProgressCard
-          level={progressInfo.overall.level}
-          cefr={progressInfo.overall.cefr}
-          skillLevels={{
-            reading: progressInfo.reading.level,
-            vocabulary: progressInfo.vocabulary.level,
-            grammar: progressInfo.grammar.level,
-          }}
-        />
+    <div className="flex flex-col gap-10">
+      {/* Hero — Dramatic Level Display */}
+      <div className="flex flex-col gap-1">
+        <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          Your Level
+        </span>
+        <div className="flex items-baseline gap-4">
+          <span className="font-mono text-8xl font-bold tracking-tighter text-primary">
+            {progressInfo.overall.cefr}
+          </span>
+          <span className="text-lg text-muted-foreground">
+            Level {progressInfo.overall.level}
+          </span>
+        </div>
         {progressInfo.reading.level > 3 && (
-          <p className="text-center">
-            <button
-              onClick={() => setShowDowngradeDialog(true)}
-              className="text-sm text-muted-foreground hover:text-orange-500 hover:underline"
-            >
-              Feeling overwhelmed? Lower your level
-            </button>
-          </p>
+          <button
+            onClick={() => setShowDowngradeDialog(true)}
+            className="mt-1 w-fit text-xs text-muted-foreground hover:text-destructive hover:underline"
+          >
+            Feeling overwhelmed? Lower your level
+          </button>
         )}
       </div>
 
-      {/* Downgrade Level Dialog */}
       <DowngradeLevelDialog
         open={showDowngradeDialog}
         onOpenChange={setShowDowngradeDialog}
         onDowngradeComplete={fetchProgress}
       />
 
-      {/* Individual Skills */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <SkillLevelCard
-          skill="reading"
-          level={progressInfo.reading.level}
-          xp={progressInfo.reading.xp}
-          xpToNext={progressInfo.reading.xpToNext}
-          progress={progressInfo.reading.progress}
-          weight={progressInfo.reading.weight}
-        />
-        <SkillLevelCard
-          skill="vocabulary"
-          level={progressInfo.vocabulary.level}
-          xp={progressInfo.vocabulary.xp}
-          xpToNext={progressInfo.vocabulary.xpToNext}
-          progress={progressInfo.vocabulary.progress}
-          weight={progressInfo.vocabulary.weight}
-        />
-        <SkillLevelCard
-          skill="grammar"
-          level={progressInfo.grammar.level}
-          xp={progressInfo.grammar.xp}
-          xpToNext={progressInfo.grammar.xpToNext}
-          progress={progressInfo.grammar.progress}
-          weight={progressInfo.grammar.weight}
-        />
+      {/* Skill Band — 3 skills in one unified container */}
+      <div className="flex flex-col gap-3">
+        <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          Skills
+        </span>
+        <div className="flex overflow-hidden rounded-lg border bg-card">
+          {(["reading", "vocabulary", "grammar"] as const).map(
+            (skill, idx) => {
+              const info = progressInfo[skill];
+              const meta = skillMeta[skill];
+              const Icon = meta.icon;
+
+              return (
+                <div
+                  key={skill}
+                  className={cn(
+                    "flex flex-1 flex-col gap-3 p-5",
+                    idx < 2 && "border-r"
+                  )}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Icon className="size-3.5 text-primary" />
+                      <span className="text-sm font-medium">{meta.label}</span>
+                    </div>
+                    <span className="rounded bg-primary/10 px-2 py-0.5 font-mono text-xs font-medium text-primary">
+                      {info.cefr}
+                    </span>
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-border">
+                      <div
+                        className="h-full rounded-full bg-primary transition-all"
+                        style={{ width: `${info.progress}%` }}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">
+                        {info.progress}% to next
+                      </span>
+                      <span className="font-mono text-xs text-muted-foreground">
+                        {info.xp} XP
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+          )}
+        </div>
       </div>
 
-      {/* Weights Editor */}
+      {/* Skill Weights */}
       <SkillWeightsEditor
         currentWeights={{
           reading: progressInfo.reading.weight,
@@ -177,72 +201,77 @@ export default function ProgressPage() {
       />
 
       {/* Recent Assessments */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <ClipboardCheck className="h-5 w-5" />
-            Recent Assessments
-          </CardTitle>
-          <CardDescription>Your quiz history and XP earned</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {recentAssessments.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">
-              No assessments yet. Complete a reading and take a quiz to see your progress!
-            </p>
-          ) : (
-            <div className="space-y-3">
-              {recentAssessments.map((assessment) => {
-                const totalScore =
-                  (assessment.reading_score || 0) + (assessment.vocabulary_score || 0);
-                const totalMax =
-                  (assessment.reading_max_score || 0) + (assessment.vocabulary_max_score || 0);
-                const percentage = totalMax > 0 ? Math.round((totalScore / totalMax) * 100) : 0;
-                const totalXP =
-                  (assessment.reading_xp_awarded || 0) + (assessment.vocabulary_xp_awarded || 0);
+      <div className="flex flex-col gap-3">
+        <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          Recent Assessments
+        </span>
+        {recentAssessments.length === 0 ? (
+          <p className="py-8 text-center text-sm text-muted-foreground">
+            No assessments yet. Complete a lesson to see your history.
+          </p>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {recentAssessments.map((assessment) => {
+              const totalScore =
+                (assessment.reading_score || 0) +
+                (assessment.vocabulary_score || 0);
+              const totalMax =
+                (assessment.reading_max_score || 0) +
+                (assessment.vocabulary_max_score || 0);
+              const percentage =
+                totalMax > 0 ? Math.round((totalScore / totalMax) * 100) : 0;
+              const totalXP =
+                (assessment.reading_xp_awarded || 0) +
+                (assessment.vocabulary_xp_awarded || 0);
 
-                return (
+              return (
+                <div
+                  key={assessment.id}
+                  className="flex items-center gap-4 rounded-lg border bg-card p-4"
+                >
+                  {/* Score dot */}
                   <div
-                    key={assessment.id}
-                    className="flex items-center justify-between p-4 rounded-lg border"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div
-                        className={`h-10 w-10 rounded-full flex items-center justify-center text-white font-bold ${
-                          percentage >= 70
-                            ? "bg-green-500"
-                            : percentage >= 50
-                            ? "bg-yellow-500"
-                            : "bg-red-500"
-                        }`}
-                      >
-                        {percentage}%
-                      </div>
-                      <div>
-                        <p className="font-medium">
-                          {assessment.content?.title || "Reading Quiz"}
-                        </p>
-                        <p className="text-sm text-muted-foreground flex items-center gap-1">
-                          <Calendar className="h-3 w-3" />
-                          {new Date(assessment.created_at).toLocaleDateString()}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-medium text-yellow-600 dark:text-yellow-400">
-                        +{totalXP} XP
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {totalScore}/{totalMax} correct
-                      </p>
-                    </div>
+                    className={cn(
+                      "flex size-2 shrink-0 rounded-full",
+                      percentage >= 70
+                        ? "bg-primary"
+                        : percentage >= 50
+                        ? "bg-chart-4"
+                        : "bg-destructive"
+                    )}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <span className="text-sm font-medium">
+                      {assessment.content?.title || "Reading Quiz"}
+                    </span>
+                    <span className="ml-2 text-xs text-muted-foreground">
+                      {new Date(assessment.created_at).toLocaleDateString(
+                        undefined,
+                        { month: "short", day: "numeric" }
+                      )}
+                    </span>
                   </div>
-                );
-              })}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                  <span
+                    className={cn(
+                      "font-mono text-sm font-semibold",
+                      percentage >= 70
+                        ? "text-primary"
+                        : percentage >= 50
+                        ? "text-chart-4"
+                        : "text-destructive"
+                    )}
+                  >
+                    {percentage}%
+                  </span>
+                  <span className="font-mono text-xs text-muted-foreground">
+                    +{totalXP} XP
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
