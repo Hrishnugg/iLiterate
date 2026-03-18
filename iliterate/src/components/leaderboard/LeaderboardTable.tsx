@@ -5,6 +5,7 @@ import { LeaderboardEntry } from "@/types/database";
 interface LeaderboardTableProps {
   entries: LeaderboardEntry[];
   currentUserId: string;
+  emptyMessage?: React.ReactNode;
 }
 
 function getRankStyle(rank: number): string {
@@ -46,11 +47,11 @@ function getRankEmoji(rank: number): string {
   }
 }
 
-export function LeaderboardTable({ entries, currentUserId }: LeaderboardTableProps) {
+export function LeaderboardTable({ entries, currentUserId, emptyMessage }: LeaderboardTableProps) {
   if (entries.length === 0) {
     return (
       <div className="text-center py-12 text-muted-foreground">
-        No activity this period yet. Complete quizzes, readings, or flashcard reviews to earn points!
+        {emptyMessage ?? "No activity this period yet. Complete quizzes, readings, or flashcard reviews to earn points!"}
       </div>
     );
   }

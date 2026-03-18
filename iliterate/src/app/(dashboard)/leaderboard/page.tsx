@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Loader2, Trophy } from "lucide-react";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Globe, Loader2, Trophy, Users } from "lucide-react";
+import Link from "next/link";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { UserRankCard } from "@/components/leaderboard/UserRankCard";
 import { LeaderboardTable } from "@/components/leaderboard/LeaderboardTable";
@@ -17,6 +18,7 @@ interface LeaderboardData {
 
 export default function LeaderboardPage() {
   const [period, setPeriod] = useState<"weekly" | "monthly">("weekly");
+  const [scope, setScope] = useState<"global" | "friends">("global");
   const [data, setData] = useState<LeaderboardData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -36,13 +38,14 @@ export default function LeaderboardPage() {
 
   const fetchLeaderboard = useCallback(async (
     p: string,
+    s: string,
     off: number,
     append: boolean = false
   ) => {
     try {
       if (!append) setIsLoading(true);
       const response = await fetch(
-        `/api/leaderboard?period=${p}&limit=${LIMIT}&offset=${off}`
+        `/api/leaderboard?period=${p}&scope=${s}&limit=${LIMIT}&offset=${off}`
       );
       if (!response.ok) throw new Error("Failed to fetch leaderboard");
       const result: LeaderboardData = await response.json();
@@ -65,14 +68,14 @@ export default function LeaderboardPage() {
 
   useEffect(() => {
     setOffset(0);
-    fetchLeaderboard(period, 0);
+    fetchLeaderboard(period, scope, 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [period]);
+  }, [period, scope]);
 
   const handleLoadMore = () => {
     const newOffset = offset + LIMIT;
     setOffset(newOffset);
-    fetchLeaderboard(period, newOffset, true);
+    fetchLeaderboard(period, scope, newOffset, true);
   };
 
   if (isLoading && !data) {
@@ -99,9 +102,24 @@ export default function LeaderboardPage() {
           Leaderboard
         </h1>
         <p className="text-muted-foreground mt-1">
-          See how you rank against other learners
+          {scope === "friends"
+            ? "See how you rank among your friends"
+            : "See how you rank against other learners"}
         </p>
       </div>
+
+      <Tabs value={scope} onValueChange={(v) => setScope(v as "global" | "friends")}>
+        <TabsList>
+          <TabsTrigger value="global" className="gap-1.5">
+            <Globe className="h-4 w-4" />
+            Global
+          </TabsTrigger>
+          <TabsTrigger value="friends" className="gap-1.5">
+            <Users className="h-4 w-4" />
+            Friends
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
 
       {data && (
         <UserRankCard
@@ -116,25 +134,25 @@ export default function LeaderboardPage() {
           <TabsTrigger value="weekly">This Week</TabsTrigger>
           <TabsTrigger value="monthly">This Month</TabsTrigger>
         </TabsList>
-
-        <TabsContent value="weekly">
-          {data && (
-            <LeaderboardTable
-              entries={data.entries}
-              currentUserId={currentUserId}
-            />
-          )}
-        </TabsContent>
-
-        <TabsContent value="monthly">
-          {data && (
-            <LeaderboardTable
-              entries={data.entries}
-              currentUserId={currentUserId}
-            />
-          )}
-        </TabsContent>
       </Tabs>
+
+      {data && (
+        <LeaderboardTable
+          entries={data.entries}
+          currentUserId={currentUserId}
+          emptyMessage={
+            scope === "friends" ? (
+              <span>
+                No friend activity this period.{" "}
+                <Link href="/social" className="text-primary underline underline-offset-4 hover:text-primary/80">
+                  Find friends
+                </Link>{" "}
+                to compare scores!
+              </span>
+            ) : undefined
+          }
+        />
+      )}
 
       {data && data.entries.length >= offset + LIMIT && (
         <div className="flex justify-center">
