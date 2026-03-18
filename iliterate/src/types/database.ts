@@ -279,6 +279,35 @@ export interface GeneratedContent {
 }
 
 // ============================================================================
+// Points & Leaderboard Types
+// ============================================================================
+
+export type PointSource =
+  | "quiz_completion"
+  | "reading_completion"
+  | "lesson_completion"
+  | "flashcard_review"
+  | "streak_bonus"
+  | "perfect_quiz";
+
+export interface PointEvent {
+  id: string;
+  user_id: string;
+  points: number;
+  source: PointSource;
+  source_id: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface LeaderboardEntry {
+  rank: number;
+  userId: string;
+  displayName: string;
+  points: number;
+}
+
+// ============================================================================
 // Utility Functions
 // ============================================================================
 

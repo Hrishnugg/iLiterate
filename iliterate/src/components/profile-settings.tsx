@@ -65,6 +65,7 @@ const FORMALITY_LEVELS = [
 
 interface Profile {
   id: string;
+  display_name: string | null;
   native_language: string;
   target_language: string;
   age_group: string | null;
@@ -91,6 +92,7 @@ export function ProfileSettings({ user, profile }: ProfileSettingsProps) {
 
   // Store initial values to track changes
   const initialValues = useMemo(() => ({
+    displayName: profile?.display_name || "",
     targetLanguage: profile?.target_language || "",
     nativeLanguage: profile?.native_language || "",
     ageGroup: profile?.age_group || "",
@@ -100,6 +102,7 @@ export function ProfileSettings({ user, profile }: ProfileSettingsProps) {
     motivations: profile?.learning_motivation || [],
   }), [profile]);
 
+  const [displayName, setDisplayName] = useState(initialValues.displayName);
   const [targetLanguage, setTargetLanguage] = useState(initialValues.targetLanguage);
   const [nativeLanguage, setNativeLanguage] = useState(initialValues.nativeLanguage);
   const [ageGroup, setAgeGroup] = useState(initialValues.ageGroup);
@@ -115,6 +118,7 @@ export function ProfileSettings({ user, profile }: ProfileSettingsProps) {
       motivations.some((m) => !initialValues.motivations.includes(m));
 
     return (
+      displayName !== initialValues.displayName ||
       targetLanguage !== initialValues.targetLanguage ||
       nativeLanguage !== initialValues.nativeLanguage ||
       ageGroup !== initialValues.ageGroup ||
@@ -123,7 +127,7 @@ export function ProfileSettings({ user, profile }: ProfileSettingsProps) {
       speechFormality !== initialValues.speechFormality ||
       motivationsChanged
     );
-  }, [targetLanguage, nativeLanguage, ageGroup, educationLevel, yearsLearning, speechFormality, motivations, initialValues]);
+  }, [displayName, targetLanguage, nativeLanguage, ageGroup, educationLevel, yearsLearning, speechFormality, motivations, initialValues]);
 
   const handleMotivationChange = (id: string, checked: boolean) => {
     setMotivations((prev) =>
@@ -142,6 +146,7 @@ export function ProfileSettings({ user, profile }: ProfileSettingsProps) {
       const { error: updateError } = await supabase
         .from("profiles")
         .update({
+          display_name: displayName || null,
           target_language: targetLanguage,
           native_language: nativeLanguage,
           age_group: ageGroup,
@@ -188,6 +193,18 @@ export function ProfileSettings({ user, profile }: ProfileSettingsProps) {
             <Input value={user.email || ""} disabled />
             <FieldDescription>
               Your email address cannot be changed.
+            </FieldDescription>
+          </Field>
+          <Field>
+            <FieldLabel>Display name</FieldLabel>
+            <Input
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              placeholder="Choose a display name"
+              maxLength={30}
+            />
+            <FieldDescription>
+              Shown on the leaderboard. Leave blank to appear as &quot;Anonymous&quot;.
             </FieldDescription>
           </Field>
           <Field>

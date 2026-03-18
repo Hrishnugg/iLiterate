@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { readingProgressRequestSchema, uuidSchema, validateRequestBody } from "@/lib/validations";
+import { awardPoints, calculateReadingPoints } from "@/lib/points";
 
 // GET /api/reading-progress?contentId=xxx
 export async function GET(request: NextRequest) {
@@ -133,6 +134,20 @@ export async function POST(request: NextRequest) {
 
     if (result.error) {
       return NextResponse.json({ error: "Failed to save reading progress" }, { status: 500 });
+    }
+
+    // Award points on first completion (>=95%)
+    if (
+      progress !== undefined &&
+      progress >= 95 &&
+      !existing?.completed_at
+    ) {
+      const wordCount = wordsRead ?? 0;
+      const pts = calculateReadingPoints(wordCount);
+      await awardPoints(supabase, user.id, pts, "reading_completion", contentId, {
+        progress,
+        wordCount,
+      });
     }
 
     return NextResponse.json(result.data);

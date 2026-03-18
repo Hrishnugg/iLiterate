@@ -6,6 +6,7 @@ import {
   calculateIntervalPreview,
   ResponseQuality,
 } from "@/lib/spaced-repetition";
+import { awardPoints, calculateFlashcardPoints, hasFlashcardPointsToday } from "@/lib/points";
 
 const FREE_DAILY_LIMIT = 10;
 
@@ -221,6 +222,16 @@ export async function POST(request: NextRequest) {
     if (updateError) {
       console.error("Failed to update card:", updateError);
       return NextResponse.json({ error: "Failed to save review" }, { status: 500 });
+    }
+
+    // Award leaderboard points (one per card per day)
+    const alreadyAwarded = await hasFlashcardPointsToday(supabase, user.id, cardId);
+    if (!alreadyAwarded) {
+      const isCorrect = response !== "again";
+      const pts = calculateFlashcardPoints(isCorrect);
+      await awardPoints(supabase, user.id, pts, "flashcard_review", cardId, {
+        response,
+      });
     }
 
     // Update daily review count
