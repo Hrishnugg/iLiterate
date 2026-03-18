@@ -21,14 +21,13 @@ export function OfflineIndicator({
   const [showBanner, setShowBanner] = useState(false);
 
   useEffect(() => {
-    // Show banner when going offline or when there are pending actions
     if (isOffline || pendingActions > 0) {
-      setShowBanner(true);
-    } else {
-      // Hide after a delay when back online and synced
-      const timer = setTimeout(() => setShowBanner(false), 3000);
-      return () => clearTimeout(timer);
+      const frame = window.requestAnimationFrame(() => setShowBanner(true));
+      return () => window.cancelAnimationFrame(frame);
     }
+
+    const timer = window.setTimeout(() => setShowBanner(false), 3000);
+    return () => window.clearTimeout(timer);
   }, [isOffline, pendingActions]);
 
   if (!showBanner) return null;

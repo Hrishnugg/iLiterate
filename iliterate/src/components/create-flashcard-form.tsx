@@ -165,7 +165,7 @@ export function CreateFlashcardForm() {
       <CardHeader>
         <CardTitle>Create Flashcard</CardTitle>
         <CardDescription>
-          Enter a word or term in {userLanguages.targetLanguage}, and we'll translate it to {userLanguages.nativeLanguage}.
+          Enter a word or term in {userLanguages.targetLanguage}, and we&apos;ll translate it to {userLanguages.nativeLanguage}.
         </CardDescription>
       </CardHeader>
       <CardContent>

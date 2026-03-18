@@ -103,7 +103,7 @@ function normalizeFriendshipItems(items: unknown[]): FriendshipWithProfile[] {
 }
 
 function normalizeSearchResults(items: unknown[]): SocialSearchResult[] {
-  return items.flatMap((item) => {
+  return items.flatMap<SocialSearchResult>((item) => {
     if (!item || typeof item !== "object") {
       return [];
     }
@@ -136,6 +136,44 @@ function normalizeSearchResults(items: unknown[]): SocialSearchResult[] {
         relationship: (record.relationship as RelationshipState) ?? "none",
         matched_by:
           (record.matched_by as SocialSearchResult["matched_by"]) ?? "display_name",
+        friendship:
+          friendshipRecord
+            ? ({
+                id: typeof friendshipRecord.id === "string" ? friendshipRecord.id : "",
+                requester_id:
+                  typeof friendshipRecord.requester_id === "string"
+                    ? friendshipRecord.requester_id
+                    : "",
+                recipient_id:
+                  typeof friendshipRecord.recipient_id === "string"
+                    ? friendshipRecord.recipient_id
+                    : "",
+                user_one_id:
+                  typeof friendshipRecord.user_one_id === "string"
+                    ? friendshipRecord.user_one_id
+                    : "",
+                user_two_id:
+                  typeof friendshipRecord.user_two_id === "string"
+                    ? friendshipRecord.user_two_id
+                    : "",
+                status:
+                  typeof friendshipRecord.status === "string"
+                    ? (friendshipRecord.status as NonNullable<SocialSearchResult["friendship"]>["status"])
+                    : "pending",
+                responded_at:
+                  typeof friendshipRecord.responded_at === "string"
+                    ? friendshipRecord.responded_at
+                    : null,
+                created_at:
+                  typeof friendshipRecord.created_at === "string"
+                    ? friendshipRecord.created_at
+                    : new Date(0).toISOString(),
+                updated_at:
+                  typeof friendshipRecord.updated_at === "string"
+                    ? friendshipRecord.updated_at
+                    : new Date(0).toISOString(),
+              })
+            : null,
         friendship_id:
           friendshipRecord && typeof friendshipRecord.id === "string"
             ? friendshipRecord.id

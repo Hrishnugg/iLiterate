@@ -3,7 +3,23 @@ import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { vi, describe, it, expect, afterEach } from "vitest";
 import { FlashcardReview } from "../FlashcardReview";
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+});
+
+function mockFetchResponse(body: unknown, init?: ResponseInit) {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue(
+      new Response(JSON.stringify(body), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+        ...init,
+      })
+    )
+  );
+}
 
 describe("FlashcardReview minimal flows", () => {
   it("shows 'All caught up' when there are no cards", async () => {
@@ -17,10 +33,7 @@ describe("FlashcardReview minimal flows", () => {
       isPremium: false,
     };
 
-    (globalThis as any).fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => mockState,
-    });
+    mockFetchResponse(mockState);
 
     const onClose = vi.fn();
     render(<FlashcardReview onClose={onClose} />);
@@ -42,10 +55,7 @@ describe("FlashcardReview minimal flows", () => {
       isPremium: false,
     };
 
-    (globalThis as any).fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => mockState,
-    });
+    mockFetchResponse(mockState);
 
     const onClose = vi.fn();
     render(<FlashcardReview onClose={onClose} />);
@@ -57,7 +67,7 @@ describe("FlashcardReview minimal flows", () => {
   });
 
   it("shows error state when fetch fails", async () => {
-    (globalThis as any).fetch = vi.fn().mockResolvedValue({ ok: false });
+    mockFetchResponse({ error: "Failed to fetch cards" }, { status: 500 });
 
     const onClose = vi.fn();
     render(<FlashcardReview onClose={onClose} />);

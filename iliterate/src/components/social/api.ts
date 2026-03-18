@@ -118,11 +118,11 @@ function normalizeFriendship(
     status:
       (asString(raw.status) as "pending" | "accepted" | "declined" | null) ||
       "pending",
-    requester_id: asString(raw.requester_id),
-    recipient_id: asString(raw.recipient_id),
+    requester_id: asString(raw.requester_id) || undefined,
+    recipient_id: asString(raw.recipient_id) || undefined,
     created_at: asString(raw.created_at) || undefined,
     updated_at: asString(raw.updated_at) || undefined,
-    responded_at: asString(raw.responded_at),
+    responded_at: asString(raw.responded_at) ?? undefined,
     person,
   };
 }

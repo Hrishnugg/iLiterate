@@ -1,10 +1,13 @@
+import os
 import re
-from fastapi import FastAPI
+import secrets
+from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel
 from lindera import load_dictionary, Tokenizer
 from wordfreq import zipf_frequency
 
 app = FastAPI()
+_SHARED_SECRET = os.getenv("PYTHON_API_SHARED_SECRET", "").strip()
 
 # Punctuation that should be attached to the preceding word
 _TRAILING_PUNCT = re.compile(
@@ -89,15 +92,34 @@ class TokenizeRequest(BaseModel):
     text: str
     language: str
 
+
+def _verify_authorization(authorization: str | None) -> None:
+    if not _SHARED_SECRET:
+        return
+
+    expected = f"Bearer {_SHARED_SECRET}"
+    if authorization is None or not secrets.compare_digest(authorization, expected):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+
+@app.get("/healthz")
+def healthz():
+    return {"status": "ok"}
+
+
 @app.post("/word-difficulty")
-def word_difficulty(req: WordDifficultyRequest):
+def word_difficulty(
+    req: WordDifficultyRequest, authorization: str | None = Header(default=None)
+):
+    _verify_authorization(authorization)
     lang_code = _LANG_CODES.get(req.language.lower(), "en")
     difficulties = [_word_multiplier(w, lang_code) for w in req.words]
     return {"difficulties": difficulties}
 
 
 @app.post("/tokenize")
-def tokenize(req: TokenizeRequest):
+def tokenize(req: TokenizeRequest, authorization: str | None = Header(default=None)):
+    _verify_authorization(authorization)
     lang = req.language.lower()
     if "japanese" in lang:
         dictionary = load_dictionary("embedded://ipadic")

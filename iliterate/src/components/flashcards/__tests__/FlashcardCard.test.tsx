@@ -1,11 +1,11 @@
 import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { vi, describe, it, expect, afterEach } from "vitest";
-import { FlashcardCard } from "../FlashcardCard";
+import { FlashcardCard, type FlashcardData } from "../FlashcardCard";
 
 afterEach(() => vi.restoreAllMocks());
 
-const mockCard = {
+const mockCard: FlashcardData = {
   id: "1",
   ease_factor: 2.5,
   interval_days: 1,
@@ -28,7 +28,7 @@ const mockCard = {
 describe("FlashcardCard", () => {
   it("shows front content and reveals pronunciation and hint", () => {
     const onFlip = vi.fn();
-    render(<FlashcardCard card={mockCard as any} isFlipped={false} onFlip={onFlip} />);
+    render(<FlashcardCard card={mockCard} isFlipped={false} onFlip={onFlip} />);
 
     expect(screen.getAllByText("hola")[0]).toBeInTheDocument();
     expect(screen.getByText("Pronunciation")).toBeInTheDocument();
@@ -49,7 +49,7 @@ describe("FlashcardCard", () => {
 
   it("renders back side when flipped", () => {
     const onFlip = vi.fn();
-    render(<FlashcardCard card={mockCard as any} isFlipped={true} onFlip={onFlip} />);
+    render(<FlashcardCard card={mockCard} isFlipped={true} onFlip={onFlip} />);
 
     // back shows translation and review counts
     expect(screen.getAllByText("hola")[0]).toBeInTheDocument();

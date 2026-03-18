@@ -37,7 +37,8 @@ export function ReaderLayout({
   // Open right sidebar when requested (e.g. highlight clicked)
   useEffect(() => {
     if (requestRightOpen) {
-      setRightOpen(true);
+      const frame = window.requestAnimationFrame(() => setRightOpen(true));
+      return () => window.cancelAnimationFrame(frame);
     }
   }, [requestRightOpen]);
 

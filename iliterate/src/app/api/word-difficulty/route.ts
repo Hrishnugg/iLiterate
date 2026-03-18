@@ -1,10 +1,19 @@
+import { NextResponse } from "next/server";
+
+import {
+  proxyPythonApiRequest,
+  PythonApiProxyError,
+} from "@/lib/python-api";
+
 export async function POST(request: Request) {
-  const body = await request.json();
-  const res = await fetch("http://localhost:8000/word-difficulty", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  const data = await res.json();
-  return Response.json(data);
+  try {
+    return await proxyPythonApiRequest(request, "/word-difficulty");
+  } catch (error) {
+    const message =
+      error instanceof PythonApiProxyError
+        ? error.message
+        : "Failed to score word difficulty";
+    const status = error instanceof PythonApiProxyError ? error.status : 502;
+    return NextResponse.json({ error: message }, { status });
+  }
 }
