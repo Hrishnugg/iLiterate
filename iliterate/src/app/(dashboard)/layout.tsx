@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   SidebarInset,
   SidebarProvider,
+  SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 
@@ -51,12 +52,15 @@ export default function DashboardLayout({
     );
   }
 
-  // Chrome mode: sidebar with hover-expand, no top header bar
+  // Chrome mode: collapsible sidebar
   return (
     <SidebarProvider>
       <AppSidebar />
       <SidebarInset>
-        <main className="mx-auto w-full max-w-6xl px-8 py-10">
+        <div className="flex h-10 items-center px-4 pt-4">
+          <SidebarTrigger className="-ml-1 size-7 text-muted-foreground" />
+        </div>
+        <main className="mx-auto w-full max-w-6xl px-8 pb-10">
           {children}
         </main>
       </SidebarInset>

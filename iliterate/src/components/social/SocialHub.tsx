@@ -28,6 +28,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MessageComposer } from "@/components/social/MessageComposer";
 import { SocialProfileGate } from "@/components/social/SocialProfileGate";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 import type {
   DirectConversation,
   DirectMessage,
@@ -677,7 +678,10 @@ export function SocialHub() {
       {/* Header: Messages + Add Friends */}
       <div className="flex flex-col gap-3 border-b px-4 py-4">
         <div className="flex items-center justify-between">
-          <span className="text-lg font-semibold tracking-tight">Messages</span>
+          <div className="flex items-center gap-2">
+            <SidebarTrigger className="size-7 text-muted-foreground" />
+            <span className="text-lg font-semibold tracking-tight">Messages</span>
+          </div>
           <Button
             variant="outline"
             size="icon"
