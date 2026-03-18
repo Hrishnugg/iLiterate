@@ -14,6 +14,7 @@ import { useReadingProgress } from "./useReadingProgress";
 import { AudioPlayer } from "./AudioPlayer";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { BookmarkButton } from "@/components/BookmarkButton";
 
 interface TOCItem {
   id: string;
@@ -523,6 +524,12 @@ export function ArticleRenderer({ content, isLesson = false }: ArticleRendererPr
             onAddLookupToFlashcards={handleAddLookupToFlashcards}
             onClearLookups={handleClearLookups}
             onRemoveLookup={handleRemoveLookup}
+          />
+        }
+        bookmarkButton={
+          <BookmarkButton
+            itemType={isLesson ? "lesson" : "content"}
+            itemId={content.id}
           />
         }
         audioPlayer={
