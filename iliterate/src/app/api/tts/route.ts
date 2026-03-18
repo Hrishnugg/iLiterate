@@ -163,12 +163,26 @@ export async function POST(request: NextRequest) {
 
     const mergedAudio = concatAudioSegments(audioSegments);
 
-    return new NextResponse(mergedAudio, {
+    // Convert the Uint8Array to a BodyInit that works in both Edge/browser and Node runtimes.
+    // In browser/Edge use a Blob; in Node use a Buffer. Include Content-Length from the byte length.
+    let body: BodyInit;
+    if (typeof Blob !== "undefined") {
+      body = new Blob([mergedAudio], { type: contentType });
+    } else {
+      // Node runtime fallback
+      // Buffer is acceptable as BodyInit in Node environments
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore Buffer exists at runtime
+      body = Buffer.from(mergedAudio);
+    }
+
+    return new NextResponse(body, {
       status: 200,
       headers: {
         "Content-Type": contentType,
         "Cache-Control": "no-store",
         "Content-Disposition": 'inline; filename="reader-tts.mp3"',
+        "Content-Length": String(mergedAudio.byteLength),
         "X-TTS-Chunk-Count": String(chunks.length),
         "X-TTS-Model-Id": modelId,
       },
