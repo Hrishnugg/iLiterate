@@ -76,12 +76,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { data: body, error: validationError } = await validateRequestBody(
+    const { data: requestBody, error: validationError } = await validateRequestBody(
       request,
       ttsRequestSchema
     );
 
-    if (validationError || !body) {
+    if (validationError || !requestBody) {
       return NextResponse.json(
         { error: validationError || "Invalid request body" },
         { status: 400 }
@@ -91,12 +91,12 @@ export async function POST(request: NextRequest) {
     let textBody: string;
     let language: string;
 
-    if (body.lessonId) {
+    if (requestBody.lessonId) {
       // Fetch from lesson_sessions table
       const { data: lesson, error: lessonError } = await supabase
         .from("lesson_sessions")
         .select("id, content_body")
-        .eq("id", body.lessonId)
+        .eq("id", requestBody.lessonId)
         .single();
 
       if (lessonError || !lesson) {
@@ -118,7 +118,7 @@ export async function POST(request: NextRequest) {
       const { data: content, error: contentError } = await supabase
         .from("content")
         .select("id, body, language")
-        .eq("id", body.contentId)
+        .eq("id", requestBody.contentId)
         .single();
 
       if (contentError || !content) {
@@ -167,7 +167,9 @@ export async function POST(request: NextRequest) {
     // In browser/Edge use a Blob; in Node use a Buffer. Include Content-Length from the byte length.
     let body: BodyInit;
     if (typeof Blob !== "undefined") {
-      body = new Blob([mergedAudio], { type: contentType });
+      // Normalize to an ArrayBuffer-backed TypedArray so BlobPart typing is satisfied
+      const safeArray = new Uint8Array(mergedAudio);
+      body = new Blob([safeArray], { type: contentType });
     } else {
       // Node runtime fallback
       // Buffer is acceptable as BodyInit in Node environments
