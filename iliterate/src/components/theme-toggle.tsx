@@ -54,7 +54,7 @@ export function ThemeToggle() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <SidebarMenuButton tooltip="Change theme">
+        <SidebarMenuButton>
           {getIcon()}
           <span>{getThemeLabel()}</span>
         </SidebarMenuButton>

@@ -9,6 +9,7 @@ import {
   User,
   TrendingUp,
   GraduationCap,
+  Users,
 } from "lucide-react";
 
 import {
@@ -22,7 +23,6 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  useSidebar,
 } from "@/components/ui/sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
 
@@ -31,13 +31,12 @@ const navItems = [
   { title: "Library", href: "/library", icon: Library },
   { title: "Flashcards", href: "/flashcards", icon: Layers },
   { title: "Quizzes", href: "/quizzes", icon: ClipboardCheck },
+  { title: "Social", href: "/social", icon: Users },
   { title: "Progress", href: "/progress", icon: TrendingUp },
 ];
 
 export function AppSidebar() {
   const pathname = usePathname();
-  const { state } = useSidebar();
-  const isCollapsed = state === "collapsed";
 
   return (
     <Sidebar collapsible="icon">

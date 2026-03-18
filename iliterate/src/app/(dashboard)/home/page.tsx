@@ -4,6 +4,7 @@ import {
   Layers,
   HelpCircle,
   Settings,
+  Users,
 } from "lucide-react";
 import {
   Card,
@@ -30,6 +31,12 @@ const features = [
     description: "Test your knowledge",
     href: "/quizzes",
     icon: HelpCircle,
+  },
+  {
+    title: "Social",
+    description: "Find study partners and chat with friends",
+    href: "/social",
+    icon: Users,
   },
   {
     title: "Settings",
