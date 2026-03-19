@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson Plan Page — Architecture Diagram</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: #0f172a; color: #e2e8f0; padding: 40px; }
+  h1 { text-align: center; font-size: 28px; margin-bottom: 8px; color: #f8fafc; }
+  .subtitle { text-align: center; color: #94a3b8; margin-bottom: 40px; font-size: 14px; }
+
+  /* ── Layout ── */
+  .diagram { display: flex; gap: 32px; justify-content: center; align-items: flex-start; flex-wrap: wrap; }
+  .column { display: flex; flex-direction: column; gap: 20px; min-width: 300px; max-width: 380px; }
+  .col-label { font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: #64748b; text-align: center; margin-bottom: 4px; font-weight: 700; }
+
+  /* ── Cards ── */
+  .card { border-radius: 12px; padding: 18px; border: 1px solid #1e293b; position: relative; }
+  .card h3 { font-size: 14px; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+  .card h3 .icon { font-size: 16px; }
+  .card-blue   { background: #172554; border-color: #1e3a5f; }
+  .card-green  { background: #14532d; border-color: #166534; }
+  .card-purple { background: #3b0764; border-color: #581c87; }
+  .card-amber  { background: #451a03; border-color: #78350f; }
+  .card-slate  { background: #1e293b; border-color: #334155; }
+  .card-red    { background: #450a0a; border-color: #7f1d1d; }
+
+  /* ── Tags / badges ── */
+  .badge { display: inline-block; font-size: 10px; padding: 2px 8px; border-radius: 9999px; font-weight: 600; }
+  .badge-get    { background: #065f46; color: #6ee7b7; }
+  .badge-post   { background: #7c2d12; color: #fdba74; }
+  .badge-route  { background: #1e3a5f; color: #93c5fd; }
+  .badge-btn    { background: #581c87; color: #d8b4fe; }
+  .badge-table  { background: #78350f; color: #fde68a; }
+  .badge-ai     { background: #831843; color: #f9a8d4; }
+
+  /* ── Lists inside cards ── */
+  .item-list { list-style: none; font-size: 12px; display: flex; flex-direction: column; gap: 6px; }
+  .item-list li { display: flex; align-items: flex-start; gap: 6px; line-height: 1.4; }
+  .item-list li .dot { flex-shrink: 0; width: 6px; height: 6px; border-radius: 50%; margin-top: 5px; }
+  .dot-blue   { background: #60a5fa; }
+  .dot-green  { background: #4ade80; }
+  .dot-purple { background: #c084fc; }
+  .dot-amber  { background: #fbbf24; }
+  .dot-red    { background: #f87171; }
+  .dot-pink   { background: #f472b6; }
+
+  /* ── Arrows between columns ── */
+  .arrow-col { display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 12px; min-width: 60px; padding-top: 40px; }
+  .arrow { color: #475569; font-size: 22px; }
+  .arrow-label { font-size: 9px; color: #64748b; writing-mode: vertical-lr; text-orientation: mixed; letter-spacing: 1px; }
+
+  /* ── Flow section ── */
+  .flow-section { margin-top: 48px; }
+  .flow-section h2 { text-align: center; font-size: 20px; margin-bottom: 24px; color: #f8fafc; }
+  .flow { display: flex; align-items: center; justify-content: center; gap: 0; flex-wrap: wrap; }
+  .flow-step { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 14px 18px; text-align: center; min-width: 150px; max-width: 180px; }
+  .flow-step .step-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #64748b; margin-bottom: 4px; }
+  .flow-step .step-title { font-size: 13px; font-weight: 600; color: #f1f5f9; }
+  .flow-step .step-detail { font-size: 10px; color: #94a3b8; margin-top: 4px; }
+  .flow-arrow { font-size: 24px; color: #475569; padding: 0 6px; flex-shrink: 0; }
+  .flow-step.active { border-color: #3b82f6; box-shadow: 0 0 12px rgba(59,130,246,0.15); }
+
+  .phase-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 700; padding: 3px 10px; border-radius: 6px; margin-bottom: 6px; display: inline-block; }
+  .phase-read { background: #172554; color: #60a5fa; }
+  .phase-quiz { background: #3b0764; color: #c084fc; }
+  .phase-result { background: #14532d; color: #4ade80; }
+
+  /* ── Divider ── */
+  .divider { border: none; border-top: 1px dashed #334155; margin: 40px 0; }
+
+  /* ── Table diagram ── */
+  .db-table { font-size: 12px; border-collapse: collapse; width: 100%; }
+  .db-table th { text-align: left; padding: 4px 8px; color: #94a3b8; font-weight: 600; border-bottom: 1px solid #334155; }
+  .db-table td { padding: 4px 8px; color: #cbd5e1; border-bottom: 1px solid #1e293b; }
+  .db-table .col-name { color: #fbbf24; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 11px; }
+  .db-table .col-type { color: #94a3b8; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 11px; }
+
+  /* ── Responsive ── */
+  @media (max-width: 900px) {
+    .diagram { flex-direction: column; align-items: center; }
+    .arrow-col { flex-direction: row; writing-mode: horizontal-tb; padding-top: 0; }
+    .arrow-label { writing-mode: horizontal-tb; }
+  }
+
+  .section-title { font-size: 18px; margin-bottom: 16px; color: #f8fafc; text-align: center; }
+  .legend { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; margin-bottom: 32px; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #94a3b8; }
+</style>
+</head>
+<body>
+
+<h1>iLiterate — Lesson Plan Page Architecture</h1>
+<p class="subtitle">Frontend buttons &rarr; API routes &rarr; Database tables &amp; AI services</p>
+
+<div class="legend">
+  <div class="legend-item"><span class="badge badge-btn">BUTTON</span> UI interaction</div>
+  <div class="legend-item"><span class="badge badge-get">GET</span> Read data</div>
+  <div class="legend-item"><span class="badge badge-post">POST</span> Write data</div>
+  <div class="legend-item"><span class="badge badge-table">TABLE</span> Database</div>
+  <div class="legend-item"><span class="badge badge-ai">AI</span> Gemini / OpenAI</div>
+</div>
+
+<!-- ════════════════════════════════════════════════ -->
+<!--  THREE-COLUMN ARCHITECTURE                      -->
+<!-- ════════════════════════════════════════════════ -->
+<div class="diagram">
+
+  <!-- ──── FRONTEND ──── -->
+  <div class="column">
+    <div class="col-label">Frontend (React / Next.js)</div>
+
+    <!-- Hub page -->
+    <div class="card card-blue">
+      <h3><span class="icon">📄</span> /lesson-plan <span class="badge badge-route">PAGE</span></h3>
+      <ul class="item-list">
+        <li><span class="dot dot-blue"></span><b>Current Level Card</b> — displays reading_level + CEFR</li>
+        <li><span class="dot dot-red"></span><span class="badge badge-btn">Level Too Hard?</span> opens downgrade dialog</li>
+        <li><span class="dot dot-purple"></span><span class="badge badge-btn">Continue Reading</span> / <span class="badge badge-btn">Take Quiz</span> — resume active lesson</li>
+        <li><span class="dot dot-blue"></span><b>Length selector</b>: <span class="badge badge-btn">Short</span> <span class="badge badge-btn">Medium</span> <span class="badge badge-btn">Long</span></li>
+        <li><span class="dot dot-blue"></span><b>Topic selector</b>: 12 topic buttons + <span class="badge badge-btn">Surprise Me</span></li>
+        <li><span class="dot dot-green"></span><span class="badge badge-btn">Begin Lesson</span> — generates new lesson</li>
+        <li><span class="dot dot-amber"></span><b>Recent Lessons</b> — last 5 completed w/ scores</li>
+      </ul>
+    </div>
+
+    <!-- Lesson detail — reading -->
+    <div class="card card-blue">
+      <h3><span class="icon">📖</span> /lesson-plan/[id] <span class="badge badge-route">PAGE</span></h3>
+      <span class="phase-label phase-read">Reading Phase</span>
+      <ul class="item-list" style="margin-top:8px">
+        <li><span class="dot dot-blue"></span><b>ArticleRenderer</b> — HTML lesson content</li>
+        <li><span class="dot dot-blue"></span>Text highlighting &amp; translation popovers</li>
+        <li><span class="dot dot-blue"></span>RSVP reading mode toggle</li>
+        <li><span class="dot dot-green"></span><span class="badge badge-btn">I've Finished Reading — Take Quiz</span></li>
+      </ul>
+    </div>
+
+    <!-- Lesson detail — quiz -->
+    <div class="card card-blue">
+      <h3><span class="icon">✏️</span> /lesson-plan/[id] <span class="badge badge-route">PAGE</span></h3>
+      <span class="phase-label phase-quiz">Quiz Phase</span>
+      <ul class="item-list" style="margin-top:8px">
+        <li><span class="dot dot-purple"></span><b>Comprehension MCQ</b> — 4 radio options</li>
+        <li><span class="dot dot-purple"></span><b>Vocabulary Fill-in-Blank</b> — text input</li>
+        <li><span class="dot dot-amber"></span><span class="badge badge-btn">Show/Hide Hint</span> per question</li>
+        <li><span class="dot dot-green"></span><span class="badge badge-btn">Submit Quiz</span> — enabled when all answered</li>
+      </ul>
+    </div>
+
+    <!-- Lesson detail — results -->
+    <div class="card card-blue">
+      <h3><span class="icon">🏆</span> /lesson-plan/[id] <span class="badge badge-route">PAGE</span></h3>
+      <span class="phase-label phase-result">Results Phase</span>
+      <ul class="item-list" style="margin-top:8px">
+        <li><span class="dot dot-green"></span>Score circle (green ≥80 / yellow ≥50 / red &lt;50)</li>
+        <li><span class="dot dot-amber"></span>XP earned breakdown (reading + vocab)</li>
+        <li><span class="dot dot-blue"></span>Level adjustment indicator (↑ / → / ↓)</li>
+        <li><span class="dot dot-blue"></span>Question review (✓ / ✗ per question)</li>
+        <li><span class="dot dot-green"></span><span class="badge badge-btn">Start New Lesson</span> → back to hub</li>
+      </ul>
+    </div>
+
+    <!-- Downgrade dialog -->
+    <div class="card card-red">
+      <h3><span class="icon">⚠️</span> DowngradeLevelDialog <span class="badge badge-route">MODAL</span></h3>
+      <ul class="item-list">
+        <li><span class="dot dot-red"></span>Shows current → target CEFR level</li>
+        <li><span class="dot dot-amber"></span>Warning: resets XP, can't be undone</li>
+        <li><span class="dot dot-blue"></span>Radio: clear in-progress lessons or keep them</li>
+        <li><span class="dot dot-red"></span><span class="badge badge-btn">Confirm Downgrade</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ──── ARROWS ──── -->
+  <div class="arrow-col">
+    <span class="arrow">⟶</span>
+    <span class="arrow-label">HTTP</span>
+    <span class="arrow">⟵</span>
+  </div>
+
+  <!-- ──── API ROUTES ──── -->
+  <div class="column">
+    <div class="col-label">API Routes (Next.js Server)</div>
+
+    <div class="card card-green">
+      <h3><span class="badge badge-get">GET</span> /api/progress</h3>
+      <ul class="item-list">
+        <li><span class="dot dot-green"></span>Returns user's reading_level, vocabulary_level, XP</li>
+        <li><span class="dot dot-green"></span>Reads <span class="badge badge-table">user_skill_levels</span></li>
+      </ul>
+    </div>
+
+    <div class="card card-green">
+      <h3><span class="badge badge-get">GET</span> /api/lesson/history</h3>
+      <ul class="item-list">
+        <li><span class="dot dot-green"></span>Params: limit, offset, status</li>
+        <li><span class="dot dot-green"></span>Returns lessons list + pagination + stats</li>
+        <li><span class="dot dot-green"></span>Reads <span class="badge badge-table">lesson_sessions</span></li>
+      </ul>
+    </div>
+
+    <div class="card card-green">
+      <h3><span class="badge badge-get">GET</span> /api/lesson/[id]</h3>
+      <ul class="item-list">
+        <li><span class="dot dot-green"></span>Full lesson detail (body, vocab, quiz, scores)</li>
+        <li><span class="dot dot-green"></span>Reads <span class="badge badge-table">lesson_sessions</span></li>
+      </ul>
+    </div>
+
+    <div class="card card-purple">
+      <h3><span class="badge badge-post">POST</span> /api/lesson/generate</h3>
+      <ul class="item-list">
+        <li><span class="dot dot-pink"></span>Body: { topic, length, useSuggestedTopic }</li>
+        <li><span class="dot dot-pink"></span>Calls <span class="badge badge-ai">OpenAI gpt-4o-mini</span> to generate lesson</li>
+        <li><span class="dot dot-green"></span>Reads <span class="badge badge-table">profiles</span> + <span class="badge badge-table">user_skill_levels</span></li>
+        <li><span class="dot dot-amber"></span>Inserts into <span class="badge badge-table">lesson_sessions</span> (status: reading)</li>
+      </ul>
+    </div>
+
+    <div class="card card-purple">
+      <h3><span class="badge badge-post">POST</span> /api/lesson/[id]/complete-reading</h3>
+      <ul class="item-list">
+        <li><span class="dot dot-pink"></span>Calls <span class="badge badge-ai">OpenAI</span> to generate 4-6 quiz questions</li>
+        <li><span class="dot dot-amber"></span>Updates <span class="badge badge-table">lesson_sessions</span> → status: quiz</li>
+      </ul>
+    </div>
+
+    <div class="card card-purple">
+      <h3><span class="badge badge-post">POST</span> /api/lesson/[id]/submit</h3>
+      <ul class="item-list">
+        <li><span class="dot dot-pink"></span>Body: { answers: { q1: "...", q2: "..." } }</li>
+        <li><span class="dot dot-green"></span>Grades quiz (string match)</li>
+        <li><span class="dot dot-amber"></span>Calculates XP: floor(score/max × 50) + perfect bonus</li>
+        <li><span class="dot dot-amber"></span>Level adj: ≥80% → +1, &lt;50% → −1, else → 0</li>
+        <li><span class="dot dot-amber"></span>Updates <span class="badge badge-table">lesson_sessions</span> → status: completed</li>
+        <li><span class="dot dot-amber"></span>Updates <span class="badge badge-table">user_skill_levels</span> → XP &amp; level</li>
+      </ul>
+    </div>
+
+    <div class="card card-purple">
+      <h3><span class="badge badge-post">POST</span> /api/progress/downgrade</h3>
+      <ul class="item-list">
+        <li><span class="dot dot-red"></span>Drops all skills one CEFR tier, resets XP to 0</li>
+        <li><span class="dot dot-red"></span>Optionally deletes in-progress <span class="badge badge-table">lesson_sessions</span></li>
+        <li><span class="dot dot-amber"></span>Updates <span class="badge badge-table">user_skill_levels</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ──── ARROWS ──── -->
+  <div class="arrow-col">
+    <span class="arrow">⟶</span>
+    <span class="arrow-label">SQL / AI</span>
+    <span class="arrow">⟵</span>
+  </div>
+
+  <!-- ──── DATABASE + AI ──── -->
+  <div class="column">
+    <div class="col-label">Database (Supabase) &amp; AI</div>
+
+    <div class="card card-amber">
+      <h3><span class="icon">🗄️</span> lesson_sessions <span class="badge badge-table">TABLE</span></h3>
+      <table class="db-table">
+        <tr><td class="col-name">id</td><td class="col-type">UUID PK</td></tr>
+        <tr><td class="col-name">user_id</td><td class="col-type">UUID FK → profiles</td></tr>
+        <tr><td class="col-name">title</td><td class="col-type">TEXT</td></tr>
+        <tr><td class="col-name">content_body</td><td class="col-type">TEXT (HTML)</td></tr>
+        <tr><td class="col-name">target_level</td><td class="col-type">INT (1-20)</td></tr>
+        <tr><td class="col-name">topic</td><td class="col-type">TEXT</td></tr>
+        <tr><td class="col-name">length_type</td><td class="col-type">short | medium | long</td></tr>
+        <tr><td class="col-name">vocabulary</td><td class="col-type">JSONB []</td></tr>
+        <tr><td class="col-name">status</td><td class="col-type">reading | quiz | completed</td></tr>
+        <tr><td class="col-name">quiz_questions</td><td class="col-type">JSONB []</td></tr>
+        <tr><td class="col-name">quiz_answers</td><td class="col-type">JSONB {}</td></tr>
+        <tr><td class="col-name">quiz_score</td><td class="col-type">DECIMAL</td></tr>
+        <tr><td class="col-name">quiz_max_score</td><td class="col-type">DECIMAL</td></tr>
+        <tr><td class="col-name">reading_xp_awarded</td><td class="col-type">INT</td></tr>
+        <tr><td class="col-name">vocabulary_xp_awarded</td><td class="col-type">INT</td></tr>
+        <tr><td class="col-name">level_adjustment</td><td class="col-type">INT (-1, 0, +1)</td></tr>
+      </table>
+    </div>
+
+    <div class="card card-amber">
+      <h3><span class="icon">📊</span> user_skill_levels <span class="badge badge-table">TABLE</span></h3>
+      <table class="db-table">
+        <tr><td class="col-name">user_id</td><td class="col-type">UUID FK → profiles</td></tr>
+        <tr><td class="col-name">reading_level</td><td class="col-type">INT (1-20)</td></tr>
+        <tr><td class="col-name">vocabulary_level</td><td class="col-type">INT (1-20)</td></tr>
+        <tr><td class="col-name">grammar_level</td><td class="col-type">INT (1-20)</td></tr>
+        <tr><td class="col-name">reading_xp</td><td class="col-type">INT (auto level-up at 100)</td></tr>
+        <tr><td class="col-name">vocabulary_xp</td><td class="col-type">INT</td></tr>
+        <tr><td class="col-name">grammar_xp</td><td class="col-type">INT</td></tr>
+      </table>
+    </div>
+
+    <div class="card card-amber">
+      <h3><span class="icon">👤</span> profiles <span class="badge badge-table">TABLE</span></h3>
+      <table class="db-table">
+        <tr><td class="col-name">target_language</td><td class="col-type">TEXT</td></tr>
+        <tr><td class="col-name">native_language</td><td class="col-type">TEXT</td></tr>
+        <tr><td class="col-name">learning_motivation</td><td class="col-type">TEXT[]</td></tr>
+        <tr><td class="col-name">speech_formality</td><td class="col-type">TEXT</td></tr>
+      </table>
+    </div>
+
+    <div class="card card-slate" style="border-color: #831843;">
+      <h3><span class="icon">🤖</span> OpenAI API <span class="badge badge-ai">AI SERVICE</span></h3>
+      <ul class="item-list">
+        <li><span class="dot dot-pink"></span><b>generateLesson()</b> — creates title, HTML body, vocabulary list tailored to user's level &amp; preferences</li>
+        <li><span class="dot dot-pink"></span><b>generateQuizFromContent()</b> — creates 4-6 comprehension MCQ &amp; vocabulary fill-in-blank questions from lesson body</li>
+        <li><span class="dot dot-pink"></span><b>suggestTopic()</b> — picks topic based on learning motivations</li>
+        <li><span class="dot dot-pink"></span>Model: <code>gpt-4o-mini</code></li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════ -->
+<!--  USER FLOW                                       -->
+<!-- ════════════════════════════════════════════════ -->
+<hr class="divider">
+
+<div class="flow-section">
+  <h2>User Flow: Full Lesson Lifecycle</h2>
+  <div class="flow">
+    <div class="flow-step">
+      <div class="step-label">Step 1</div>
+      <div class="step-title">Select Topic & Length</div>
+      <div class="step-detail">12 topics + short/med/long</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">
+      <div class="step-label">Step 2</div>
+      <div class="step-title">Begin Lesson</div>
+      <div class="step-detail">POST /api/lesson/generate<br>AI creates content</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step active">
+      <div class="step-label">Step 3</div>
+      <div class="step-title">Read Content</div>
+      <div class="step-detail">HTML article + vocab<br>status: "reading"</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">
+      <div class="step-label">Step 4</div>
+      <div class="step-title">Finish Reading</div>
+      <div class="step-detail">POST .../complete-reading<br>AI generates quiz</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">
+      <div class="step-label">Step 5</div>
+      <div class="step-title">Take Quiz</div>
+      <div class="step-detail">MCQ + fill-in-blank<br>status: "quiz"</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">
+      <div class="step-label">Step 6</div>
+      <div class="step-title">Submit Answers</div>
+      <div class="step-detail">POST .../submit<br>Grade + XP + level adj</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">
+      <div class="step-label">Step 7</div>
+      <div class="step-title">View Results</div>
+      <div class="step-detail">Score, XP, level change<br>status: "completed"</div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════ -->
+<!--  BUTTON → API MAPPING TABLE                      -->
+<!-- ════════════════════════════════════════════════ -->
+<hr class="divider">
+
+<div style="max-width: 1100px; margin: 0 auto;">
+  <h2 class="section-title">Button → API → Database Mapping</h2>
+  <table style="width:100%; border-collapse:collapse; font-size:13px;">
+    <thead>
+      <tr style="border-bottom:2px solid #334155;">
+        <th style="text-align:left; padding:10px; color:#94a3b8;">Button / Interaction</th>
+        <th style="text-align:left; padding:10px; color:#94a3b8;">API Endpoint</th>
+        <th style="text-align:left; padding:10px; color:#94a3b8;">Tables Touched</th>
+        <th style="text-align:left; padding:10px; color:#94a3b8;">AI Call?</th>
+        <th style="text-align:left; padding:10px; color:#94a3b8;">Effect</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr style="border-bottom:1px solid #1e293b;">
+        <td style="padding:10px;"><span class="badge badge-btn">Begin Lesson</span></td>
+        <td style="padding:10px;"><span class="badge badge-post">POST</span> /api/lesson/generate</td>
+        <td style="padding:10px;">profiles (R), user_skill_levels (R), lesson_sessions (W)</td>
+        <td style="padding:10px;"><span class="badge badge-ai">Yes</span> generateLesson()</td>
+        <td style="padding:10px;">Creates new lesson row, status → "reading"</td>
+      </tr>
+      <tr style="border-bottom:1px solid #1e293b;">
+        <td style="padding:10px;"><span class="badge badge-btn">I've Finished Reading</span></td>
+        <td style="padding:10px;"><span class="badge badge-post">POST</span> /api/lesson/[id]/complete-reading</td>
+        <td style="padding:10px;">lesson_sessions (R/W)</td>
+        <td style="padding:10px;"><span class="badge badge-ai">Yes</span> generateQuiz()</td>
+        <td style="padding:10px;">Generates quiz questions, status → "quiz"</td>
+      </tr>
+      <tr style="border-bottom:1px solid #1e293b;">
+        <td style="padding:10px;"><span class="badge badge-btn">Submit Quiz</span></td>
+        <td style="padding:10px;"><span class="badge badge-post">POST</span> /api/lesson/[id]/submit</td>
+        <td style="padding:10px;">lesson_sessions (R/W), user_skill_levels (R/W)</td>
+        <td style="padding:10px;">No</td>
+        <td style="padding:10px;">Grades answers, awards XP, adjusts level, status → "completed"</td>
+      </tr>
+      <tr style="border-bottom:1px solid #1e293b;">
+        <td style="padding:10px;"><span class="badge badge-btn">Continue Reading</span> / <span class="badge badge-btn">Take Quiz</span></td>
+        <td style="padding:10px;"><span class="badge badge-get">GET</span> /api/lesson/[id]</td>
+        <td style="padding:10px;">lesson_sessions (R)</td>
+        <td style="padding:10px;">No</td>
+        <td style="padding:10px;">Navigates to lesson detail page</td>
+      </tr>
+      <tr style="border-bottom:1px solid #1e293b;">
+        <td style="padding:10px;"><span class="badge badge-btn">Confirm Downgrade</span></td>
+        <td style="padding:10px;"><span class="badge badge-post">POST</span> /api/progress/downgrade</td>
+        <td style="padding:10px;">user_skill_levels (W), lesson_sessions (D)</td>
+        <td style="padding:10px;">No</td>
+        <td style="padding:10px;">Drops level 1 CEFR tier, resets XP, optionally clears lessons</td>
+      </tr>
+      <tr style="border-bottom:1px solid #1e293b;">
+        <td style="padding:10px;"><span class="badge badge-btn">Start New Lesson</span></td>
+        <td style="padding:10px;">— (client-side navigation)</td>
+        <td style="padding:10px;">—</td>
+        <td style="padding:10px;">No</td>
+        <td style="padding:10px;">Redirects to /lesson-plan hub</td>
+      </tr>
+      <tr style="border-bottom:1px solid #1e293b;">
+        <td style="padding:10px;">Page load: /lesson-plan</td>
+        <td style="padding:10px;"><span class="badge badge-get">GET</span> /api/progress + /api/lesson/history</td>
+        <td style="padding:10px;">user_skill_levels (R), lesson_sessions (R)</td>
+        <td style="padding:10px;">No</td>
+        <td style="padding:10px;">Loads current level, active lesson, recent history</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ════════════════════════════════════════════════ -->
+<!--  SCORING LOGIC                                   -->
+<!-- ════════════════════════════════════════════════ -->
+<hr class="divider">
+
+<div style="max-width: 800px; margin: 0 auto;">
+  <h2 class="section-title">Scoring & Progression Logic</h2>
+  <div style="display:flex; gap:20px; flex-wrap:wrap; justify-content:center;">
+    <div class="card card-slate" style="flex:1; min-width:220px;">
+      <h3>XP Calculation</h3>
+      <ul class="item-list" style="margin-top:8px;">
+        <li><span class="dot dot-amber"></span>Base XP = floor(score / maxScore × 50)</li>
+        <li><span class="dot dot-green"></span>Perfect bonus = +10 XP (if 100%)</li>
+        <li><span class="dot dot-blue"></span>Auto level-up at 100 XP (resets to 0)</li>
+        <li><span class="dot dot-red"></span>Max level: 20</li>
+      </ul>
+    </div>
+    <div class="card card-slate" style="flex:1; min-width:220px;">
+      <h3>Level Adjustment</h3>
+      <ul class="item-list" style="margin-top:8px;">
+        <li><span class="dot dot-green"></span>≥ 80% → <b>+1</b> (harder next time)</li>
+        <li><span class="dot dot-blue"></span>50–79% → <b>0</b> (same level)</li>
+        <li><span class="dot dot-red"></span>&lt; 50% → <b>−1</b> (easier next time)</li>
+      </ul>
+    </div>
+    <div class="card card-slate" style="flex:1; min-width:220px;">
+      <h3>Quiz Questions</h3>
+      <ul class="item-list" style="margin-top:8px;">
+        <li><span class="dot dot-blue"></span>Short lesson → 4 questions</li>
+        <li><span class="dot dot-purple"></span>Medium lesson → 5 questions</li>
+        <li><span class="dot dot-amber"></span>Long lesson → 6 questions</li>
+        <li><span class="dot dot-green"></span>Types: MCQ + fill-in-blank</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div style="text-align:center; margin-top:40px; color:#475569; font-size:11px;">
+  RLS (Row Level Security) enforced on all tables — users can only access their own data
+</div>
+
+</body>
+</html>

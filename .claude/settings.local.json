@@ -22,7 +22,13 @@
       "mcp__paper__get_screenshot",
       "mcp__paper__finish_working_on_nodes",
       "Bash(grep -q '\"\"motion\"\"' package.json)",
-      "Bash(grep -q '\"\"framer-motion\"\"' package.json)"
+      "Bash(grep -q '\"\"framer-motion\"\"' package.json)",
+      "Bash(git stash:*)",
+      "Bash(grep -r \"updateStreak\\\\|calculateStreak\\\\|checkStreak\" /Users/efang/Desktop/coding/CSDS393Project/iliterate/src --include=*.ts --include=*.tsx)",
+      "Bash(grep -E \"\\\\.sql$\")",
+      "Bash(grep:*)",
+      "Bash(find /Users/efang/Desktop/coding/CSDS393Project/iliterate/src/app -type f -name *flashcard* -o -name *review*)",
+      "Bash(xargs ls:*)"
     ]
   },
   "disableAllHooks": true

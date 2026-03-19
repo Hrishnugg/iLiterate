@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { Volume2, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useWordAudio } from "@/lib/tts/use-word-audio";
 
 interface VocabularyItem {
   id: string;
@@ -43,8 +45,14 @@ export function FlashcardCard({
 }: FlashcardCardProps) {
   const [showPronunciation, setShowPronunciation] = useState(false);
   const [showHint, setShowHint] = useState(false);
+  const { play, loading: audioLoading } = useWordAudio();
 
   const vocab = card.vocabulary;
+
+  const handleSpeak = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    play(vocab.word, vocab.language);
+  };
 
   const getTranslation = () => {
     if (vocab.definitions?.translation) return vocab.definitions.translation;
@@ -80,6 +88,20 @@ export function FlashcardCard({
           <span className="font-mono text-5xl font-semibold tracking-tight">
             {vocab.word}
           </span>
+
+          <button
+            onClick={handleSpeak}
+            disabled={audioLoading}
+            className="mt-3 flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50"
+            aria-label={`Listen to pronunciation of ${vocab.word}`}
+          >
+            {audioLoading ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <Volume2 className="size-3.5" />
+            )}
+            Listen
+          </button>
 
           {/* Pronunciation — tap to reveal */}
           {vocab.pronunciation && (
@@ -137,9 +159,23 @@ export function FlashcardCard({
             transform: "rotateY(180deg)",
           }}
         >
-          <span className="font-mono text-3xl font-semibold tracking-tight">
-            {vocab.word}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-3xl font-semibold tracking-tight">
+              {vocab.word}
+            </span>
+            <button
+              onClick={handleSpeak}
+              disabled={audioLoading}
+              className="rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50"
+              aria-label={`Listen to pronunciation of ${vocab.word}`}
+            >
+              {audioLoading ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Volume2 className="size-4" />
+              )}
+            </button>
+          </div>
 
           {vocab.pronunciation && (
             <span className="mt-2 text-sm text-muted-foreground">

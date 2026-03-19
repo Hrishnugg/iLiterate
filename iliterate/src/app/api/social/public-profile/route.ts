@@ -16,6 +16,7 @@ const updatePublicProfileSchema = z.object({
     .toLowerCase()
     .regex(/^[a-z0-9_]{3,24}$/),
   displayName: z.string().trim().min(1).max(50),
+  leaderboardAnonymous: z.boolean().optional(),
 });
 
 export async function GET() {
@@ -63,13 +64,17 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const payload = {
+    const payload: Record<string, unknown> = {
       id: user.id,
       username: parsed.data.username,
       display_name: parsed.data.displayName,
       avatar_seed: defaultAvatarSeed(user.id),
       updated_at: new Date().toISOString(),
     };
+
+    if (parsed.data.leaderboardAnonymous !== undefined) {
+      payload.leaderboard_anonymous = parsed.data.leaderboardAnonymous;
+    }
 
     const { data, error } = await supabase
       .from("public_profiles")

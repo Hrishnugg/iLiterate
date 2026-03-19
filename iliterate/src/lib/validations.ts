@@ -52,6 +52,12 @@ export const ttsRequestSchema = z.object({
   { message: "Either contentId or lessonId is required" }
 );
 
+// Word TTS request validation (single word / short phrase)
+export const ttsWordRequestSchema = z.object({
+  text: z.string().min(1, "Text is required").max(500, "Text too long"),
+  language: languageSchema,
+});
+
 // Highlight request validation
 export const highlightRequestSchema = z.object({
   contentId: uuidSchema.optional(),

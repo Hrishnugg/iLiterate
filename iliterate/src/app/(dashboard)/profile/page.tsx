@@ -42,7 +42,7 @@ export default async function ProfilePage() {
   // Get the user's name from auth metadata
   const { data: socialProfile } = await supabase
     .from("public_profiles")
-    .select("id, username, display_name, avatar_seed, created_at, updated_at")
+    .select("id, username, display_name, avatar_seed, leaderboard_anonymous, created_at, updated_at")
     .eq("id", user.id)
     .maybeSingle();
 

@@ -84,6 +84,7 @@ interface SocialProfile {
   username: string | null;
   display_name: string;
   avatar_seed: string | null;
+  leaderboard_anonymous: boolean | null;
   created_at: string;
   updated_at: string;
 }
@@ -118,6 +119,7 @@ export function ProfileSettings({ user, profile, socialProfile }: ProfileSetting
     yearsLearning: profile?.years_learning?.toString() || "0",
     speechFormality: profile?.speech_formality || "standard",
     motivations: profile?.learning_motivation || [],
+    leaderboardAnonymous: socialProfile?.leaderboard_anonymous ?? false,
   }), [profile, socialProfile, user.email, user.user_metadata]);
 
   const [displayName, setDisplayName] = useState(initialValues.displayName);
@@ -129,6 +131,7 @@ export function ProfileSettings({ user, profile, socialProfile }: ProfileSetting
   const [yearsLearning, setYearsLearning] = useState(initialValues.yearsLearning);
   const [speechFormality, setSpeechFormality] = useState(initialValues.speechFormality);
   const [motivations, setMotivations] = useState<string[]>(initialValues.motivations);
+  const [leaderboardAnonymous, setLeaderboardAnonymous] = useState(initialValues.leaderboardAnonymous);
 
   // Check if any values have changed
   const hasChanges = useMemo(() => {
@@ -145,9 +148,10 @@ export function ProfileSettings({ user, profile, socialProfile }: ProfileSetting
       educationLevel !== initialValues.educationLevel ||
       yearsLearning !== initialValues.yearsLearning ||
       speechFormality !== initialValues.speechFormality ||
+      leaderboardAnonymous !== initialValues.leaderboardAnonymous ||
       motivationsChanged
     );
-  }, [displayName, username, targetLanguage, nativeLanguage, ageGroup, educationLevel, yearsLearning, speechFormality, motivations, initialValues]);
+  }, [displayName, username, targetLanguage, nativeLanguage, ageGroup, educationLevel, yearsLearning, speechFormality, leaderboardAnonymous, motivations, initialValues]);
 
   const handleMotivationChange = (id: string, checked: boolean) => {
     setMotivations((prev) =>
@@ -183,6 +187,7 @@ export function ProfileSettings({ user, profile, socialProfile }: ProfileSetting
         body: JSON.stringify({
           displayName: trimmedDisplayName,
           username: normalizedUsername,
+          leaderboardAnonymous,
         }),
       });
 
@@ -465,6 +470,29 @@ export function ProfileSettings({ user, profile, socialProfile }: ProfileSetting
               {isLoading ? "Saving..." : "Save changes"}
             </Button>
           </FieldGroup>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Privacy</CardTitle>
+          <CardDescription>Control how you appear to others</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <label className="flex items-start gap-3 cursor-pointer">
+            <Checkbox
+              checked={leaderboardAnonymous}
+              onCheckedChange={(checked) => setLeaderboardAnonymous(checked === true)}
+              disabled={isLoading}
+              className="mt-0.5"
+            />
+            <div>
+              <p className="text-sm font-medium leading-none">Hide my name on the leaderboard</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                When enabled, you appear as &quot;Anonymous&quot; on the global and friends leaderboards.
+              </p>
+            </div>
+          </label>
         </CardContent>
       </Card>
 

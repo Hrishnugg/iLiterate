@@ -57,6 +57,30 @@ export function calculateStreakBonus(currentStreak: number): number {
 }
 
 /**
+ * Refresh the user's streak and return the result.
+ * Calls the DB function which handles insert/increment/reset atomically.
+ */
+async function refreshAndAwardStreak(
+  supabase: SupabaseClient,
+  userId: string
+): Promise<{ currentStreak: number; isNewDay: boolean }> {
+  const { data, error } = await supabase.rpc("refresh_user_streak", {
+    target_user_id: userId,
+  });
+
+  if (error) {
+    console.error("Failed to refresh streak:", error);
+    return { currentStreak: 0, isNewDay: false };
+  }
+
+  const row = Array.isArray(data) ? data[0] : data;
+  return {
+    currentStreak: row?.current_streak ?? 0,
+    isNewDay: row?.is_new_day ?? false,
+  };
+}
+
+/**
  * Insert a point event into the database
  */
 export async function awardPoints(
@@ -79,6 +103,35 @@ export async function awardPoints(
 
   if (error) {
     console.error("Failed to award points:", error);
+    return;
+  }
+
+  // After awarding points (non-streak), refresh streak and award bonus if new day
+  if (source !== "streak_bonus") {
+    const { currentStreak, isNewDay } = await refreshAndAwardStreak(
+      supabase,
+      userId
+    );
+
+    if (isNewDay && currentStreak > 0) {
+      const bonus = calculateStreakBonus(currentStreak);
+      if (bonus > 0) {
+        // Insert directly to avoid recursion
+        const { error: bonusError } = await supabase
+          .from("point_events")
+          .insert({
+            user_id: userId,
+            points: bonus,
+            source: "streak_bonus",
+            source_id: null,
+            metadata: { streak: currentStreak },
+          });
+
+        if (bonusError) {
+          console.error("Failed to award streak bonus:", bonusError);
+        }
+      }
+    }
   }
 }
 

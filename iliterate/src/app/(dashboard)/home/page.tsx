@@ -38,10 +38,11 @@ export default function HomePage() {
   useEffect(() => {
     async function fetchDashboard() {
       try {
-        const [progressRes, flashcardRes, lessonRes] = await Promise.allSettled([
+        const [progressRes, flashcardRes, lessonRes, streakRes] = await Promise.allSettled([
           fetch("/api/progress"),
           fetch("/api/vocabulary/review"),
           fetch("/api/lesson/history?limit=5"),
+          fetch("/api/streak"),
         ]);
 
         let level = 1;
@@ -65,6 +66,12 @@ export default function HomePage() {
         if (flashcardRes.status === "fulfilled" && flashcardRes.value.ok) {
           const flashcards = await flashcardRes.value.json();
           dueFlashcards = flashcards?.totalDue ?? 0;
+        }
+
+        let streakDays = 0;
+        if (streakRes.status === "fulfilled" && streakRes.value.ok) {
+          const streak = await streakRes.value.json();
+          streakDays = streak?.currentStreak ?? 0;
         }
 
         let activeLesson = null;
@@ -105,7 +112,7 @@ export default function HomePage() {
           language,
           xpProgress,
           dueFlashcards,
-          streakDays: 0, // streak API not available yet — safe default
+          streakDays,
           recentActivity,
         });
       } catch {
