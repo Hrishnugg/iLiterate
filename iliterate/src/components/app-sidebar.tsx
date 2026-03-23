@@ -6,6 +6,8 @@ import {
   Library,
   Layers,
   ClipboardCheck,
+  PanelLeftClose,
+  PanelLeftOpen,
   User,
   TrendingUp,
   GraduationCap,
@@ -27,6 +29,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useSearch } from "@/components/search/SearchContext";
@@ -35,7 +38,14 @@ import { useT } from "@/lib/i18n/I18nProvider";
 export function AppSidebar() {
   const pathname = usePathname();
   const { openSearch } = useSearch();
+  const { isMobile, state, toggleSidebar } = useSidebar();
   const t = useT();
+  const SidebarToggleIcon = state === "collapsed" ? PanelLeftOpen : PanelLeftClose;
+  const sidebarToggleLabel = isMobile
+    ? "Close sidebar"
+    : state === "collapsed"
+      ? "Expand sidebar"
+      : "Collapse sidebar";
 
   const navGroups = [
     {
@@ -132,6 +142,15 @@ export function AppSidebar() {
 
       <SidebarFooter>
         <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              onClick={toggleSidebar}
+              tooltip={sidebarToggleLabel}
+            >
+              <SidebarToggleIcon />
+              <span>{sidebarToggleLabel}</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
           <SidebarMenuItem>
             <ThemeToggle />
           </SidebarMenuItem>

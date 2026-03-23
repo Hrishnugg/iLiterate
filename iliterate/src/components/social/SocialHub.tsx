@@ -1065,7 +1065,7 @@ export function SocialHub() {
       <div className="flex flex-col gap-3 border-b px-4 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <SidebarTrigger className="size-7 text-muted-foreground" />
+            <SidebarTrigger className="size-7 text-muted-foreground md:hidden" />
             <span className="text-lg font-semibold tracking-tight">Messages</span>
           </div>
           <Button
@@ -1355,32 +1355,38 @@ export function SocialHub() {
                     >
                     <div className="flex max-w-[78%] flex-col gap-2">
                       {hasText ? (
-                        <div
-                          className={cn(
-                            "px-4 py-2.5 text-sm",
-                            isOwnMessage
-                              ? "rounded-lg rounded-br-sm bg-primary text-primary-foreground"
-                              : "rounded-lg rounded-bl-sm border bg-card text-foreground"
-                          )}
-                        >
+                        <div className="group/message relative overflow-visible">
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant={isOwnMessage ? "secondary" : "outline"}
+                            className={cn(
+                              "absolute -top-3.5 z-20 size-7 rounded-full border shadow-sm transition-[opacity,transform] md:pointer-events-none md:scale-95 md:opacity-0 md:group-hover/message:pointer-events-auto md:group-hover/message:scale-100 md:group-hover/message:opacity-100 md:group-focus-within/message:pointer-events-auto md:group-focus-within/message:scale-100 md:group-focus-within/message:opacity-100",
+                              isOwnMessage
+                                ? "-left-2.5 border-white/20 bg-background/95 text-foreground hover:bg-background"
+                                : "-right-2.5 bg-background/95"
+                            )}
+                            onClick={() => void handleTranslateMessage(message)}
+                            disabled={messageTranslation?.loading}
+                            title="Translate message"
+                            aria-label="Translate message"
+                          >
+                            {messageTranslation?.loading ? (
+                              <Loader2 className="size-3 animate-spin" />
+                            ) : (
+                              <Languages className="size-3" />
+                            )}
+                          </Button>
+
+                          <div
+                            className={cn(
+                              "px-4 py-2.5 text-sm",
+                              isOwnMessage
+                                ? "rounded-lg rounded-br-sm bg-primary text-primary-foreground"
+                                : "rounded-lg rounded-bl-sm border bg-card text-foreground"
+                            )}
+                          >
                           <p className="whitespace-pre-wrap leading-relaxed">{message.body}</p>
-                          <div className="mt-2 flex items-center gap-2">
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant={isOwnMessage ? "secondary" : "outline"}
-                              className="h-7 text-[11px]"
-                              onClick={() => void handleTranslateMessage(message)}
-                              disabled={messageTranslation?.loading}
-                            >
-                              {messageTranslation?.loading ? (
-                                <Loader2 className="size-3 animate-spin" />
-                              ) : (
-                                <Languages className="size-3" />
-                              )}
-                              Translate
-                            </Button>
-                          </div>
                           {messageTranslation?.text ? (
                             <div
                               className={cn(
@@ -1401,6 +1407,7 @@ export function SocialHub() {
                               </p>
                             </div>
                           ) : null}
+                        </div>
                         </div>
                       ) : null}
 

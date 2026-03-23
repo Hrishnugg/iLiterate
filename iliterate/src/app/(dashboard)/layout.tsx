@@ -95,10 +95,10 @@ export default function DashboardLayout({
         <SidebarProvider>
           <AppSidebar />
           <SidebarInset>
-            <div className="flex h-10 items-center px-4 pt-4">
+            <div className="flex h-10 items-center px-4 pt-4 md:hidden">
               <SidebarTrigger className="-ml-1 size-7 text-muted-foreground" />
             </div>
-            <main className="mx-auto w-full max-w-6xl px-8 pb-10">
+            <main className="mx-auto w-full max-w-6xl px-6 pb-10 pt-4 md:px-8 md:pt-8">
               {children}
             </main>
           </SidebarInset>

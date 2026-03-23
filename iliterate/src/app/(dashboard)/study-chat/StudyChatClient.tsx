@@ -395,7 +395,7 @@ export function StudyChatClient() {
     <div className="flex h-full min-h-0 flex-col bg-sidebar/60">
       <div className="border-b border-border/60 px-4 py-4">
         <div className="flex items-center gap-3">
-          <SidebarTrigger className="-ml-1 size-8 text-muted-foreground" />
+          <SidebarTrigger className="-ml-1 size-8 text-muted-foreground md:hidden" />
           <div className="min-w-0">
             <p className="text-sm font-semibold">Study Chat</p>
             <p className="text-xs text-muted-foreground">

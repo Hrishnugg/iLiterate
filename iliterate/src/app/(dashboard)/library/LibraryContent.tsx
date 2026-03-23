@@ -204,7 +204,7 @@ export function LibraryContent({ contents, targetLanguage }: LibraryContentProps
       {/* Main content — scrolls independently */}
       <div className="flex flex-1 flex-col overflow-hidden">
         <div className="flex h-10 shrink-0 items-center px-4 pt-4">
-          <SidebarTrigger className="-ml-1 size-7 text-muted-foreground" />
+          <SidebarTrigger className="-ml-1 size-7 text-muted-foreground md:hidden" />
         </div>
         <div className="flex-1 overflow-y-auto px-8 pb-10">
           <div className="mb-6 pt-2">
