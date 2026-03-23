@@ -2,10 +2,14 @@ import OpenAI from "openai";
 import { getLevelDescription } from "./level-system";
 import { SpeechFormality } from "@/types/database";
 
-// Initialize OpenAI
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// Lazily initialize OpenAI to avoid module-level instantiation during build
+let _openai: OpenAI | null = null;
+function getOpenAI(): OpenAI {
+  if (!_openai) {
+    _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  }
+  return _openai;
+}
 
 // ============================================================================
 // Types
@@ -162,7 +166,7 @@ RESPONSE FORMAT (JSON only, no markdown):
 
 Generate the lesson now:`;
 
-  const response = await openai.chat.completions.create({
+  const response = await getOpenAI().chat.completions.create({
     model: "gpt-4o-mini",
     messages: [{ role: "user", content: prompt }],
     temperature: 0.7,

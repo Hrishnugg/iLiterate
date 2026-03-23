@@ -66,7 +66,7 @@ export function BookmarkButton({ itemType, itemId }: BookmarkButtonProps) {
 
   if (isLoading) {
     return (
-      <Button variant="ghost" size="icon" className="h-8 w-8" disabled>
+      <Button variant="ghost" size="icon" className="h-8 w-8 text-primary-foreground hover:bg-white/20 hover:text-primary-foreground" disabled>
         <Loader2 className="h-4 w-4 animate-spin" />
       </Button>
     );
@@ -76,14 +76,14 @@ export function BookmarkButton({ itemType, itemId }: BookmarkButtonProps) {
     <Button
       variant="ghost"
       size="icon"
-      className="h-8 w-8"
+      className={`h-8 w-8 text-primary-foreground hover:bg-white/20 hover:text-primary-foreground${bookmarked ? " bg-white/30" : ""}`}
       onClick={toggle}
       disabled={isToggling}
       title={bookmarked ? "Remove bookmark" : "Bookmark for later"}
       aria-label={bookmarked ? "Remove bookmark" : "Bookmark for later"}
     >
       {bookmarked ? (
-        <BookmarkCheck className="h-4 w-4 text-primary" />
+        <BookmarkCheck className="h-4 w-4" />
       ) : (
         <Bookmark className="h-4 w-4" />
       )}

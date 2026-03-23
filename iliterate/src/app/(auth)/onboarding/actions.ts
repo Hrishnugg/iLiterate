@@ -28,6 +28,7 @@ export async function completeOnboarding(
     redirect("/login");
   }
 
+  const username = (formData.get("username") as string)?.trim().toLowerCase();
   const targetLanguage = formData.get("target-language") as string;
   const nativeLanguage = formData.get("native-language") as string;
   const ageGroup = formData.get("age-group") as string;
@@ -39,6 +40,10 @@ export async function completeOnboarding(
     10
   );
   const motivations = formData.getAll("motivation") as string[];
+
+  if (!username || username.length < 3 || username.length > 20 || !/^[a-z0-9_]+$/.test(username)) {
+    return { error: "Please choose a valid username (3–20 characters, letters/numbers/underscores only)." };
+  }
 
   if (!targetLanguage || !nativeLanguage) {
     return { error: "Please select both a target and native language." };
@@ -54,6 +59,20 @@ export async function completeOnboarding(
 
   if (!speechFormality || !["casual", "standard", "professional", "academic"].includes(speechFormality)) {
     return { error: "Please select your preferred speech style." };
+  }
+
+  // Save username to public_profiles
+  const { error: usernameError } = await supabase.from("public_profiles").upsert({
+    id: user.id,
+    username,
+    display_name: username,
+  });
+
+  if (usernameError) {
+    if (usernameError.code === "23505") {
+      return { error: "That username is already taken. Please choose another." };
+    }
+    return { error: usernameError.message };
   }
 
   const { error } = await supabase.from("profiles").upsert({

@@ -61,7 +61,7 @@ interface FlagItem {
 /* ── Config ──────────────────────────────────────────────────────────────── */
 const MIN_DIST  = 48;
 const MAX_TRAIL = 20;
-const LIFETIME  = 1300;
+const LIFETIME  = 550;
 
 /* ── Flag subcomponent ───────────────────────────────────────────────────── */
 function TrailFlag({ flag }: { flag: FlagItem }) {
@@ -73,7 +73,7 @@ function TrailFlag({ flag }: { flag: FlagItem }) {
       initial={{ opacity: 0, scale: 0.25, rotate: flag.rotation * 2 }}
       animate={{ opacity: 1,  scale: 1,    rotate: flag.rotation }}
       exit={{    opacity: 0,  scale: 0.55, y: -18,
-        transition: { duration: 0.45, ease: "easeIn" } }}
+        transition: { duration: 0.18, ease: "easeIn" } }}
       transition={{ duration: 0.22, ease: "easeOut" }}
       style={{
         position:      "absolute",

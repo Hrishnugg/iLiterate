@@ -1,0 +1,87 @@
+{
+  "nav": {
+    "learn": "Aprender",
+    "practice": "Praticar",
+    "community": "Comunidade",
+    "lessonPlan": "Plano de aulas",
+    "library": "Biblioteca",
+    "flashcards": "Flashcards",
+    "quizzes": "Questionários",
+    "social": "Social",
+    "leaderboard": "Classificação",
+    "progress": "Progresso",
+    "profile": "Perfil",
+    "search": "Pesquisar..."
+  },
+  "common": {
+    "back": "Voltar",
+    "next": "Próximo",
+    "finish": "Concluir",
+    "save": "Salvar",
+    "cancel": "Cancelar",
+    "loading": "Carregando...",
+    "saving": "Salvando...",
+    "loadMore": "Carregar mais",
+    "viewAll": "Ver tudo",
+    "create": "Criar",
+    "error": "Algo deu errado."
+  },
+  "home": {
+    "title": "Início",
+    "subtitle": "Continue de onde parou, ou comece algo novo."
+  },
+  "flashcards": {
+    "title": "Flashcards",
+    "subtitle": "Revise seu vocabulário salvo.",
+    "startReview": "Iniciar revisão",
+    "viewFlashcards": "Ver flashcards",
+    "viewFlashcardsDesc": "Veja todas as novas palavras que você aprendeu!",
+    "createNew": "Criar novo flashcard",
+    "createNewDesc": "Crie seu próprio flashcard para um termo!",
+    "dueCount": "{count} pendentes",
+    "checkingDue": "Verificando cartões pendentes...",
+    "noDue": "Sem cartões para revisar agora.",
+    "oneCardReady": "1 cartão pronto para revisão.",
+    "cardsReady": "{count} cartões prontos para revisão."
+  },
+  "leaderboard": {
+    "title": "Classificação",
+    "subtitleFriends": "Veja sua posição entre seus amigos",
+    "subtitleGlobal": "Veja sua posição entre outros aprendizes",
+    "global": "Global",
+    "friends": "Amigos",
+    "thisWeek": "Esta semana",
+    "thisMonth": "Este mês",
+    "noFriendActivity": "Sem atividade de amigos neste período.",
+    "findFriends": "Encontrar amigos",
+    "compareScores": "para comparar pontuações!"
+  },
+  "quizzes": {
+    "title": "Questionários",
+    "subtitle": "Teste sua compreensão e ganhe XP",
+    "readyToTake": "Prontos para fazer",
+    "readyToTakeDesc": "Complete estes questionários para ganhar XP pelo conteúdo que você leu",
+    "completed": "Concluídos",
+    "completedDesc": "Seu histórico de questionários",
+    "noQuizzes": "Ainda não há questionários disponíveis. Leia conteúdo da Biblioteca para desbloqueá-los!",
+    "noCompleted": "Ainda não há questionários concluídos",
+    "goToLibrary": "Ir para a Biblioteca",
+    "takeQuiz": "Fazer questionário",
+    "read": "lido"
+  },
+  "library": {
+    "title": "Biblioteca"
+  },
+  "progress": {
+    "title": "Progresso"
+  },
+  "profile": {
+    "title": "Perfil"
+  },
+  "social": {
+    "title": "Social"
+  },
+  "lessonPlan": {
+    "title": "Plano de aulas"
+  }
+}

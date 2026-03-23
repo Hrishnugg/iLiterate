@@ -62,6 +62,15 @@ const skillMeta = {
   grammar: { label: "Grammar", icon: FileText },
 } as const;
 
+const cefrDescription: Record<CEFRLevel, string> = {
+  A1: "Beginner",
+  A2: "Elementary",
+  B1: "Intermediate",
+  B2: "Upper Intermediate",
+  C1: "Advanced",
+  C2: "Proficient",
+};
+
 export default function ProgressPage() {
   const [data, setData] = useState<ProgressData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -115,12 +124,17 @@ export default function ProgressPage() {
           Your Level
         </span>
         <div className="flex items-baseline gap-4">
-          <span className="font-mono text-8xl font-bold tracking-tighter text-primary">
+          <span className="font-mono text-8xl font-bold leading-none tracking-tighter text-foreground">
             {progressInfo.overall.cefr}
           </span>
-          <span className="text-lg text-muted-foreground">
-            Level {progressInfo.overall.level}
-          </span>
+          <div className="relative">
+            <span className="absolute bottom-full mb-1 text-sm font-medium leading-none text-muted-foreground">
+              Level {progressInfo.overall.level}
+            </span>
+            <span className="text-lg leading-none text-muted-foreground">
+              {cefrDescription[progressInfo.overall.cefr]}
+            </span>
+          </div>
         </div>
         {progressInfo.reading.level > 3 && (
           <button
@@ -163,15 +177,15 @@ export default function ProgressPage() {
                       <Icon className="size-3.5 text-primary" />
                       <span className="text-sm font-medium">{meta.label}</span>
                     </div>
-                    <span className="rounded bg-primary/10 px-2 py-0.5 font-mono text-xs font-medium text-primary">
+                    <span className="rounded bg-muted px-2 py-0.5 font-mono text-xs font-medium text-muted-foreground">
                       {info.cefr}
                     </span>
                   </div>
                   <div className="flex flex-col gap-1.5">
-                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-border">
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-border">
                       <div
                         className="h-full rounded-full bg-primary transition-all"
-                        style={{ width: `${info.progress}%` }}
+                        style={{ width: `${Math.max(info.progress, 1)}%` }}
                       />
                     </div>
                     <div className="flex items-center justify-between">

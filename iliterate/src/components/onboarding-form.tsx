@@ -1,6 +1,8 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useState, useRef, startTransition } from "react";
+import { motion, AnimatePresence } from "motion/react";
+import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Check } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -12,22 +14,15 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
-  Field,
-  FieldDescription,
-  FieldError,
-  FieldGroup,
-  FieldLabel,
-} from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
-import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
 import { completeOnboarding } from "@/app/(auth)/onboarding/actions";
+
+// ── Data ──────────────────────────────────────────────────────────────────────
 
 const LANGUAGES = [
   "Arabic",
@@ -45,269 +40,801 @@ const LANGUAGES = [
   "Spanish",
 ];
 
-const MOTIVATIONS = [
-  { id: "travel", label: "Travel" },
-  { id: "career", label: "Career advancement" },
-  { id: "academic", label: "Academic study" },
-  { id: "personal", label: "Personal interest" },
-  { id: "family", label: "Family / Heritage" },
-  { id: "entertainment", label: "Entertainment (movies, music, etc.)" },
+const AGE_GROUPS = [
+  { value: "child", label: "Child", description: "Under 13", emoji: "🧒" },
+  { value: "teen", label: "Teen", description: "13–17", emoji: "🧑" },
+  { value: "adult", label: "Adult", description: "18+", emoji: "🙋" },
+];
+
+const EDUCATION_LEVELS = [
+  { value: "elementary", label: "Elementary" },
+  { value: "middle", label: "Middle School" },
+  { value: "high", label: "High School" },
+  { value: "college", label: "College" },
+  { value: "graduate", label: "Graduate" },
 ];
 
 const PROFICIENCY_LEVELS = [
-  { value: "complete_beginner", label: "Complete beginner", description: "I know little to nothing" },
-  { value: "beginner", label: "Beginner", description: "I know some basics (greetings, numbers)" },
-  { value: "elementary", label: "Elementary", description: "I can form simple sentences" },
-  { value: "intermediate", label: "Intermediate", description: "I can hold basic conversations" },
-  { value: "upper_intermediate", label: "Upper Intermediate", description: "I'm comfortable but not fluent" },
-  { value: "advanced", label: "Advanced", description: "I'm nearly fluent" },
+  {
+    value: "complete_beginner",
+    label: "Complete Beginner",
+    description: "I know little to nothing",
+  },
+  {
+    value: "beginner",
+    label: "Beginner",
+    description: "Some basics — greetings, numbers",
+  },
+  {
+    value: "elementary",
+    label: "Elementary",
+    description: "I can form simple sentences",
+  },
+  {
+    value: "intermediate",
+    label: "Intermediate",
+    description: "I can hold basic conversations",
+  },
+  {
+    value: "upper_intermediate",
+    label: "Upper Intermediate",
+    description: "Comfortable, but not yet fluent",
+  },
+  { value: "advanced", label: "Advanced", description: "Nearly fluent" },
 ];
 
 const FORMALITY_LEVELS = [
-  { value: "casual", label: "Casual", description: "Informal speech for friends & family" },
-  { value: "standard", label: "Standard", description: "Neutral, everyday communication" },
-  { value: "professional", label: "Professional", description: "Business and work contexts" },
-  { value: "academic", label: "Academic", description: "Scholarly, precise language" },
+  {
+    value: "casual",
+    label: "Casual",
+    description: "Informal — friends & family",
+    emoji: "💬",
+  },
+  {
+    value: "standard",
+    label: "Standard",
+    description: "Neutral, everyday communication",
+    emoji: "🗣️",
+  },
+  {
+    value: "professional",
+    label: "Professional",
+    description: "Business and work contexts",
+    emoji: "💼",
+  },
+  {
+    value: "academic",
+    label: "Academic",
+    description: "Scholarly, precise language",
+    emoji: "📖",
+  },
 ];
+
+const MOTIVATIONS = [
+  { id: "travel", label: "Travel", emoji: "✈️" },
+  { id: "career", label: "Career", emoji: "💼" },
+  { id: "academic", label: "Academic", emoji: "📚" },
+  { id: "personal", label: "Personal Interest", emoji: "🌟" },
+  { id: "family", label: "Family / Heritage", emoji: "❤️" },
+  { id: "entertainment", label: "Entertainment", emoji: "🎬" },
+];
+
+const STEPS = [
+  {
+    title: "What would you like to learn?",
+    description: "Choose your target and native language.",
+  },
+  {
+    title: "Tell us about yourself",
+    description: "Help us tailor content to your background.",
+  },
+  {
+    title: "What's your current level?",
+    description: "We'll match you with the right content.",
+  },
+  {
+    title: "How do you want to learn?",
+    description: "Choose the speech style that fits your goals.",
+  },
+  {
+    title: "Why are you learning?",
+    description: "Select all that apply.",
+  },
+  {
+    title: "Choose your username",
+    description: "",
+  },
+];
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+type FormState = {
+  username: string;
+  targetLanguage: string;
+  nativeLanguage: string;
+  ageGroup: string;
+  educationLevel: string;
+  yearsLearning: string;
+  proficiencyLevel: string;
+  speechFormality: string;
+  motivations: string[];
+  platformLanguage: "target" | "native";
+};
+
+// ── YearsPicker ───────────────────────────────────────────────────────────────
+
+function YearsPicker({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const num = Math.max(0, Math.min(50, parseInt(value) || 0));
+  const prevNumRef = useRef(num);
+  const [direction, setDirection] = useState(0);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+
+  const set = (next: number) => {
+    const clamped = Math.max(0, Math.min(50, next));
+    prevNumRef.current = num;
+    setDirection(next >= num ? 1 : -1);
+    onChange(String(clamped));
+  };
+
+  const commitDraft = () => {
+    const parsed = parseInt(draft);
+    if (!isNaN(parsed)) {
+      const clamped = Math.max(0, Math.min(50, parsed));
+      prevNumRef.current = num;
+      setDirection(clamped >= num ? 1 : -1);
+      onChange(String(clamped));
+    } else {
+      onChange(value);
+    }
+    setEditing(false);
+  };
+
+  const currentDigits = String(num).split("");
+  const prevDigits = String(prevNumRef.current).split("");
+
+  return (
+    <div className="flex items-center">
+      {/* Stacked chevrons */}
+      <div className="mr-2 flex flex-col">
+        <button
+          type="button"
+          onClick={() => set(num + 1)}
+          disabled={num >= 50}
+          className="flex size-5 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-30"
+        >
+          <ChevronUp className="size-4" />
+        </button>
+        <button
+          type="button"
+          onClick={() => set(num - 1)}
+          disabled={num <= 0}
+          className="flex size-5 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-30"
+        >
+          <ChevronDown className="size-4" />
+        </button>
+      </div>
+
+      {/* Digit display — click to edit */}
+      <div
+        className="relative flex cursor-text items-center text-5xl font-bold tabular-nums leading-none text-foreground"
+        onClick={() => { setDraft(String(num)); setEditing(true); }}
+        onWheel={(e) => { e.preventDefault(); set(num + (e.deltaY < 0 ? 1 : -1)); }}
+      >
+        {/* Always rendered — establishes the container size */}
+        <div className={`flex ${editing ? "invisible" : ""}`}>
+          {currentDigits.map((digit, i) => {
+            const posFromRight = currentDigits.length - 1 - i;
+            const prevIdx = prevDigits.length - 1 - posFromRight;
+            const prevDigit = prevIdx >= 0 ? prevDigits[prevIdx] : null;
+            const changed = prevDigit !== digit;
+
+            return (
+              <span
+                key={`pos-${posFromRight}`}
+                className="relative block h-[1em] w-[1ch] overflow-hidden"
+              >
+                {changed ? (
+                  <AnimatePresence mode="popLayout" custom={direction}>
+                    <motion.span
+                      key={digit}
+                      custom={direction}
+                      variants={{
+                        enter: (d: number) => ({ y: d > 0 ? "100%" : "-100%" }),
+                        center: { y: "0%" },
+                        exit: (d: number) => ({ y: d > 0 ? "-100%" : "100%" }),
+                      }}
+                      initial="enter"
+                      animate="center"
+                      exit="exit"
+                      transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+                      className="absolute inset-0 flex items-center justify-center select-none"
+                    >
+                      {digit}
+                    </motion.span>
+                  </AnimatePresence>
+                ) : (
+                  <span className="absolute inset-0 flex items-center justify-center select-none">
+                    {digit}
+                  </span>
+                )}
+              </span>
+            );
+          })}
+        </div>
+
+        {/* Input overlays exactly when editing — no layout shift */}
+        {editing && (
+          <input
+            autoFocus
+            type="number"
+            min={0}
+            max={50}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onBlur={commitDraft}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") commitDraft();
+              if (e.key === "Escape") setEditing(false);
+            }}
+            className="absolute inset-0 bg-transparent text-left text-5xl font-bold tabular-nums text-foreground outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+          />
+        )}
+      </div>
+
+    </div>
+  );
+}
+
+// ── OptionTile ────────────────────────────────────────────────────────────────
+
+function OptionTile({
+  selected,
+  onClick,
+  label,
+  description,
+  emoji,
+  className,
+}: {
+  selected: boolean;
+  onClick: () => void;
+  label: string;
+  description?: string;
+  emoji?: string;
+  className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "group relative flex flex-col gap-1 rounded-xl border-2 p-3 text-left text-sm",
+        "transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
+        selected
+          ? "border-primary bg-primary/5 shadow-sm"
+          : "border-border bg-card hover:border-primary/40 hover:bg-muted/20",
+        className
+      )}
+    >
+      {emoji && (
+        <span className="text-xl leading-none" aria-hidden>
+          {emoji}
+        </span>
+      )}
+      <span
+        className={cn(
+          "font-medium leading-tight pr-5",
+          selected ? "text-primary" : "text-foreground"
+        )}
+      >
+        {label}
+      </span>
+      {description && (
+        <span className="text-xs leading-snug text-muted-foreground">
+          {description}
+        </span>
+      )}
+      <AnimatePresence>
+        {selected && (
+          <motion.div
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0, opacity: 0 }}
+            transition={{ duration: 0.15, ease: "backOut" }}
+            className="absolute right-2 top-2 flex size-5 items-center justify-center rounded-full bg-primary text-primary-foreground"
+          >
+            <Check className="size-3" strokeWidth={3} />
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </button>
+  );
+}
+
+// ── Slide variants ────────────────────────────────────────────────────────────
+
+const slideVariants = {
+  enter: (dir: number) => ({ x: dir * 40, opacity: 0 }),
+  center: { x: 0, opacity: 1 },
+  exit: (dir: number) => ({ x: dir * -40, opacity: 0 }),
+};
+
+// ── OnboardingForm ────────────────────────────────────────────────────────────
 
 export function OnboardingForm({
   className,
   ...props
 }: React.ComponentProps<"div">) {
-  const [state, formAction, pending] = useActionState(
+  const [actionState, formAction, pending] = useActionState(
     completeOnboarding,
     null
   );
 
-  const [targetLanguage, setTargetLanguage] = useState("");
-  const [nativeLanguage, setNativeLanguage] = useState("");
-  const [ageGroup, setAgeGroup] = useState("");
-  const [educationLevel, setEducationLevel] = useState("");
-  const [proficiencyLevel, setProficiencyLevel] = useState("");
-  const [speechFormality, setSpeechFormality] = useState("standard");
-  const [motivations, setMotivations] = useState<string[]>([]);
+  const [step, setStep] = useState(0);
+  const [direction, setDirection] = useState(1);
+  const [failedFields, setFailedFields] = useState<string[]>([]);
+  const [flashKey, setFlashKey] = useState(0);
 
-  const handleMotivationChange = (id: string, checked: boolean) => {
-    setMotivations((prev) =>
-      checked ? [...prev, id] : prev.filter((m) => m !== id)
-    );
+  const [form, setForm] = useState<FormState>({
+    username: "",
+    targetLanguage: "",
+    nativeLanguage: "",
+    ageGroup: "",
+    educationLevel: "",
+    yearsLearning: "0",
+    proficiencyLevel: "",
+    speechFormality: "standard",
+    motivations: [],
+    platformLanguage: "native",
+  });
+
+  const update = <K extends keyof FormState>(key: K, value: FormState[K]) => {
+    setForm((prev) => ({ ...prev, [key]: value }));
+    setFailedFields((prev) => prev.filter((f) => f !== key));
+  };
+
+  const toggleMotivation = (id: string) => {
+    setForm((prev) => ({
+      ...prev,
+      motivations: prev.motivations.includes(id)
+        ? prev.motivations.filter((m) => m !== id)
+        : [...prev.motivations, id],
+    }));
+  };
+
+  const getFailedFields = (): string[] => {
+    switch (step) {
+      case 0: {
+        const failed = [];
+        if (!form.targetLanguage) failed.push("targetLanguage");
+        if (!form.nativeLanguage) failed.push("nativeLanguage");
+        return failed;
+      }
+      case 1: {
+        const failed = [];
+        if (!form.ageGroup) failed.push("ageGroup");
+        if (!form.educationLevel) failed.push("educationLevel");
+        return failed;
+      }
+      case 2:
+        return form.proficiencyLevel ? [] : ["proficiencyLevel"];
+      case 3:
+        return form.speechFormality ? [] : ["speechFormality"];
+      case 5: {
+        const u = form.username;
+        if (!u || u.length < 3 || u.length > 20 || !/^[a-z0-9_]+$/.test(u)) {
+          return ["username"];
+        }
+        return [];
+      }
+      default:
+        return [];
+    }
+  };
+
+  const goNext = () => {
+    const failed = getFailedFields();
+    if (failed.length > 0) {
+      setFailedFields(failed);
+      setFlashKey((k) => k + 1);
+      return;
+    }
+    setFailedFields([]);
+    setDirection(1);
+    setStep((s) => s + 1);
+  };
+
+  const goBack = () => {
+    setFailedFields([]);
+    setDirection(-1);
+    setStep((s) => s - 1);
+  };
+
+  const handleSubmit = () => {
+    const fd = new FormData();
+    fd.set("username", form.username);
+    fd.set("target-language", form.targetLanguage);
+    fd.set("native-language", form.nativeLanguage);
+    fd.set("age-group", form.ageGroup);
+    fd.set("education-level", form.educationLevel);
+    fd.set("years-learning", form.yearsLearning);
+    fd.set("proficiency-level", form.proficiencyLevel);
+    fd.set("speech-formality", form.speechFormality);
+    fd.set("platform-language", form.platformLanguage);
+    form.motivations.forEach((m) => fd.append("motivation", m));
+    startTransition(() => formAction(fd));
+  };
+
+  const isLast = step === STEPS.length - 1;
+  const currentStep = STEPS[step];
+
+  const renderContent = () => {
+    switch (step) {
+      // ── Step 0: Languages ──────────────────────────────────────────────────
+      case 0:
+        return (
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium" htmlFor="target-language">
+                I want to learn
+              </label>
+              <div key={failedFields.includes("targetLanguage") ? `tl-${flashKey}` : "tl"} className={cn(failedFields.includes("targetLanguage") && "field-flash")}>
+                <Select
+                  value={form.targetLanguage}
+                  onValueChange={(v) => update("targetLanguage", v)}
+                >
+                  <SelectTrigger id="target-language" className={cn("h-11", failedFields.includes("targetLanguage") && "border-destructive")}>
+                    <SelectValue placeholder="Select a language…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {LANGUAGES.map((lang) => (
+                      <SelectItem
+                        key={lang}
+                        value={lang.toLowerCase()}
+                        disabled={lang.toLowerCase() === form.nativeLanguage}
+                      >
+                        {lang}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium" htmlFor="native-language">
+                My native language is
+              </label>
+              <div key={failedFields.includes("nativeLanguage") ? `nl-${flashKey}` : "nl"} className={cn(failedFields.includes("nativeLanguage") && "field-flash")}>
+                <Select
+                  value={form.nativeLanguage}
+                  onValueChange={(v) => update("nativeLanguage", v)}
+                >
+                  <SelectTrigger id="native-language" className={cn("h-11", failedFields.includes("nativeLanguage") && "border-destructive")}>
+                    <SelectValue placeholder="Select your native language…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {LANGUAGES.map((lang) => (
+                      <SelectItem
+                        key={lang}
+                        value={lang.toLowerCase()}
+                        disabled={lang.toLowerCase() === form.targetLanguage}
+                      >
+                        {lang}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+        );
+
+      // ── Step 1: About You ──────────────────────────────────────────────────
+      case 1:
+        return (
+          <div className="flex flex-col gap-5">
+            <div>
+              <p className="mb-2.5 text-sm font-medium">Age group</p>
+              <div key={failedFields.includes("ageGroup") ? `ag-${flashKey}` : "ag"} className={cn("grid grid-cols-3 gap-2 rounded-xl", failedFields.includes("ageGroup") && "ring-2 ring-destructive field-flash")}>
+                {AGE_GROUPS.map((a) => (
+                  <OptionTile
+                    key={a.value}
+                    selected={form.ageGroup === a.value}
+                    onClick={() => update("ageGroup", a.value)}
+                    label={a.label}
+                    description={a.description}
+                    emoji={a.emoji}
+                  />
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="mb-2.5 text-sm font-medium">Education level</p>
+              <div key={failedFields.includes("educationLevel") ? `el-${flashKey}` : "el"} className={cn("grid grid-cols-2 gap-2 rounded-xl sm:grid-cols-3", failedFields.includes("educationLevel") && "ring-2 ring-destructive field-flash")}>
+                {EDUCATION_LEVELS.map((e) => (
+                  <OptionTile
+                    key={e.value}
+                    selected={form.educationLevel === e.value}
+                    onClick={() => update("educationLevel", e.value)}
+                    label={e.label}
+                  />
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="mb-2.5 text-sm font-medium">Platform language</p>
+              <p className="mb-2.5 text-xs text-muted-foreground">Which language should the app interface be displayed in?</p>
+              <div className="grid grid-cols-2 gap-2">
+                <OptionTile
+                  selected={form.platformLanguage === "native"}
+                  onClick={() => update("platformLanguage", "native")}
+                  label="Native language"
+                  description="Familiar — learn with your own language as context"
+                />
+                <OptionTile
+                  selected={form.platformLanguage === "target"}
+                  onClick={() => update("platformLanguage", "target")}
+                  label="Target language"
+                  description="Immersive — everything in the language you're learning"
+                />
+              </div>
+            </div>
+          </div>
+        );
+
+      // ── Step 2: Experience ─────────────────────────────────────────────────
+      case 2:
+        return (
+          <div className="flex flex-col gap-5">
+            <div>
+              <p className="mb-2.5 text-sm font-medium">Current proficiency</p>
+              <div key={failedFields.includes("proficiencyLevel") ? `pl-${flashKey}` : "pl"} className={cn("flex flex-col gap-1.5 rounded-xl", failedFields.includes("proficiencyLevel") && "ring-2 ring-destructive field-flash")}>
+                {PROFICIENCY_LEVELS.map((p) => (
+                  <OptionTile
+                    key={p.value}
+                    selected={form.proficiencyLevel === p.value}
+                    onClick={() => update("proficiencyLevel", p.value)}
+                    label={p.label}
+                    description={p.description}
+                  />
+                ))}
+              </div>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <p className="text-sm font-medium">Years of prior study</p>
+              <YearsPicker
+                value={form.yearsLearning}
+                onChange={(v) => update("yearsLearning", v)}
+              />
+            </div>
+          </div>
+        );
+
+      // ── Step 3: Learning Style ─────────────────────────────────────────────
+      case 3:
+        return (
+          <div className="grid grid-cols-2 gap-2">
+            {FORMALITY_LEVELS.map((f) => (
+              <OptionTile
+                key={f.value}
+                selected={form.speechFormality === f.value}
+                onClick={() => update("speechFormality", f.value)}
+                label={f.label}
+                description={f.description}
+                emoji={f.emoji}
+              />
+            ))}
+          </div>
+        );
+
+      // ── Step 4: Goals ──────────────────────────────────────────────────────
+      case 4:
+        return (
+          <div className="grid grid-cols-2 gap-2">
+            {MOTIVATIONS.map((m) => (
+              <OptionTile
+                key={m.id}
+                selected={form.motivations.includes(m.id)}
+                onClick={() => toggleMotivation(m.id)}
+                label={m.label}
+                emoji={m.emoji}
+              />
+            ))}
+          </div>
+        );
+
+      // ── Step 5: Username ───────────────────────────────────────────────────
+      case 5: {
+        const isInvalid = failedFields.includes("username");
+        const usernameOk =
+          form.username.length >= 3 &&
+          form.username.length <= 20 &&
+          /^[a-z0-9_]+$/.test(form.username);
+        return (
+          <div className="flex flex-col gap-0">
+            {/* Input row */}
+            <div
+              key={isInvalid ? `un-${flashKey}` : "un"}
+              className={cn(
+                "flex items-center gap-2 pb-2 pt-3.5 transition-all duration-200",
+                isInvalid && "field-flash"
+              )}
+            >
+              {/* @ prefix */}
+              <span
+                className={cn(
+                  "shrink-0 select-none font-mono font-bold leading-none transition-colors duration-200",
+                  isInvalid ? "text-destructive" : "text-primary"
+                )}
+                style={{ fontSize: "2rem" }}
+              >
+                @
+              </span>
+
+              {/* Text input */}
+              <input
+                id="username"
+                type="text"
+                value={form.username}
+                onChange={(e) => {
+                  const clean = e.target.value
+                    .toLowerCase()
+                    .replace(/[^a-z0-9_]/g, "")
+                    .slice(0, 20);
+                  update("username", clean);
+                }}
+                placeholder="your_handle"
+                maxLength={20}
+                autoComplete="username"
+                spellCheck={false}
+                autoFocus
+                className="min-w-0 flex-1 bg-transparent font-mono text-2xl font-semibold tracking-wide text-foreground outline-none placeholder:text-muted-foreground/40"
+              />
+            </div>
+
+            {/* Divider */}
+            <div className={cn("border-t", isInvalid ? "border-destructive" : usernameOk ? "border-primary" : "border-border")} />
+
+            {/* Below-box row: hint + char count */}
+            <div className="flex items-center justify-between pt-1.5">
+              <p className={cn("text-xs", isInvalid ? "text-destructive" : "text-muted-foreground")}>
+                {isInvalid
+                  ? form.username.length < 3
+                    ? "Must be at least 3 characters."
+                    : "Only lowercase letters (a–z), numbers, and underscores."
+                  : "Lowercase letters, numbers, and underscores only."}
+              </p>
+              <span
+                className={cn(
+                  "font-mono text-xs tabular-nums transition-colors",
+                  form.username.length >= 18
+                    ? "text-destructive"
+                    : "text-muted-foreground/50"
+                )}
+              >
+                {form.username.length}/20
+              </span>
+            </div>
+          </div>
+        );
+      }
+
+      default:
+        return null;
+    }
   };
 
   return (
-    <div className={cn("flex flex-col gap-6", className)} {...props}>
-      <Card>
-        <CardHeader className="text-center">
-          <CardTitle className="text-xl">Set up your profile</CardTitle>
-          <CardDescription>
-            Tell us about yourself so we can personalize your experience
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form action={formAction}>
-            <FieldGroup>
-              {state?.error && <FieldError>{state.error}</FieldError>}
-              <Field>
-                <FieldLabel htmlFor="target-language">
-                  What language do you want to learn?
-                </FieldLabel>
-                <Select
-                  name="target-language"
-                  value={targetLanguage}
-                  onValueChange={setTargetLanguage}
-                  required
-                  disabled={pending}
-                >
-                  <SelectTrigger id="target-language">
-                    <SelectValue placeholder="Select a language" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {LANGUAGES.map((lang) => (
-                      <SelectItem key={lang} value={lang.toLowerCase()}>
-                        {lang}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
+    <div className={cn("w-full", className)} {...props}>
+      <style>{`
+        @keyframes field-shake {
+          0%, 100% { transform: translateX(0); }
+          20%  { transform: translateX(-3px); }
+          40%  { transform: translateX(3px); }
+          60%  { transform: translateX(-2px); }
+          80%  { transform: translateX(2px); }
+        }
+        .field-flash { animation: field-shake 0.4s ease-in-out; }
+      `}</style>
+      <Card className="pb-0">
+        {/* Animated content — card frame stays fixed, content slides within.
+            layout animates height morphing; popLayout immediately removes exiting
+            element from flow so the container adopts the new height, then layout
+            animates the delta. position:relative is required for popLayout's
+            absolute-positioned exiting children to anchor correctly. */}
+        <motion.div
+          layout
+          style={{ position: "relative", overflow: "hidden" }}
+          transition={{ layout: { duration: 0.3, ease: [0.22, 1, 0.36, 1] } }}
+        >
+          <AnimatePresence mode="popLayout" custom={direction}>
+            <motion.div
+              key={step}
+              custom={direction}
+              variants={slideVariants}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <CardHeader className="pb-2">
+                <CardTitle className="mt-1 text-xl leading-snug">
+                  {currentStep.title}
+                </CardTitle>
+                <CardDescription className="text-sm">
+                  {currentStep.description}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pb-0">
+                {renderContent()}
+                {actionState?.error && (
+                  <p className="mt-4 text-sm text-destructive">
+                    {actionState.error}
+                  </p>
+                )}
+              </CardContent>
+            </motion.div>
+          </AnimatePresence>
+        </motion.div>
 
-              <Field>
-                <FieldLabel htmlFor="native-language">
-                  What is your native language?
-                </FieldLabel>
-                <Select
-                  name="native-language"
-                  value={nativeLanguage}
-                  onValueChange={setNativeLanguage}
-                  required
-                  disabled={pending}
-                >
-                  <SelectTrigger id="native-language">
-                    <SelectValue placeholder="Select your native language" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {LANGUAGES.map((lang) => (
-                      <SelectItem key={lang} value={lang.toLowerCase()}>
-                        {lang}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-
-              <Field className="grid grid-cols-2 gap-4">
-                <Field>
-                  <FieldLabel htmlFor="age-group">Age group</FieldLabel>
-                  <Select
-                    name="age-group"
-                    value={ageGroup}
-                    onValueChange={setAgeGroup}
-                    required
-                    disabled={pending}
-                  >
-                    <SelectTrigger id="age-group">
-                      <SelectValue placeholder="Select" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="child">Child</SelectItem>
-                      <SelectItem value="teen">Teen</SelectItem>
-                      <SelectItem value="adult">Adult</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="education-level">
-                    Education level
-                  </FieldLabel>
-                  <Select
-                    name="education-level"
-                    value={educationLevel}
-                    onValueChange={setEducationLevel}
-                    required
-                    disabled={pending}
-                  >
-                    <SelectTrigger id="education-level">
-                      <SelectValue placeholder="Select" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="elementary">Elementary</SelectItem>
-                      <SelectItem value="middle">Middle School</SelectItem>
-                      <SelectItem value="high">High School</SelectItem>
-                      <SelectItem value="college">College</SelectItem>
-                      <SelectItem value="graduate">Graduate</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </Field>
-              </Field>
-
-              <Field>
-                <FieldLabel htmlFor="years-learning">
-                  Years of prior study
-                </FieldLabel>
-                <Input
-                  id="years-learning"
-                  name="years-learning"
-                  type="number"
-                  min={0}
-                  max={50}
-                  placeholder="0"
-                  disabled={pending}
-                  required
-                />
-                <FieldDescription>
-                  How many years have you studied this language?
-                </FieldDescription>
-              </Field>
-
-              <Field>
-                <FieldLabel htmlFor="proficiency-level">
-                  How would you rate your current level?
-                </FieldLabel>
-                <Select
-                  name="proficiency-level"
-                  value={proficiencyLevel}
-                  onValueChange={setProficiencyLevel}
-                  required
-                  disabled={pending}
-                >
-                  <SelectTrigger id="proficiency-level">
-                    <SelectValue placeholder="Select your level" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {PROFICIENCY_LEVELS.map((level) => (
-                      <SelectItem key={level.value} value={level.value}>
-                        <span className="font-medium">{level.label}</span>
-                        <span className="text-muted-foreground"> — {level.description}</span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FieldDescription>
-                  This helps us personalize content to your skill level.
-                </FieldDescription>
-              </Field>
-
-              <Field>
-                <FieldLabel htmlFor="speech-formality">
-                  What style of speech do you want to learn?
-                </FieldLabel>
-                <Select
-                  name="speech-formality"
-                  value={speechFormality}
-                  onValueChange={setSpeechFormality}
-                  required
-                  disabled={pending}
-                >
-                  <SelectTrigger id="speech-formality">
-                    <SelectValue placeholder="Select speech style" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {FORMALITY_LEVELS.map((level) => (
-                      <SelectItem key={level.value} value={level.value}>
-                        <span className="font-medium">{level.label}</span>
-                        <span className="text-muted-foreground"> — {level.description}</span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FieldDescription>
-                  This affects the vocabulary and tone of generated content.
-                </FieldDescription>
-              </Field>
-
-              <Field>
-                <FieldLabel>Why are you learning?</FieldLabel>
-                <FieldDescription>Select all that apply.</FieldDescription>
-                <div className="grid grid-cols-2 gap-3 pt-1">
-                  {MOTIVATIONS.map((motivation) => (
-                    <label
-                      key={motivation.id}
-                      htmlFor={`motivation-${motivation.id}`}
-                      className="flex items-center gap-2 text-sm"
-                    >
-                      <Checkbox
-                        id={`motivation-${motivation.id}`}
-                        name="motivations"
-                        value={motivation.id}
-                        checked={motivations.includes(motivation.id)}
-                        onCheckedChange={(checked) =>
-                          handleMotivationChange(motivation.id, checked === true)
-                        }
-                        disabled={pending}
-                      />
-                      {motivation.label}
-                    </label>
-                  ))}
-                </div>
-              </Field>
-
-              <Field>
-                <Button type="submit" className="w-full" disabled={pending}>
-                  {pending ? "Saving..." : "Continue"}
-                </Button>
-              </Field>
-            </FieldGroup>
-          </form>
-        </CardContent>
+        {/* Static footer nav — always visible */}
+        <div className="relative flex items-center justify-end px-6 pb-6">
+          {step > 0 && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={goBack}
+              disabled={pending}
+              className="mr-auto gap-1"
+            >
+              <ChevronLeft className="size-4" />
+              Back
+            </Button>
+          )}
+          {/* Progress dots */}
+          <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-1.5">
+            {STEPS.map((_, i) => (
+              <motion.div
+                key={i}
+                animate={{
+                  width: i === step ? "1.5rem" : "0.5rem",
+                  opacity: i <= step ? 1 : 0.3,
+                }}
+                transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                className={cn(
+                  "h-2 rounded-full",
+                  i <= step ? "bg-primary" : "bg-muted-foreground/30"
+                )}
+              />
+            ))}
+          </div>
+          {isLast ? (
+            <Button
+              type="button"
+              onClick={handleSubmit}
+              disabled={pending}
+              className="min-w-[5rem]"
+            >
+              {pending ? "Saving…" : "Finish"}
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              onClick={goNext}
+              className="min-w-[5rem] gap-1"
+            >
+              Next
+              <ChevronRight className="size-4" />
+            </Button>
+          )}
+        </div>
       </Card>
     </div>
   );

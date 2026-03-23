@@ -11,7 +11,7 @@ import {
 
 // Validation schema
 const generateLessonSchema = z.object({
-  topic: z.string().optional(),
+  topics: z.array(z.string()).max(3).optional(),
   length: z.enum(["short", "medium", "long"]).default("medium"),
   useSuggestedTopic: z.boolean().default(true),
 });
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { topic: requestedTopic, length, useSuggestedTopic } = validationResult.data;
+    const { topics: requestedTopics, length, useSuggestedTopic } = validationResult.data;
 
     // Get user's profile for language, motivations, and formality
     const { data: profile } = await supabase
@@ -69,25 +69,26 @@ export async function POST(request: NextRequest) {
 
     const targetLevel = skillLevels?.reading_level || 1;
 
-    // Determine topic
-    let topic: string;
-    if (requestedTopic) {
-      topic = requestedTopic;
+    // Determine topics (stored in DB as array) and prompt topic string
+    let resolvedTopics: string[];
+    if (requestedTopics && requestedTopics.length > 0) {
+      resolvedTopics = requestedTopics;
     } else if (useSuggestedTopic && profile.learning_motivation?.length > 0) {
-      topic = suggestTopic(profile.learning_motivation);
+      resolvedTopics = [suggestTopic(profile.learning_motivation)];
     } else {
       // Random topic
-      topic = LESSON_TOPICS[Math.floor(Math.random() * LESSON_TOPICS.length)].id;
+      resolvedTopics = [LESSON_TOPICS[Math.floor(Math.random() * LESSON_TOPICS.length)].id];
     }
 
-    const topicInfo = getTopicInfo(topic);
+    const promptTopic = resolvedTopics.map((id) => getTopicInfo(id).name).join(" and ");
+    const topicInfo = getTopicInfo(resolvedTopics[0]);
 
     // Generate the lesson content
     const lessonContent = await generateLesson({
       targetLevel,
       language: profile.target_language,
       nativeLanguage: profile.native_language,
-      topic: topicInfo.name,
+      topic: promptTopic,
       length: length as LessonLength,
       formality: profile.speech_formality || "standard",
     });
@@ -100,7 +101,7 @@ export async function POST(request: NextRequest) {
         title: lessonContent.title,
         content_body: lessonContent.body,
         target_level: targetLevel,
-        topic: topic,
+        topics: resolvedTopics,
         length_type: length,
         word_count: lessonContent.wordCount,
         vocabulary: lessonContent.vocabulary,

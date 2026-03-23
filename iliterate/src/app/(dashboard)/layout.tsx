@@ -8,8 +8,11 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
+import { SearchProvider } from "@/components/search/SearchContext";
+import { SearchModal } from "@/components/search/SearchModal";
+import { I18nProvider } from "@/lib/i18n/I18nProvider";
 
-type LayoutMode = "chrome" | "immersive" | "split";
+type LayoutMode = "chrome" | "immersive" | "split" | "library";
 
 function deriveLayoutMode(pathname: string | null): LayoutMode {
   if (!pathname) return "chrome";
@@ -22,6 +25,11 @@ function deriveLayoutMode(pathname: string | null): LayoutMode {
   // Split: social/messaging
   if (pathname === "/social" || pathname.startsWith("/social/")) {
     return "split";
+  }
+
+  // Library: full-height layout with right filter panel
+  if (pathname === "/library") {
+    return "library";
   }
 
   return "chrome";
@@ -43,27 +51,54 @@ export default function DashboardLayout({
   // Split mode: sidebar collapses to icon rail
   if (layoutMode === "split") {
     return (
-      <SidebarProvider defaultOpen={false}>
-        <AppSidebar />
-        <SidebarInset>
-          <main className="h-screen">{children}</main>
-        </SidebarInset>
-      </SidebarProvider>
+      <I18nProvider>
+        <SearchProvider>
+          <SearchModal />
+          <SidebarProvider defaultOpen={false}>
+            <AppSidebar />
+            <SidebarInset>
+              <main className="h-screen">{children}</main>
+            </SidebarInset>
+          </SidebarProvider>
+        </SearchProvider>
+      </I18nProvider>
+    );
+  }
+
+  // Library mode: children own the full SidebarInset height including the trigger header
+  if (layoutMode === "library") {
+    return (
+      <I18nProvider>
+        <SearchProvider>
+          <SearchModal />
+          <SidebarProvider>
+            <AppSidebar />
+            <SidebarInset className="flex overflow-hidden">
+              {children}
+            </SidebarInset>
+          </SidebarProvider>
+        </SearchProvider>
+      </I18nProvider>
     );
   }
 
   // Chrome mode: collapsible sidebar
   return (
-    <SidebarProvider>
-      <AppSidebar />
-      <SidebarInset>
-        <div className="flex h-10 items-center px-4 pt-4">
-          <SidebarTrigger className="-ml-1 size-7 text-muted-foreground" />
-        </div>
-        <main className="mx-auto w-full max-w-6xl px-8 pb-10">
-          {children}
-        </main>
-      </SidebarInset>
-    </SidebarProvider>
+    <I18nProvider>
+      <SearchProvider>
+        <SearchModal />
+        <SidebarProvider>
+          <AppSidebar />
+          <SidebarInset>
+            <div className="flex h-10 items-center px-4 pt-4">
+              <SidebarTrigger className="-ml-1 size-7 text-muted-foreground" />
+            </div>
+            <main className="mx-auto w-full max-w-6xl px-8 pb-10">
+              {children}
+            </main>
+          </SidebarInset>
+        </SidebarProvider>
+      </SearchProvider>
+    </I18nProvider>
   );
 }

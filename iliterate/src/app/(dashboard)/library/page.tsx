@@ -4,21 +4,22 @@ import { LibraryContent } from "./LibraryContent";
 export default async function LibraryPage() {
   const supabase = await createClient();
 
-  const { data: contents } = await supabase
-    .from("content")
-    .select("*")
-    .order("created_at", { ascending: false });
+  const [{ data: contents }, { data: { user } }] = await Promise.all([
+    supabase.from("content").select("*").is("user_id", null).order("created_at", { ascending: false }),
+    supabase.auth.getUser(),
+  ]);
+
+  let targetLanguage: string | null = null;
+  if (user) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("target_language")
+      .eq("id", user.id)
+      .single();
+    targetLanguage = profile?.target_language ?? null;
+  }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Library</h1>
-        <p className="text-muted-foreground mt-2">
-          Browse content in your target language.
-        </p>
-      </div>
-
-      <LibraryContent contents={contents || []} />
-    </div>
+    <LibraryContent contents={contents || []} targetLanguage={targetLanguage} />
   );
 }

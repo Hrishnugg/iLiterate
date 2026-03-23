@@ -1,0 +1,87 @@
+{
+  "nav": {
+    "learn": "Learn",
+    "practice": "Practice",
+    "community": "Community",
+    "lessonPlan": "Lesson Plan",
+    "library": "Library",
+    "flashcards": "Flashcards",
+    "quizzes": "Quizzes",
+    "social": "Social",
+    "leaderboard": "Leaderboard",
+    "progress": "Progress",
+    "profile": "Profile",
+    "search": "Search..."
+  },
+  "common": {
+    "back": "Back",
+    "next": "Next",
+    "finish": "Finish",
+    "save": "Save",
+    "cancel": "Cancel",
+    "loading": "Loading...",
+    "saving": "Saving...",
+    "loadMore": "Load More",
+    "viewAll": "View All",
+    "create": "Create",
+    "error": "Something went wrong."
+  },
+  "home": {
+    "title": "Home",
+    "subtitle": "Pick up where you left off, or start something new."
+  },
+  "flashcards": {
+    "title": "Flashcards",
+    "subtitle": "Review your saved vocabulary.",
+    "startReview": "Start Review",
+    "viewFlashcards": "View Flashcards",
+    "viewFlashcardsDesc": "Look at all the new words you've learned so far!",
+    "createNew": "Create New Flashcard",
+    "createNewDesc": "Create your own flashcard for a term!",
+    "dueCount": "{count} due",
+    "checkingDue": "Checking due cards...",
+    "noDue": "No cards due for review right now.",
+    "oneCardReady": "1 card is ready for review.",
+    "cardsReady": "{count} cards are ready for review."
+  },
+  "leaderboard": {
+    "title": "Leaderboard",
+    "subtitleFriends": "See how you rank among your friends",
+    "subtitleGlobal": "See how you rank against other learners",
+    "global": "Global",
+    "friends": "Friends",
+    "thisWeek": "This Week",
+    "thisMonth": "This Month",
+    "noFriendActivity": "No friend activity this period.",
+    "findFriends": "Find friends",
+    "compareScores": "to compare scores!"
+  },
+  "quizzes": {
+    "title": "Quizzes",
+    "subtitle": "Test your comprehension and earn XP",
+    "readyToTake": "Ready to Take",
+    "readyToTakeDesc": "Complete these quizzes to earn XP for content you've read",
+    "completed": "Completed",
+    "completedDesc": "Your quiz history",
+    "noQuizzes": "No quizzes available yet. Read some content from the Library to unlock quizzes!",
+    "noCompleted": "No completed quizzes yet",
+    "goToLibrary": "Go to Library",
+    "takeQuiz": "Take Quiz",
+    "read": "read"
+  },
+  "library": {
+    "title": "Library"
+  },
+  "progress": {
+    "title": "Progress"
+  },
+  "profile": {
+    "title": "Profile"
+  },
+  "social": {
+    "title": "Social"
+  },
+  "lessonPlan": {
+    "title": "Lesson Plan"
+  }
+}

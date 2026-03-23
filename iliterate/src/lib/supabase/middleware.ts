@@ -77,5 +77,31 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(new URL("/library", request.url));
   }
 
+  // Redirect authenticated users who have completed onboarding away from /onboarding
+  if (user && pathname.startsWith("/onboarding")) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("id", user.id)
+      .single();
+
+    if (profile) {
+      return NextResponse.redirect(new URL("/library", request.url));
+    }
+  }
+
+  // Redirect authenticated users without a profile to onboarding
+  if (user && isProtectedRoute) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("id", user.id)
+      .single();
+
+    if (!profile) {
+      return NextResponse.redirect(new URL("/onboarding", request.url));
+    }
+  }
+
   return supabaseResponse;
 }

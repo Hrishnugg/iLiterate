@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import { Loader2, MessageSquare, Languages, BookOpen, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -66,6 +67,17 @@ export function TranslatePopover({
       onSaveWord(selection.text, translation);
     }
   };
+
+  // Close when clicking outside the popover
+  useEffect(() => {
+    const handleMouseDown = (e: MouseEvent) => {
+      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
+        onClose();
+      }
+    };
+    document.addEventListener("mousedown", handleMouseDown);
+    return () => document.removeEventListener("mousedown", handleMouseDown);
+  }, [onClose]);
 
   // Recalculate position whenever popover content changes
   const updatePosition = useCallback(() => {
@@ -133,13 +145,23 @@ export function TranslatePopover({
     maxHeight: Math.min(maxHeight, 500),
   };
 
+  const originY = adjustedPos?.placeBelow === false ? 1 : 0;
+
   return (
-    <div ref={popoverRef} style={popupStyle} className="w-[24rem] max-w-[calc(100vw-24px)] flex flex-col">
+    <motion.div
+      ref={popoverRef}
+      className="w-[24rem] max-w-[calc(100vw-24px)] flex flex-col"
+      initial={{ opacity: 0, scale: 0.92, y: adjustedPos?.placeBelow === false ? 6 : -6 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.92, y: adjustedPos?.placeBelow === false ? 6 : -6 }}
+      transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
+      style={{ ...popupStyle, transformOrigin: `50% ${originY * 100}%` }}
+    >
       <div className="rounded-lg border bg-popover shadow-lg relative flex flex-col overflow-hidden" style={{ maxHeight: 'inherit' }}>
         {/* Close button */}
         <button
           onClick={onClose}
-          className="absolute right-2 top-2 z-10 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+          className="absolute right-2 top-2 z-10 cursor-pointer rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
           aria-label="Close"
         >
           <X className="h-4 w-4" />
@@ -161,7 +183,7 @@ export function TranslatePopover({
                 size="sm"
                 variant="default"
                 onClick={handleTranslate}
-                className="flex-1"
+                className="flex-1 cursor-pointer"
               >
                 <Languages className="mr-1.5 h-3.5 w-3.5" />
                 Translate
@@ -170,6 +192,7 @@ export function TranslatePopover({
                 size="sm"
                 variant="outline"
                 onClick={() => setShowNoteInput(true)}
+                className="cursor-pointer"
               >
                 <MessageSquare className="mr-1.5 h-3.5 w-3.5" />
                 Note
@@ -223,6 +246,7 @@ export function TranslatePopover({
                   size="sm"
                   variant="outline"
                   onClick={() => setShowNoteInput(true)}
+                  className="cursor-pointer"
                 >
                   <MessageSquare className="mr-1.5 h-3.5 w-3.5" />
                   Add Note
@@ -231,6 +255,7 @@ export function TranslatePopover({
                   size="sm"
                   variant="outline"
                   onClick={handleSaveWord}
+                  className="cursor-pointer"
                 >
                   <BookOpen className="mr-1.5 h-3.5 w-3.5" />
                   Save Word
@@ -255,7 +280,7 @@ export function TranslatePopover({
                 autoFocus
               />
               {translation && (
-                <label className="flex items-center gap-2 text-sm">
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
                   <Checkbox
                     checked={alsoAddFlashcard}
                     onCheckedChange={(checked) => setAlsoAddFlashcard(checked === true)}
@@ -268,6 +293,7 @@ export function TranslatePopover({
                   size="sm"
                   onClick={handleAddNote}
                   disabled={!note.trim()}
+                  className="cursor-pointer"
                 >
                   Save Note
                 </Button>
@@ -278,6 +304,7 @@ export function TranslatePopover({
                     setShowNoteInput(false);
                     setNote("");
                   }}
+                  className="cursor-pointer"
                 >
                   Cancel
                 </Button>
@@ -286,6 +313,6 @@ export function TranslatePopover({
           )}
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }

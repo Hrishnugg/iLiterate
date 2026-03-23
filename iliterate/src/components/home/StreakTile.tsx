@@ -4,7 +4,7 @@ export function StreakTile({ days }: { days: number }) {
   return (
     <div className="flex flex-col justify-between rounded-lg border bg-card p-6">
       <div className="flex items-center gap-2">
-        <Flame className="size-4 text-primary" />
+        <Flame className="size-4 text-amber-500" />
         <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
           Streak
         </span>

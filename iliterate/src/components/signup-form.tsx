@@ -1,8 +1,9 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Mail, CheckCircle2 } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import { CheckCircle2 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -16,7 +17,6 @@ import {
 import {
   Field,
   FieldDescription,
-  FieldError,
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field";
@@ -28,6 +28,22 @@ export function SignupForm({
   ...props
 }: React.ComponentProps<"div">) {
   const [state, formAction, pending] = useActionState(signup, null);
+  const [errorVisible, setErrorVisible] = useState(false);
+
+  // Detect the pending→false transition synchronously to avoid a render where
+  // showError is still false (which would flash "Create Account" between "Creating account..." and error)
+  const prevPendingRef = useRef(false);
+  const wasPending = prevPendingRef.current;
+  prevPendingRef.current = pending;
+  const showError = errorVisible || (!pending && wasPending && !!state?.error);
+
+  useEffect(() => {
+    if (pending) { setErrorVisible(false); return; }
+    if (!state?.error) return;
+    setErrorVisible(true);
+    const timer = setTimeout(() => setErrorVisible(false), 3000);
+    return () => clearTimeout(timer);
+  }, [pending, state]);
 
   // Show success message after signup
   if (state?.success) {
@@ -35,26 +51,24 @@ export function SignupForm({
       <div className={cn("flex flex-col gap-6", className)} {...props}>
         <Card>
           <CardHeader className="text-center">
-            <div className="mx-auto h-16 w-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mb-4">
-              <CheckCircle2 className="h-8 w-8 text-green-600 dark:text-green-400" />
+            <div className="relative mx-auto h-16 w-16 flex items-center justify-center mb-4">
+              <span className="absolute inset-0 rounded-full bg-green-500/20 animate-ping [animation-duration:2s]" />
+              <span className="relative h-16 w-16 rounded-full bg-green-500/15 border border-green-500/25 flex items-center justify-center">
+                <CheckCircle2 className="h-8 w-8 text-green-400" />
+              </span>
             </div>
             <CardTitle className="text-xl">Check your email</CardTitle>
-            <CardDescription>
-              We&apos;ve sent a confirmation link to your email address
+            <CardDescription className="mt-1 leading-relaxed">
+              We&apos;ve sent a confirmation link to your email address.{" "}
+              Click the link to verify your account and complete signup.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="rounded-lg border bg-muted/50 p-4 text-center">
-              <Mail className="h-6 w-6 mx-auto mb-2 text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">
-                Click the link in your email to verify your account and complete signup.
-              </p>
-            </div>
             <div className="text-center text-sm text-muted-foreground">
               <p>Didn&apos;t receive the email?</p>
               <p className="mt-1">Check your spam folder or <Link href="/signup" className="text-primary hover:underline">try again</Link></p>
             </div>
-            <div className="pt-4 border-t text-center">
+            <div className="pt-4 border-t">
               <Link href="/login">
                 <Button variant="outline" className="w-full">
                   Back to Login
@@ -79,7 +93,6 @@ export function SignupForm({
         <CardContent>
           <form action={formAction}>
             <FieldGroup>
-              {state?.error && <FieldError>{state.error}</FieldError>}
               <Field>
                 <FieldLabel htmlFor="name">Full Name</FieldLabel>
                 <Input
@@ -87,6 +100,7 @@ export function SignupForm({
                   name="name"
                   type="text"
                   placeholder="John Doe"
+                  defaultValue={state?.fields?.name}
                   required
                 />
               </Field>
@@ -97,6 +111,8 @@ export function SignupForm({
                   name="email"
                   type="email"
                   placeholder="m@example.com"
+                  defaultValue={state?.fields?.email}
+                  aria-invalid={showError && state?.errorFields?.includes("email")}
                   required
                 />
               </Field>
@@ -108,6 +124,7 @@ export function SignupForm({
                       id="password"
                       name="password"
                       type="password"
+                      aria-invalid={showError && state?.errorFields?.includes("password")}
                       required
                     />
                   </Field>
@@ -119,6 +136,7 @@ export function SignupForm({
                       id="confirm-password"
                       name="confirm-password"
                       type="password"
+                      aria-invalid={showError && state?.errorFields?.includes("confirm-password")}
                       required
                     />
                   </Field>
@@ -128,8 +146,23 @@ export function SignupForm({
                 </FieldDescription>
               </Field>
               <Field>
-                <Button type="submit" className="w-full" disabled={pending}>
-                  {pending ? "Creating account..." : "Create Account"}
+                <Button
+                  type="submit"
+                  variant={showError ? "destructive" : "default"}
+                  className="w-full overflow-hidden transition-colors duration-300"
+                  disabled={pending}
+                >
+                  <AnimatePresence mode="wait" initial={false}>
+                    <motion.span
+                      key={pending || showError ? "active" : "idle"}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      transition={{ duration: 0.2, ease: "easeOut" }}
+                    >
+                      {pending ? "Creating account..." : showError ? state!.error : "Create Account"}
+                    </motion.span>
+                  </AnimatePresence>
                 </Button>
                 <FieldDescription className="text-center">
                   Already have an account?{" "}

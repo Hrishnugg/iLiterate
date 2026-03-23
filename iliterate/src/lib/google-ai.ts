@@ -67,6 +67,46 @@ export interface TranslationResponse {
   examples: string[];
 }
 
+export interface ContentMetadata {
+  language: string;    // ISO 639-1 code, e.g. "en", "ja"
+  difficulty: "A1" | "A2" | "B1" | "B2" | "C1" | "C2";
+}
+
+export async function detectContentMetadata(
+  textSample: string
+): Promise<ContentMetadata> {
+  const model = getGeminiModel();
+
+  // Cap sample to avoid large token usage
+  const sample = textSample.slice(0, 1500).replace(/["""]/g, "'");
+
+  const prompt = `Analyze this text sample and return JSON with two fields:
+1. "language": the ISO 639-1 code of the language (e.g. "en", "ja", "fr", "de", "es", "zh", "ko", "ar", "ru", "hi", "it", "pt")
+2. "difficulty": the CEFR level (A1, A2, B1, B2, C1, or C2) based on vocabulary complexity, sentence length, and grammatical structures
+
+Text sample:
+"""
+${sample}
+"""
+
+Respond with ONLY valid JSON, no explanation:
+{"language": "xx", "difficulty": "XX"}`;
+
+  const result = await model.generateContent(prompt);
+  const text = result.response.text();
+
+  const match = text.match(/\{[\s\S]*?\}/);
+  if (!match) throw new Error("Could not parse detection response");
+
+  const parsed = JSON.parse(match[0]);
+  if (!parsed.language || !parsed.difficulty) throw new Error("Missing fields in detection response");
+
+  return {
+    language: String(parsed.language).toLowerCase().slice(0, 10),
+    difficulty: parsed.difficulty as ContentMetadata["difficulty"],
+  };
+}
+
 export async function translateWithContext(
   request: TranslationRequest
 ): Promise<TranslationResponse> {

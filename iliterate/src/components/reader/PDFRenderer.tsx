@@ -6,9 +6,9 @@ import { Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TextSelection } from "./TextHighlighter";
 
-// Set worker source (webpack/vite handles this differently)
+// Worker is served from public/ — copied from node_modules/pdfjs-dist/build/pdf.worker.min.mjs
 if (typeof window !== "undefined") {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+  pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
 }
 
 interface PDFRendererProps {

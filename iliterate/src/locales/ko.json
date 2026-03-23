@@ -1,0 +1,87 @@
+{
+  "nav": {
+    "learn": "학습",
+    "practice": "연습",
+    "community": "커뮤니티",
+    "lessonPlan": "학습 계획",
+    "library": "라이브러리",
+    "flashcards": "플래시카드",
+    "quizzes": "퀴즈",
+    "social": "소셜",
+    "leaderboard": "리더보드",
+    "progress": "진행 상황",
+    "profile": "프로필",
+    "search": "검색..."
+  },
+  "common": {
+    "back": "뒤로",
+    "next": "다음",
+    "finish": "완료",
+    "save": "저장",
+    "cancel": "취소",
+    "loading": "로딩 중...",
+    "saving": "저장 중...",
+    "loadMore": "더 보기",
+    "viewAll": "전체 보기",
+    "create": "만들기",
+    "error": "문제가 발생했습니다."
+  },
+  "home": {
+    "title": "홈",
+    "subtitle": "중단한 곳부터 계속하거나 새로운 것을 시작하세요."
+  },
+  "flashcards": {
+    "title": "플래시카드",
+    "subtitle": "저장된 어휘를 복습하세요.",
+    "startReview": "복습 시작",
+    "viewFlashcards": "플래시카드 보기",
+    "viewFlashcardsDesc": "지금까지 배운 모든 새 단어를 확인하세요!",
+    "createNew": "새 플래시카드 만들기",
+    "createNewDesc": "용어에 대한 나만의 플래시카드를 만드세요!",
+    "dueCount": "{count}개 만료",
+    "checkingDue": "만료 카드 확인 중...",
+    "noDue": "지금 복습할 카드가 없습니다.",
+    "oneCardReady": "1장의 카드가 복습 준비 완료.",
+    "cardsReady": "{count}장의 카드가 복습 준비 완료."
+  },
+  "leaderboard": {
+    "title": "리더보드",
+    "subtitleFriends": "친구들 사이에서의 순위를 확인하세요",
+    "subtitleGlobal": "다른 학습자들과의 순위를 확인하세요",
+    "global": "전체",
+    "friends": "친구",
+    "thisWeek": "이번 주",
+    "thisMonth": "이번 달",
+    "noFriendActivity": "이 기간에 친구 활동이 없습니다.",
+    "findFriends": "친구 찾기",
+    "compareScores": "에서 점수를 비교하세요!"
+  },
+  "quizzes": {
+    "title": "퀴즈",
+    "subtitle": "이해도를 테스트하고 XP를 획득하세요",
+    "readyToTake": "응시 가능",
+    "readyToTakeDesc": "이 퀴즈를 완료하여 읽은 콘텐츠에 대한 XP를 획득하세요",
+    "completed": "완료됨",
+    "completedDesc": "퀴즈 기록",
+    "noQuizzes": "아직 퀴즈가 없습니다. 라이브러리에서 콘텐츠를 읽어 퀴즈를 잠금 해제하세요!",
+    "noCompleted": "아직 완료한 퀴즈가 없습니다",
+    "goToLibrary": "라이브러리로 이동",
+    "takeQuiz": "퀴즈 응시",
+    "read": "읽음"
+  },
+  "library": {
+    "title": "라이브러리"
+  },
+  "progress": {
+    "title": "진행 상황"
+  },
+  "profile": {
+    "title": "프로필"
+  },
+  "social": {
+    "title": "소셜"
+  },
+  "lessonPlan": {
+    "title": "학습 계획"
+  }
+}

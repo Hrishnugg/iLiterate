@@ -1,0 +1,87 @@
+{
+  "nav": {
+    "learn": "学习",
+    "practice": "练习",
+    "community": "社区",
+    "lessonPlan": "课程计划",
+    "library": "图书馆",
+    "flashcards": "闪卡",
+    "quizzes": "测验",
+    "social": "社交",
+    "leaderboard": "排行榜",
+    "progress": "进度",
+    "profile": "个人资料",
+    "search": "搜索..."
+  },
+  "common": {
+    "back": "返回",
+    "next": "下一步",
+    "finish": "完成",
+    "save": "保存",
+    "cancel": "取消",
+    "loading": "加载中...",
+    "saving": "保存中...",
+    "loadMore": "加载更多",
+    "viewAll": "查看全部",
+    "create": "创建",
+    "error": "出现了问题。"
+  },
+  "home": {
+    "title": "首页",
+    "subtitle": "从上次停下的地方继续，或开始新的内容。"
+  },
+  "flashcards": {
+    "title": "闪卡",
+    "subtitle": "复习你保存的词汇。",
+    "startReview": "开始复习",
+    "viewFlashcards": "查看闪卡",
+    "viewFlashcardsDesc": "看看你迄今学过的所有新词！",
+    "createNew": "创建新闪卡",
+    "createNewDesc": "为某个词汇创建自己的闪卡！",
+    "dueCount": "{count}张到期",
+    "checkingDue": "检查到期卡片...",
+    "noDue": "现在没有需要复习的卡片。",
+    "oneCardReady": "1张卡片准备好复习了。",
+    "cardsReady": "{count}张卡片准备好复习了。"
+  },
+  "leaderboard": {
+    "title": "排行榜",
+    "subtitleFriends": "查看你在朋友中的排名",
+    "subtitleGlobal": "查看你在其他学习者中的排名",
+    "global": "全球",
+    "friends": "朋友",
+    "thisWeek": "本周",
+    "thisMonth": "本月",
+    "noFriendActivity": "本期没有朋友活动。",
+    "findFriends": "寻找朋友",
+    "compareScores": "来比较分数！"
+  },
+  "quizzes": {
+    "title": "测验",
+    "subtitle": "测试你的理解力并获得XP",
+    "readyToTake": "可以参加",
+    "readyToTakeDesc": "完成这些测验，为你读过的内容赚取XP",
+    "completed": "已完成",
+    "completedDesc": "你的测验记录",
+    "noQuizzes": "还没有可用的测验。从图书馆读一些内容来解锁测验！",
+    "noCompleted": "还没有完成任何测验",
+    "goToLibrary": "前往图书馆",
+    "takeQuiz": "参加测验",
+    "read": "已读"
+  },
+  "library": {
+    "title": "图书馆"
+  },
+  "progress": {
+    "title": "进度"
+  },
+  "profile": {
+    "title": "个人资料"
+  },
+  "social": {
+    "title": "社交"
+  },
+  "lessonPlan": {
+    "title": "课程计划"
+  }
+}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useT } from "@/lib/i18n/I18nProvider";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import {
@@ -17,6 +18,7 @@ export default function FlashcardsPage() {
   const [showReview, setShowReview] = useState(false);
   const [dueCount, setDueCount] = useState<number | null>(null);
   const [isLoadingDue, setIsLoadingDue] = useState(true);
+  const t = useT();
 
   useEffect(() => {
     const fetchDueCount = async () => {
@@ -42,23 +44,23 @@ export default function FlashcardsPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold">Flashcards</h1>
-      <p className="text-muted-foreground mt-2">
-        Review your saved vocabulary.
+      <h1 className="text-2xl font-bold">{t("flashcards.title")}</h1>
+      <p className="mt-1 text-sm text-muted-foreground">
+        {t("flashcards.subtitle")}
       </p>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mt-10 items-stretch">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mt-6 items-stretch">
         {/* Start Review Card - Primary action */}
         <Card className="h-full border-primary/50 bg-primary/5">
           <CardHeader>
             <div className="flex items-start justify-between">
               <CardTitle className="text-lg flex items-center gap-2">
                 <Clock className="h-5 w-5" />
-                Start Review
+                {t("flashcards.startReview")}
               </CardTitle>
               {!isLoadingDue && dueCount !== null && dueCount > 0 && (
                 <span className="bg-primary text-primary-foreground text-xs font-semibold px-2 py-1 rounded-full">
-                  {dueCount} due
+                  {t("flashcards.dueCount").replace("{count}", String(dueCount))}
                 </span>
               )}
             </div>
@@ -68,14 +70,14 @@ export default function FlashcardsPage() {
               {isLoadingDue ? (
                 <span className="flex items-center gap-2 text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Checking due cards...
+                  {t("flashcards.checkingDue")}
                 </span>
               ) : dueCount === 0 ? (
-                "No cards due for review right now."
+                t("flashcards.noDue")
               ) : dueCount === 1 ? (
-                "1 card is ready for review."
+                t("flashcards.oneCardReady")
               ) : (
-                `${dueCount} cards are ready for review.`
+                t("flashcards.cardsReady").replace("{count}", String(dueCount))
               )}
             </p>
           </CardContent>
@@ -85,7 +87,7 @@ export default function FlashcardsPage() {
               onClick={() => setShowReview(true)}
               disabled={isLoadingDue || dueCount === 0}
             >
-              Start Review
+              {t("flashcards.startReview")}
             </Button>
           </CardFooter>
         </Card>
@@ -95,16 +97,16 @@ export default function FlashcardsPage() {
             <div className="flex items-start justify-between">
               <CardTitle className="text-lg flex items-center gap-2">
                 <BookOpen className="h-5 w-5" />
-                View Flashcards
+                {t("flashcards.viewFlashcards")}
               </CardTitle>
             </div>
           </CardHeader>
           <CardContent className="flex-1">
-            <p>Look at all the new words you&apos;ve learned so far!</p>
+            <p>{t("flashcards.viewFlashcardsDesc")}</p>
           </CardContent>
           <CardFooter className="mt-auto">
             <Button asChild className="w-full" variant="outline">
-              <Link href="/all">View All</Link>
+              <Link href="/all">{t("common.viewAll")}</Link>
             </Button>
           </CardFooter>
         </Card>
@@ -112,17 +114,17 @@ export default function FlashcardsPage() {
         <Card className="h-full">
           <CardHeader>
             <div className="flex items-start justify-between">
-              <CardTitle className="text-lg">Create New Flashcard</CardTitle>
+              <CardTitle className="text-lg">{t("flashcards.createNew")}</CardTitle>
             </div>
           </CardHeader>
           <CardContent className="flex-1">
-            <p>Create your own flashcard for a term!</p>
+            <p>{t("flashcards.createNewDesc")}</p>
           </CardContent>
           <CardFooter className="mt-auto">
             <Button asChild className="w-full" variant="outline">
               <Link href="/create">
                 <Plus className="h-4 w-4 mr-2" />
-                Create
+                {t("common.create")}
               </Link>
             </Button>
           </CardFooter>

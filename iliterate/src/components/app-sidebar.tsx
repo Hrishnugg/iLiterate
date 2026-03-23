@@ -12,6 +12,7 @@ import {
   Users,
   Trophy,
   Search,
+  BookOpen,
 } from "lucide-react";
 
 import {
@@ -27,33 +28,38 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
-
-const navGroups = [
-  {
-    label: "Learn",
-    items: [
-      { title: "Lesson Plan", href: "/lesson-plan", icon: GraduationCap },
-      { title: "Library", href: "/library", icon: Library },
-    ],
-  },
-  {
-    label: "Practice",
-    items: [
-      { title: "Flashcards", href: "/flashcards", icon: Layers },
-      { title: "Quizzes", href: "/quizzes", icon: ClipboardCheck },
-    ],
-  },
-  {
-    label: "Community",
-    items: [
-      { title: "Social", href: "/social", icon: Users },
-      { title: "Leaderboard", href: "/leaderboard", icon: Trophy },
-    ],
-  },
-];
+import { useSearch } from "@/components/search/SearchContext";
+import { useT } from "@/lib/i18n/I18nProvider";
 
 export function AppSidebar() {
   const pathname = usePathname();
+  const { openSearch } = useSearch();
+  const t = useT();
+
+  const navGroups = [
+    {
+      label: t("nav.learn"),
+      items: [
+        { title: t("nav.lessonPlan"), href: "/lesson-plan", icon: GraduationCap },
+        { title: t("nav.library"), href: "/library", icon: Library },
+        { title: t("nav.progress"), href: "/progress", icon: TrendingUp },
+      ],
+    },
+    {
+      label: t("nav.practice"),
+      items: [
+        { title: t("nav.flashcards"), href: "/flashcards", icon: Layers },
+        { title: t("nav.quizzes"), href: "/quizzes", icon: ClipboardCheck },
+      ],
+    },
+    {
+      label: t("nav.community"),
+      items: [
+        { title: t("nav.social"), href: "/social", icon: Users },
+        { title: t("nav.leaderboard"), href: "/leaderboard", icon: Trophy },
+      ],
+    },
+  ];
 
   return (
     <Sidebar collapsible="icon">
@@ -61,11 +67,9 @@ export function AppSidebar() {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton asChild size="lg" tooltip="iLiterate">
-              <Link href="/home">
-                <div className="bg-primary text-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg text-sm font-bold">
-                  iL
-                </div>
-                <span className="text-lg font-semibold tracking-tight">
+              <Link href="/home" className="group-data-[collapsible=icon]:justify-center">
+                <BookOpen className="size-6 text-primary" />
+                <span className="text-lg font-semibold tracking-tight group-data-[collapsible=icon]:hidden">
                   iLiterate
                 </span>
               </Link>
@@ -80,9 +84,9 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton tooltip="Search (⌘K)">
+                <SidebarMenuButton tooltip="Search (⌘K)" onClick={openSearch} className="cursor-pointer">
                   <Search />
-                  <span className="text-muted-foreground">Search...</span>
+                  <span className="text-muted-foreground">{t("nav.search")}</span>
                   <kbd className="ml-auto text-[10px] font-mono text-muted-foreground opacity-60">
                     ⌘K
                   </kbd>
@@ -127,29 +131,17 @@ export function AppSidebar() {
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              tooltip="Progress"
-              isActive={pathname === "/progress"}
-            >
-              <Link href="/progress">
-                <TrendingUp />
-                <span>Progress</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
             <ThemeToggle />
           </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton
               asChild
-              tooltip="Profile"
+              tooltip={t("nav.profile")}
               isActive={pathname === "/profile"}
             >
               <Link href="/profile">
                 <User />
-                <span>Profile</span>
+                <span>{t("nav.profile")}</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>

@@ -372,8 +372,8 @@ export function ContentRenderer({
       const isFocused = highlight.id === focusedHighlightId;
       const hasTranslation = !!highlight.translation;
       const baseClass = hasTranslation
-        ? "bg-green-100 dark:bg-green-400/50 cursor-pointer rounded px-0.5 transition-all duration-300"
-        : "bg-yellow-200 dark:bg-yellow-300/50 cursor-pointer rounded px-0.5 transition-all duration-300";
+        ? "bg-green-100 dark:bg-green-400/50 cursor-pointer rounded transition-all duration-300"
+        : "bg-yellow-200 dark:bg-yellow-300/50 cursor-pointer rounded transition-all duration-300";
       const focusClass = isFocused
         ? hasTranslation
           ? " ring-2 ring-primary ring-offset-2 bg-green-200 dark:bg-green-400/65"
@@ -401,7 +401,7 @@ export function ContentRenderer({
         container,
         currentSelection.text,
         null,
-        "bg-blue-100 dark:bg-blue-400/50 rounded px-0.5",
+        "bg-blue-100 dark:bg-blue-400/50 rounded",
         "",
         currentSelection.startOffset,
         currentSelection.contextBefore,

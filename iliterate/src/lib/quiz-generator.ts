@@ -1,10 +1,14 @@
 import OpenAI from "openai";
 import { Content, AssessmentQuestion, CEFRLevel, numericLevelToCEFR } from "@/types/database";
 
-// Initialize OpenAI
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// Lazily initialize OpenAI to avoid module-level instantiation during build
+let _openai: OpenAI | null = null;
+function getOpenAI(): OpenAI {
+  if (!_openai) {
+    _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  }
+  return _openai;
+}
 
 export interface GenerateQuizParams {
   content: Content;
@@ -107,7 +111,7 @@ Important rules:
 6. Hints should guide without giving away the answer
 7. Focus on understanding the content, not tricky wordplay`;
 
-  const response = await openai.chat.completions.create({
+  const response = await getOpenAI().chat.completions.create({
     model: "gpt-4o-mini",
     messages: [{ role: "user", content: prompt }],
     temperature: 0.7,
@@ -218,7 +222,7 @@ Rules:
 5. Make wrong options plausible but distinguishable from the correct answer
 6. Focus on understanding the content, not tricky wordplay`;
 
-  const response = await openai.chat.completions.create({
+  const response = await getOpenAI().chat.completions.create({
     model: "gpt-4o-mini",
     messages: [{ role: "user", content: prompt }],
     temperature: 0.7,

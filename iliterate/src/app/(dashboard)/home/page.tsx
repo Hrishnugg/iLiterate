@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useT } from "@/lib/i18n/I18nProvider";
 import { HeroTile } from "@/components/home/HeroTile";
 import { LevelTile } from "@/components/home/LevelTile";
 import { FlashcardDueTile } from "@/components/home/FlashcardDueTile";
@@ -34,6 +35,7 @@ interface DashboardData {
 export default function HomePage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const t = useT();
 
   useEffect(() => {
     async function fetchDashboard() {
@@ -156,9 +158,9 @@ export default function HomePage() {
     <div className="flex flex-col gap-8">
       {/* Page heading — lives in content now, not header bar */}
       <div>
-        <h1 className="text-3xl font-semibold tracking-tight">Home</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">{t("home.title")}</h1>
         <p className="mt-1 text-muted-foreground">
-          Pick up where you left off, or start something new.
+          {t("home.subtitle")}
         </p>
       </div>
 

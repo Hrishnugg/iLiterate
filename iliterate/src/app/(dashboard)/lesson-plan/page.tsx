@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,6 +23,7 @@ import {
 import { numericLevelToCEFR } from "@/types/database";
 import { DowngradeLevelDialog } from "@/components/lesson/DowngradeLevelDialog";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface TopicInfo {
   id: string;
@@ -85,7 +87,6 @@ export default function LessonPlanPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const [userLevel, setUserLevel] = useState<number>(1);
   const [currentLesson, setCurrentLesson] = useState<LessonData | null>(null);
@@ -94,7 +95,7 @@ export default function LessonPlanPage() {
   const [selectedLength, setSelectedLength] = useState<
     "short" | "medium" | "long"
   >("medium");
-  const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
+  const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
   const [showDowngradeDialog, setShowDowngradeDialog] = useState(false);
 
   useEffect(() => {
@@ -131,7 +132,7 @@ export default function LessonPlanPage() {
       }
     } catch (err) {
       console.error("Failed to fetch data:", err);
-      setError("Failed to load lesson data");
+      toast.error("Failed to load lesson data");
     } finally {
       setIsLoading(false);
     }
@@ -140,15 +141,14 @@ export default function LessonPlanPage() {
   const generateLesson = async () => {
     try {
       setIsGenerating(true);
-      setError(null);
 
       const response = await fetch("/api/lesson/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          topic: selectedTopic || undefined,
+          topics: selectedTopics.length > 0 ? selectedTopics : undefined,
           length: selectedLength,
-          useSuggestedTopic: !selectedTopic,
+          useSuggestedTopic: selectedTopics.length === 0,
         }),
       });
 
@@ -159,12 +159,10 @@ export default function LessonPlanPage() {
 
       const data = await response.json();
       setCurrentLesson(data.lesson);
-      setSelectedTopic(null);
+      setSelectedTopics([]);
       router.push(`/lesson-plan/${data.lesson.id}`);
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to generate lesson"
-      );
+      toast.error(err instanceof Error ? err.message : "Failed to generate lesson");
     } finally {
       setIsGenerating(false);
     }
@@ -188,10 +186,8 @@ export default function LessonPlanPage() {
       {/* Page header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight">
-            Lesson Plan
-          </h1>
-          <p className="mt-1 text-muted-foreground">
+          <h1 className="text-2xl font-bold">Lesson Plan</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
             Personalized reading lessons tailored to your level
           </p>
         </div>
@@ -236,48 +232,60 @@ export default function LessonPlanPage() {
       {/* New Lesson section */}
       <div className="flex flex-col gap-5">
         <div className="flex items-center justify-between">
-          <span className="text-base font-semibold">Start a New Lesson</span>
+          <div className="flex items-baseline gap-2">
+            <span className="text-base font-semibold">Start a New Lesson</span>
+            <span className="text-xs text-muted-foreground">
+              Select up to 3 topics
+              {selectedTopics.length > 0 && ` · ${selectedTopics.length} selected`}
+            </span>
+          </div>
           {/* Length segmented control */}
-          <div className="flex overflow-hidden rounded-md border bg-card">
-            {LENGTH_OPTIONS.map((opt, idx) => (
+          <div className="inline-flex rounded-lg bg-muted p-[3px]">
+            {LENGTH_OPTIONS.map((opt) => (
               <button
                 key={opt.id}
                 onClick={() => setSelectedLength(opt.id)}
                 className={cn(
-                  "px-4 py-1.5 text-xs font-medium transition-colors",
-                  idx < LENGTH_OPTIONS.length - 1 && "border-r",
-                  selectedLength === opt.id
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:text-foreground"
+                  "relative cursor-pointer px-4 py-1 text-xs font-medium transition-colors duration-150",
+                  selectedLength === opt.id ? "text-primary" : "text-muted-foreground hover:text-foreground"
                 )}
               >
-                {opt.label}
+                {selectedLength === opt.id && (
+                  <motion.div
+                    layoutId="length-pill"
+                    className="absolute inset-0 rounded-md bg-primary/20"
+                    transition={{ type: "spring", bounce: 0.2, duration: 0.35 }}
+                  />
+                )}
+                <span className="relative z-10">{opt.label}</span>
               </button>
             ))}
           </div>
         </div>
 
-        {error && (
-          <div className="rounded-md bg-destructive/10 px-4 py-3 text-sm text-destructive">
-            {error}
-          </div>
-        )}
-
         {/* Visual topic grid */}
-        <div className="flex flex-wrap gap-3">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(130px,1fr))] gap-3">
           {TOPICS.map((topic) => {
-            const isSelected = selectedTopic === topic.id;
+            const isSelected = selectedTopics.includes(topic.id);
+            const isDisabled = !isSelected && selectedTopics.length >= 3;
             return (
               <button
                 key={topic.id}
-                onClick={() =>
-                  setSelectedTopic(isSelected ? null : topic.id)
-                }
+                onClick={() => {
+                  if (isSelected) {
+                    setSelectedTopics(selectedTopics.filter((t) => t !== topic.id));
+                  } else if (selectedTopics.length < 3) {
+                    setSelectedTopics([...selectedTopics, topic.id]);
+                  }
+                }}
+                disabled={isDisabled}
                 className={cn(
-                  "flex w-[140px] flex-col justify-between rounded-lg border p-4 text-left transition-colors",
+                  "flex flex-col justify-between rounded-lg border p-4 text-left transition-colors",
                   isSelected
-                    ? "border-primary bg-primary text-primary-foreground"
-                    : "bg-card hover:bg-accent/50"
+                    ? "cursor-pointer border-primary bg-primary text-primary-foreground"
+                    : isDisabled
+                    ? "cursor-not-allowed bg-card opacity-40"
+                    : "cursor-pointer bg-card hover:bg-accent/50"
                 )}
                 style={{ height: 90 }}
               >
