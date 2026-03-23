@@ -2,15 +2,8 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  Play,
-  Pause,
-  Volume2,
-  SkipForward,
-  SkipBack,
-  Settings,
-  Loader2,
-} from "lucide-react";
+import { toast } from "sonner";
+import { Play, Pause, SkipForward, SkipBack, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface AudioPlayerProps {
@@ -40,8 +33,6 @@ export function AudioPlayer({ contentId, lessonId, language, className }: AudioP
   const [isPlaying, setIsPlaying] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [settings, setSettings] = useState<PlaybackSettings>({
     rate: 1,
     volume: 1,
@@ -118,7 +109,7 @@ export function AudioPlayer({ contentId, lessonId, language, className }: AudioP
       };
 
       audio.onerror = () => {
-        setError("Audio playback failed. Please try again.");
+        toast.error("Audio playback failed. Please try again.");
         releaseAudio();
       };
     },
@@ -132,7 +123,6 @@ export function AudioPlayer({ contentId, lessonId, language, className }: AudioP
 
     releaseAudio();
     setIsLoading(true);
-    setError(null);
 
     const response = await fetch("/api/tts", {
       method: "POST",
@@ -175,8 +165,6 @@ export function AudioPlayer({ contentId, lessonId, language, className }: AudioP
   const togglePlay = useCallback(async () => {
     if (isLoading) return;
 
-    setError(null);
-
     try {
       const audio = await ensureAudio();
       if (audio.paused) {
@@ -187,7 +175,7 @@ export function AudioPlayer({ contentId, lessonId, language, className }: AudioP
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Failed to start audio playback";
-      setError(message);
+      toast.error(message);
       releaseAudio();
     } finally {
       setIsLoading(false);
@@ -234,7 +222,6 @@ export function AudioPlayer({ contentId, lessonId, language, className }: AudioP
 
   useEffect(() => {
     releaseAudio();
-    setError(null);
   }, [contentId, releaseAudio]);
 
   useEffect(() => {
@@ -243,139 +230,74 @@ export function AudioPlayer({ contentId, lessonId, language, className }: AudioP
     };
   }, [releaseAudio]);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code !== "Space") return;
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || (e.target as HTMLElement).isContentEditable) return;
+      e.preventDefault();
+      togglePlay();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [togglePlay]);
+
   const progress = duration > 0 ? Math.round((currentTime / duration) * 100) : 0;
   const hasAudio = Boolean(audioRef.current);
 
+  const btnBase = "text-primary-foreground hover:bg-white/20 hover:text-primary-foreground disabled:opacity-40";
+
   return (
-    <div className={cn("space-y-3", className)}>
-      {/* Main controls */}
-      <div className="flex items-center gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => skip(-10)}
-          disabled={!hasAudio || isLoading}
-        >
-          <SkipBack className="h-4 w-4" />
-        </Button>
+    <div className={cn("flex items-center gap-2", className)}>
+      <Button variant="ghost" size="icon" className={cn("size-8 shrink-0", btnBase)} onClick={() => skip(-10)} disabled={!hasAudio || isLoading}>
+        <SkipBack className="h-4 w-4" />
+      </Button>
 
-        <Button
-          variant={isPlaying && !isPaused ? "default" : "outline"}
-          size="sm"
-          onClick={togglePlay}
-          className="gap-2"
-          disabled={isLoading}
-        >
-          {isLoading ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Generating...
-            </>
-          ) : isPlaying && !isPaused ? (
-            <>
-              <Pause className="h-4 w-4" />
-              Pause
-            </>
-          ) : (
-            <>
-              <Play className="h-4 w-4" />
-              {isPaused ? "Resume" : "Listen"}
-            </>
-          )}
-        </Button>
-
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => skip(10)}
-          disabled={!hasAudio || isLoading}
-        >
-          <SkipForward className="h-4 w-4" />
-        </Button>
-
-        {(isPlaying || isPaused) && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={stop}
-            className="text-destructive hover:text-destructive"
-          >
-            Stop
-          </Button>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={togglePlay}
+        disabled={isLoading}
+        className={cn("gap-2 px-3 rounded-md bg-white/20 hover:bg-white/30 text-primary-foreground shrink-0", isPlaying && !isPaused && "bg-white/30")}
+      >
+        {isLoading ? (
+          <><Loader2 className="h-4 w-4 animate-spin" />Generating…</>
+        ) : isPlaying && !isPaused ? (
+          <><Pause className="h-4 w-4" />Pause</>
+        ) : (
+          <><Play className="h-4 w-4" />{isPaused ? "Resume" : "Listen"}</>
         )}
+      </Button>
 
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setShowSettings(!showSettings)}
-          className={cn(showSettings && "bg-accent")}
-        >
-          <Settings className="h-4 w-4" />
-        </Button>
-      </div>
+      <Button variant="ghost" size="icon" className={cn("size-8 shrink-0", btnBase)} onClick={() => skip(10)} disabled={!hasAudio || isLoading}>
+        <SkipForward className="h-4 w-4" />
+      </Button>
 
-      {/* Settings panel */}
-      {showSettings && (
-        <div className="rounded-lg border bg-muted/50 p-3 space-y-3">
-          {/* Speed control */}
-          <div className="space-y-1">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-muted-foreground">Speed</span>
-              <span>{settings.rate.toFixed(1)}x</span>
-            </div>
-            <input
-              type="range"
-              min="0.5"
-              max="2"
-              step="0.1"
-              value={settings.rate}
-              onChange={(e) => {
-                const newRate = parseFloat(e.target.value);
-                setSettings((s) => ({ ...s, rate: newRate }));
-              }}
-              className="w-full"
-            />
-          </div>
-
-          {/* Volume control */}
-          <div className="space-y-1">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-muted-foreground flex items-center gap-1">
-                <Volume2 className="h-3 w-3" />
-                Volume
-              </span>
-              <span>{Math.round(settings.volume * 100)}%</span>
-            </div>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.1"
-              value={settings.volume}
-              onChange={(e) => {
-                const newVolume = parseFloat(e.target.value);
-                setSettings((s) => ({ ...s, volume: newVolume }));
-              }}
-              className="w-full"
-            />
-          </div>
-
-          <div className="text-xs text-muted-foreground">
-            Voice: Auto ({language})
-          </div>
-        </div>
-      )}
-
-      {/* Progress indicator */}
       {(isPlaying || isPaused) && (
-        <div className="text-xs text-muted-foreground">
-          Reading: {progress}% ({formatTime(currentTime)} / {formatTime(duration)})
-        </div>
+        <Button variant="ghost" size="sm" onClick={stop} className="text-primary-foreground/70 hover:bg-white/20 hover:text-primary-foreground px-2 shrink-0">
+          Stop
+        </Button>
       )}
 
-      {error && (
-        <div className="text-xs text-destructive">{error}</div>
+      {(isPlaying || isPaused) && (
+        <span className="text-xs text-primary-foreground/60 tabular-nums shrink-0">
+          {formatTime(currentTime)} / {formatTime(duration)}
+        </span>
       )}
+
+      <div className="flex items-center gap-2 ml-auto">
+        <input
+          type="range"
+          min="0.5"
+          max="2"
+          step="0.1"
+          value={settings.rate}
+          onChange={(e) => setSettings((s) => ({ ...s, rate: parseFloat(e.target.value) }))}
+          className="w-24 accent-white"
+          title="Playback speed"
+        />
+        <span className="text-xs text-primary-foreground/70 tabular-nums shrink-0">{settings.rate.toFixed(1)}x</span>
+      </div>
     </div>
   );
 }

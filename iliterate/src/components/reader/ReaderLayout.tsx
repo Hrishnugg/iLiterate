@@ -1,12 +1,16 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import {
   ArrowLeft,
   PanelRight,
   Headphones,
   Zap,
   PanelLeft,
+  BookOpen,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -49,9 +53,15 @@ export function ReaderLayout({
   const [rightOpen, setRightOpen] = useState(false);
   const [leftOpen, setLeftOpen] = useState(false);
   const [showAudio, setShowAudio] = useState(false);
-  const [toolbarVisible, setToolbarVisible] = useState(true);
-  const lastScrollY = useRef(0);
-  const toolbarTimeout = useRef<NodeJS.Timeout | null>(null);
+  const [isTwoPageMode, setIsTwoPageMode] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem("reader:twoPageMode") === "true";
+  });
+  const [currentPage, setCurrentPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [pageWidth, setPageWidth] = useState(0);
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const contentPagesRef = useRef<HTMLDivElement>(null);
 
   const showLeftSidebar = !hideLeftSidebar && leftSidebar;
 
@@ -62,58 +72,92 @@ export function ReaderLayout({
     }
   }, [requestRightOpen]);
 
-  // Floating toolbar: show on scroll up, hide on scroll down
-  const handleScroll = useCallback(() => {
-    const container = contentScrollRef?.current;
-    if (!container) return;
-
-    const currentY = container.scrollTop;
-    if (currentY < lastScrollY.current || currentY < 100) {
-      setToolbarVisible(true);
-    } else if (currentY > lastScrollY.current && currentY > 100) {
-      setToolbarVisible(false);
-    }
-    lastScrollY.current = currentY;
-
-    // Always show toolbar after stopping scroll
-    if (toolbarTimeout.current) clearTimeout(toolbarTimeout.current);
-    toolbarTimeout.current = setTimeout(() => setToolbarVisible(true), 1500);
-  }, [contentScrollRef]);
+  // Two-page mode: measure page count after render
+  const calculatePages = useCallback(() => {
+    if (!viewportRef.current || !contentPagesRef.current) return;
+    const w = viewportRef.current.clientWidth;
+    if (w === 0) return;
+    setPageWidth(w);
+    setTotalPages(Math.max(1, Math.ceil(contentPagesRef.current.scrollWidth / w)));
+  }, []);
 
   useEffect(() => {
-    const container = contentScrollRef?.current;
-    if (!container || isRSVPMode) return;
+    if (!isTwoPageMode) return;
+    const id = setTimeout(calculatePages, 50);
+    return () => clearTimeout(id);
+  }, [isTwoPageMode, calculatePages]);
 
-    container.addEventListener("scroll", handleScroll, { passive: true });
-    return () => container.removeEventListener("scroll", handleScroll);
-  }, [contentScrollRef, handleScroll, isRSVPMode]);
+  useEffect(() => {
+    if (!isTwoPageMode) return;
+    const observer = new ResizeObserver(calculatePages);
+    if (viewportRef.current) observer.observe(viewportRef.current);
+    return () => observer.disconnect();
+  }, [isTwoPageMode, calculatePages]);
+
+  useEffect(() => {
+    if (!isTwoPageMode) return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "ArrowRight" || e.key === "PageDown") {
+        setCurrentPage((p) => Math.min(p + 1, totalPages - 1));
+      } else if (e.key === "ArrowLeft" || e.key === "PageUp") {
+        setCurrentPage((p) => Math.max(p - 1, 0));
+      }
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [isTwoPageMode, totalPages]);
+
+  const toggleTwoPageMode = useCallback(() => {
+    setIsTwoPageMode((prev) => {
+      const next = !prev;
+      localStorage.setItem("reader:twoPageMode", String(next));
+      return next;
+    });
+    setCurrentPage(0);
+  }, []);
 
   return (
     <div className="relative flex h-screen flex-col overflow-hidden">
-      {/* Thin progress-colored top bar — placeholder for reading progress */}
+      {/* Top-left back button */}
+      <button
+        onClick={() => router.back()}
+        className="absolute left-4 top-4 z-20 flex cursor-pointer items-center justify-center rounded-full p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        title="Go back"
+      >
+        <ArrowLeft className="size-5" />
+      </button>
 
       {/* Floating toolbar */}
-      <div
-        className={cn(
-          "absolute left-0 right-0 top-0 z-20 flex items-center justify-center px-6 pt-4 transition-all duration-300",
-          toolbarVisible
-            ? "translate-y-0 opacity-100"
-            : "-translate-y-full opacity-0"
-        )}
-      >
-        <div className="flex items-center gap-3 rounded-lg border bg-background/85 px-4 py-2 shadow-sm backdrop-blur-sm">
+      <div className="absolute bottom-0 left-0 right-0 z-20 flex flex-col items-center justify-end px-6 pb-4 gap-2">
+        <div className="flex flex-col rounded-lg border border-primary/20 bg-primary shadow-md text-primary-foreground overflow-hidden">
+          <AnimatePresence>
+            {audioPlayer && showAudio && (
+              <motion.div
+                key="audio-panel"
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.25, ease: "easeOut" }}
+                style={{ overflow: "hidden" }}
+              >
+                <div className="px-4 pt-3 pb-2">
+                  {audioPlayer}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <div className="flex items-center gap-3 px-4 py-2">
           {/* Back button */}
           <Button
             variant="ghost"
             size="icon"
-            className="size-8"
+            className="size-8 text-primary-foreground hover:bg-white/20 hover:text-primary-foreground"
             onClick={() => router.back()}
             title="Go back"
           >
             <ArrowLeft className="size-4" />
           </Button>
-
-          <div className="h-4 w-px bg-border" />
 
           {/* Title */}
           {title && (
@@ -122,42 +166,103 @@ export function ReaderLayout({
             </span>
           )}
 
-          <div className="h-4 w-px bg-border" />
-
           {/* Action buttons */}
           <div className="flex items-center gap-1">
             {bookmarkButton}
 
+            <AnimatePresence>
+              {!isRSVPMode && (
+                <motion.div
+                  key="two-page-btn"
+                  initial={{ width: 0, opacity: 0 }}
+                  animate={{ width: "auto", opacity: 1 }}
+                  exit={{ width: 0, opacity: 0 }}
+                  transition={{ duration: 0.2, ease: "easeOut" }}
+                  style={{ overflow: "hidden" }}
+                  className="flex items-center"
+                >
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={toggleTwoPageMode}
+                    className={cn(
+                      "size-8 text-primary-foreground hover:bg-white/20 hover:text-primary-foreground",
+                      isTwoPageMode && "bg-white/30"
+                    )}
+                    title="Two-page book mode"
+                  >
+                    <BookOpen className="size-4" />
+                  </Button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <AnimatePresence>
+              {isTwoPageMode && (
+                <motion.div
+                  key="page-counter"
+                  initial={{ width: 0, opacity: 0 }}
+                  animate={{ width: "auto", opacity: 1 }}
+                  exit={{ width: 0, opacity: 0 }}
+                  transition={{ duration: 0.2, ease: "easeOut" }}
+                  style={{ overflow: "hidden" }}
+                  className="flex items-center"
+                >
+                  <span className="text-xs text-primary-foreground/70 tabular-nums px-1 whitespace-nowrap">
+                    {currentPage + 1} / {totalPages}
+                  </span>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             {onToggleRSVP && (
               <Button
-                variant={isRSVPMode ? "default" : "ghost"}
+                variant="ghost"
                 size="icon"
                 onClick={onToggleRSVP}
-                className="size-8"
+                className={cn(
+                  "size-8 text-primary-foreground hover:bg-white/20 hover:text-primary-foreground",
+                  isRSVPMode && "bg-white/30"
+                )}
                 title="RSVP Speed Reader"
               >
                 <Zap className="size-4" />
               </Button>
             )}
 
-            {audioPlayer && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setShowAudio(!showAudio)}
-                className={cn("size-8", showAudio && "bg-accent")}
-                title="Audio playback"
-              >
-                <Headphones className="size-4" />
-              </Button>
-            )}
+            <AnimatePresence>
+              {audioPlayer && !isRSVPMode && (
+                <motion.div
+                  key="audio-btn"
+                  initial={{ width: 0, opacity: 0 }}
+                  animate={{ width: "auto", opacity: 1 }}
+                  exit={{ width: 0, opacity: 0 }}
+                  transition={{ duration: 0.2, ease: "easeOut" }}
+                  style={{ overflow: "hidden" }}
+                  className="flex items-center"
+                >
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setShowAudio(!showAudio)}
+                    className={cn(
+                      "size-8 text-primary-foreground hover:bg-white/20 hover:text-primary-foreground",
+                      showAudio && "bg-white/30"
+                    )}
+                    title="Audio playback"
+                  >
+                    <Headphones className="size-4" />
+                  </Button>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {showLeftSidebar && (
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => setLeftOpen(true)}
-                className="size-8"
+                className="size-8 text-primary-foreground hover:bg-white/20 hover:text-primary-foreground"
                 title="Table of Contents"
               >
                 <PanelLeft className="size-4" />
@@ -168,38 +273,79 @@ export function ReaderLayout({
               variant="ghost"
               size="icon"
               onClick={() => setRightOpen(true)}
-              className={cn("size-8", rightOpen && "bg-accent")}
+              className={cn(
+                "size-8 text-primary-foreground hover:bg-white/20 hover:text-primary-foreground",
+                rightOpen && "bg-white/30"
+              )}
               title="Notes & Lookups"
             >
               <PanelRight className="size-4" />
             </Button>
           </div>
-        </div>
+          </div>{/* end toolbar row */}
+        </div>{/* end pill */}
       </div>
-
-      {/* Audio player bar — below toolbar when visible */}
-      {audioPlayer && showAudio && (
-        <div className="z-10 border-b bg-muted/30 px-4 py-2 pt-16">
-          {audioPlayer}
-        </div>
-      )}
 
       {/* Main content — full bleed, centered article */}
-      <div
-        ref={contentScrollRef}
-        className={cn(
-          "flex-1",
-          isRSVPMode ? "overflow-hidden" : "overflow-y-auto"
-        )}
-      >
-        {isRSVPMode ? (
-          children
-        ) : (
-          <article className="mx-auto max-w-[65ch] px-8 pb-24 pt-20">
+      {isTwoPageMode && !isRSVPMode ? (
+        <div ref={viewportRef} className="relative flex-1 overflow-hidden">
+          {/* Page content */}
+          <div
+            ref={contentPagesRef}
+            style={{
+              height: "100%",
+              columnCount: 2,
+              columnFill: "auto",
+              columnGap: "5rem",
+              padding: "2.5rem 4rem 5rem",
+              transform: `translateX(-${currentPage * pageWidth}px)`,
+              transition: "transform 0.35s cubic-bezier(0.4, 0, 0.2, 1)",
+              willChange: "transform",
+            }}
+          >
             {children}
-          </article>
-        )}
-      </div>
+          </div>
+
+          {/* Center divider line */}
+          <div className="pointer-events-none absolute inset-y-0 left-1/2 w-px -translate-x-px bg-border/40" />
+
+          {/* Prev page button */}
+          <button
+            onClick={() => setCurrentPage((p) => Math.max(p - 1, 0))}
+            disabled={currentPage === 0}
+            className="absolute left-2 top-1/2 z-10 -translate-y-1/2 rounded-full border bg-background/80 p-2 shadow-sm backdrop-blur-sm transition-opacity hover:bg-accent disabled:opacity-20"
+          >
+            <ChevronLeft className="size-5" />
+          </button>
+
+          {/* Next page button */}
+          <button
+            onClick={() =>
+              setCurrentPage((p) => Math.min(p + 1, totalPages - 1))
+            }
+            disabled={currentPage === totalPages - 1}
+            className="absolute right-2 top-1/2 z-10 -translate-y-1/2 rounded-full border bg-background/80 p-2 shadow-sm backdrop-blur-sm transition-opacity hover:bg-accent disabled:opacity-20"
+          >
+            <ChevronRight className="size-5" />
+          </button>
+        </div>
+      ) : (
+        <div
+          ref={contentScrollRef}
+          className={cn(
+            "flex-1",
+            isRSVPMode ? "overflow-hidden" : "overflow-y-auto"
+          )}
+        >
+          {isRSVPMode ? (
+            children
+          ) : (
+            <article className="mx-auto max-w-[80ch] px-8 pb-24 pt-8">
+              {children}
+            </article>
+          )}
+        </div>
+      )}
 
       {/* Right Sheet — Notes & Lookups */}
       <Sheet open={rightOpen} onOpenChange={setRightOpen}>

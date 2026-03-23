@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2, ClipboardCheck, BookOpen, CheckCircle2 } from "lucide-react";
+import { useT } from "@/lib/i18n/I18nProvider";
 
 interface PendingQuiz {
   id: string;
@@ -27,6 +28,7 @@ export default function QuizzesPage() {
   const [pendingQuizzes, setPendingQuizzes] = useState<PendingQuiz[]>([]);
   const [completedQuizzes, setCompletedQuizzes] = useState<CompletedQuiz[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const t = useT();
 
   useEffect(() => {
     async function fetchQuizzes() {
@@ -58,9 +60,9 @@ export default function QuizzesPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold">Quizzes</h1>
-        <p className="text-muted-foreground mt-1">
-          Test your comprehension and earn XP
+        <h1 className="text-2xl font-bold">{t("quizzes.title")}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {t("quizzes.subtitle")}
         </p>
       </div>
 
@@ -69,21 +71,21 @@ export default function QuizzesPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <ClipboardCheck className="h-5 w-5" />
-            Ready to Take
+            {t("quizzes.readyToTake")}
           </CardTitle>
           <CardDescription>
-            Complete these quizzes to earn XP for content you&apos;ve read
+            {t("quizzes.readyToTakeDesc")}
           </CardDescription>
         </CardHeader>
         <CardContent>
           {pendingQuizzes.length === 0 ? (
             <div className="text-center py-8">
-              <BookOpen className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
+              <BookOpen className="h-12 w-12 mx-auto text-primary mb-4" />
               <p className="text-muted-foreground">
-                No quizzes available yet. Read some content from the Library to unlock quizzes!
+                {t("quizzes.noQuizzes")}
               </p>
               <Button asChild className="mt-4">
-                <Link href="/library">Go to Library</Link>
+                <Link href="/library">{t("quizzes.goToLibrary")}</Link>
               </Button>
             </div>
           ) : (
@@ -96,11 +98,11 @@ export default function QuizzesPage() {
                   <div>
                     <p className="font-medium">{quiz.title}</p>
                     <p className="text-sm text-muted-foreground">
-                      {quiz.difficulty_level} • {quiz.progress_percent}% read
+                      {quiz.difficulty_level} • {quiz.progress_percent}% {t("quizzes.read")}
                     </p>
                   </div>
                   <Button asChild>
-                    <Link href={quiz.source === "lesson" ? `/lesson-plan/${quiz.id}` : `/quizzes/${quiz.id}`}>Take Quiz</Link>
+                    <Link href={quiz.source === "lesson" ? `/lesson-plan/${quiz.id}` : `/quizzes/${quiz.id}`}>{t("quizzes.takeQuiz")}</Link>
                   </Button>
                 </div>
               ))}
@@ -114,14 +116,14 @@ export default function QuizzesPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <CheckCircle2 className="h-5 w-5 text-green-500" />
-            Completed
+            {t("quizzes.completed")}
           </CardTitle>
-          <CardDescription>Your quiz history</CardDescription>
+          <CardDescription>{t("quizzes.completedDesc")}</CardDescription>
         </CardHeader>
         <CardContent>
           {completedQuizzes.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">
-              No completed quizzes yet
+              {t("quizzes.noCompleted")}
             </p>
           ) : (
             <div className="space-y-3">

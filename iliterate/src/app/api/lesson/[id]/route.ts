@@ -40,7 +40,7 @@ export async function GET(
       .eq("id", user.id)
       .single();
 
-    const topicInfo = getTopicInfo(lesson.topic);
+    const topicInfo = getTopicInfo(lesson.topics?.[0]);
 
     return NextResponse.json({
       lesson: {

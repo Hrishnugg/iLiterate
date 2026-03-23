@@ -1,0 +1,87 @@
+{
+  "nav": {
+    "learn": "تعلم",
+    "practice": "تدرب",
+    "community": "المجتمع",
+    "lessonPlan": "خطة الدروس",
+    "library": "المكتبة",
+    "flashcards": "البطاقات التعليمية",
+    "quizzes": "الاختبارات",
+    "social": "اجتماعي",
+    "leaderboard": "لوحة المتصدرين",
+    "progress": "التقدم",
+    "profile": "الملف الشخصي",
+    "search": "بحث..."
+  },
+  "common": {
+    "back": "رجوع",
+    "next": "التالي",
+    "finish": "إنهاء",
+    "save": "حفظ",
+    "cancel": "إلغاء",
+    "loading": "جارٍ التحميل...",
+    "saving": "جارٍ الحفظ...",
+    "loadMore": "تحميل المزيد",
+    "viewAll": "عرض الكل",
+    "create": "إنشاء",
+    "error": "حدث خطأ ما."
+  },
+  "home": {
+    "title": "الرئيسية",
+    "subtitle": "تابع من حيث توقفت، أو ابدأ شيئاً جديداً."
+  },
+  "flashcards": {
+    "title": "البطاقات التعليمية",
+    "subtitle": "راجع مفرداتك المحفوظة.",
+    "startReview": "بدء المراجعة",
+    "viewFlashcards": "عرض البطاقات",
+    "viewFlashcardsDesc": "شاهد جميع الكلمات الجديدة التي تعلمتها حتى الآن!",
+    "createNew": "إنشاء بطاقة جديدة",
+    "createNewDesc": "أنشئ بطاقتك الخاصة لمصطلح ما!",
+    "dueCount": "{count} مستحقة",
+    "checkingDue": "جارٍ التحقق من البطاقات المستحقة...",
+    "noDue": "لا توجد بطاقات للمراجعة الآن.",
+    "oneCardReady": "بطاقة واحدة جاهزة للمراجعة.",
+    "cardsReady": "{count} بطاقات جاهزة للمراجعة."
+  },
+  "leaderboard": {
+    "title": "لوحة المتصدرين",
+    "subtitleFriends": "شاهد ترتيبك بين أصدقائك",
+    "subtitleGlobal": "شاهد ترتيبك مقارنة بالمتعلمين الآخرين",
+    "global": "عالمي",
+    "friends": "الأصدقاء",
+    "thisWeek": "هذا الأسبوع",
+    "thisMonth": "هذا الشهر",
+    "noFriendActivity": "لا نشاط للأصدقاء في هذه الفترة.",
+    "findFriends": "ابحث عن أصدقاء",
+    "compareScores": "لمقارنة النقاط!"
+  },
+  "quizzes": {
+    "title": "الاختبارات",
+    "subtitle": "اختبر فهمك واكسب XP",
+    "readyToTake": "جاهزة للحل",
+    "readyToTakeDesc": "أكمل هذه الاختبارات لكسب XP على المحتوى الذي قرأته",
+    "completed": "المكتملة",
+    "completedDesc": "سجل اختباراتك",
+    "noQuizzes": "لا توجد اختبارات متاحة بعد. اقرأ بعض المحتوى من المكتبة لفتح الاختبارات!",
+    "noCompleted": "لا توجد اختبارات مكتملة بعد",
+    "goToLibrary": "انتقل إلى المكتبة",
+    "takeQuiz": "حل الاختبار",
+    "read": "مقروء"
+  },
+  "library": {
+    "title": "المكتبة"
+  },
+  "progress": {
+    "title": "التقدم"
+  },
+  "profile": {
+    "title": "الملف الشخصي"
+  },
+  "social": {
+    "title": "اجتماعي"
+  },
+  "lessonPlan": {
+    "title": "خطة الدروس"
+  }
+}

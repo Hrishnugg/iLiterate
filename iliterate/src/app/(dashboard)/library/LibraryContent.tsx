@@ -1,8 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { BookOpen, Bookmark, Loader2, Award } from "lucide-react";
+import { useRouter } from "next/navigation";
+
+import { BookOpen, Loader2, Award, Bookmark, X, Upload, FileText, Link as LinkIcon, Type, ChevronLeft, CheckCircle2, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -11,7 +14,20 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { motion, AnimatePresence } from "motion/react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Content } from "@/types/database";
 
 interface BookmarkWithMetadata {
@@ -24,22 +40,141 @@ interface BookmarkWithMetadata {
 
 interface LibraryContentProps {
   contents: Content[];
+  targetLanguage: string | null;
 }
 
-export function LibraryContent({ contents }: LibraryContentProps) {
+const LANGUAGE_NAMES: Record<string, string> = {
+  en: "English",
+  es: "Spanish",
+  fr: "French",
+  de: "German",
+  it: "Italian",
+  pt: "Portuguese",
+  ja: "Japanese",
+  ko: "Korean",
+  zh: "Chinese",
+  ru: "Russian",
+  ar: "Arabic",
+  hi: "Hindi",
+};
+
+const CEFR_ORDER = ["A1", "A2", "B1", "B2", "C1", "C2"];
+
+function formatLanguage(code: string): string {
+  return LANGUAGE_NAMES[code.toLowerCase()] ?? code.charAt(0).toUpperCase() + code.slice(1);
+}
+
+function toggle(set: string[], value: string): string[] {
+  return set.includes(value) ? set.filter((v) => v !== value) : [...set, value];
+}
+
+function FilterSection({
+  title,
+  options,
+  selected,
+  onToggle,
+  formatOption,
+}: {
+  title: string;
+  options: string[];
+  selected: string[];
+  onToggle: (value: string) => void;
+  formatOption?: (value: string) => string;
+}) {
+  if (options.length === 0) return null;
+  return (
+    <div>
+      <div className="mb-2.5 flex items-center gap-1.5">
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
+          {title}
+        </p>
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {options.map((opt) => {
+          const isSelected = selected.includes(opt);
+          return (
+            <button
+              key={opt}
+              onClick={() => onToggle(opt)}
+              className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-all duration-150 ${
+                isSelected
+                  ? "border-primary bg-primary text-primary-foreground shadow-sm shadow-primary/20"
+                  : "border-border/40 text-muted-foreground hover:border-primary/40 hover:text-foreground"
+              }`}
+            >
+              {formatOption ? formatOption(opt) : opt}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+export function LibraryContent({ contents, targetLanguage }: LibraryContentProps) {
+  const languages = Array.from(new Set(contents.map((c) => c.language))).sort();
+  const difficulties = CEFR_ORDER.filter((l) =>
+    contents.some((c) => c.difficulty_level === l)
+  );
+  const types = Array.from(
+    new Set(contents.map((c) => c.content_type).filter(Boolean) as string[])
+  ).sort();
+
+  const [activeTab, setActiveTab] = useState<"browse" | "my-content">("browse");
+  const [savedOnly, setSavedOnly] = useState(false);
+  const [selectedLanguages, setSelectedLanguages] = useState<string[]>(
+    targetLanguage && languages.includes(targetLanguage) ? [targetLanguage] : []
+  );
+  const [selectedDifficulties, setSelectedDifficulties] = useState<string[]>([]);
+  const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
+
   const [bookmarks, setBookmarks] = useState<BookmarkWithMetadata[]>([]);
   const [isLoadingBookmarks, setIsLoadingBookmarks] = useState(false);
   const [hasLoadedBookmarks, setHasLoadedBookmarks] = useState(false);
+
+  // My Content state (lifted here so filter panel can access it)
+  const [userContent, setUserContent] = useState<UserContent[]>([]);
+  const [isLoadingContent, setIsLoadingContent] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [myContentSelectedLanguages, setMyContentSelectedLanguages] = useState<string[]>(
+    targetLanguage ? [targetLanguage] : []
+  );
+  const [myContentSelectedDifficulties, setMyContentSelectedDifficulties] = useState<string[]>([]);
+
+  useEffect(() => {
+    setIsLoadingContent(true);
+    fetch("/api/content/upload")
+      .then((r) => (r.ok ? r.json() : []))
+      .then(setUserContent)
+      .catch(() => setUserContent([]))
+      .finally(() => setIsLoadingContent(false));
+  }, [refreshKey]);
+
+  const myContentLanguages = Array.from(new Set(userContent.map((c) => c.language))).sort();
+  const myContentDifficulties = CEFR_ORDER.filter((l) =>
+    userContent.some((c) => c.difficulty_level === l)
+  );
+  const filteredUserContent = userContent.filter((c) => {
+    if (myContentSelectedLanguages.length > 0 && !myContentSelectedLanguages.includes(c.language)) return false;
+    if (myContentSelectedDifficulties.length > 0 && !myContentSelectedDifficulties.includes(c.difficulty_level)) return false;
+    return true;
+  });
+  const myContentHasActiveFilters =
+    myContentSelectedLanguages.length > 0 || myContentSelectedDifficulties.length > 0;
+
+  const handleUpdateUserContent = (id: string, updates: Partial<UserContent>) => {
+    setUserContent((prev) => prev.map((c) => (c.id === id ? { ...c, ...updates } : c)));
+  };
+  const handleDeleteUserContent = (id: string) => {
+    setUserContent((prev) => prev.filter((c) => c.id !== id));
+  };
 
   const loadBookmarks = useCallback(async () => {
     if (hasLoadedBookmarks) return;
     setIsLoadingBookmarks(true);
     try {
       const res = await fetch("/api/bookmarks");
-      if (res.ok) {
-        const data = await res.json();
-        setBookmarks(data);
-      }
+      if (res.ok) setBookmarks(await res.json());
     } catch {
       // Silently fail
     } finally {
@@ -48,109 +183,875 @@ export function LibraryContent({ contents }: LibraryContentProps) {
     }
   }, [hasLoadedBookmarks]);
 
-  return (
-    <Tabs defaultValue="browse" onValueChange={(val) => {
-      if (val === "saved") loadBookmarks();
-    }}>
-      <TabsList>
-        <TabsTrigger value="browse">Browse</TabsTrigger>
-        <TabsTrigger value="saved">Saved</TabsTrigger>
-      </TabsList>
+  const handleSavedToggle = () => {
+    const next = !savedOnly;
+    setSavedOnly(next);
+    if (next) loadBookmarks();
+  };
 
-      <TabsContent value="browse">
-        <BrowseTab contents={contents} />
-      </TabsContent>
+  const filteredContents = contents.filter((c) => {
+    if (selectedLanguages.length > 0 && !selectedLanguages.includes(c.language)) return false;
+    if (selectedDifficulties.length > 0 && !selectedDifficulties.includes(c.difficulty_level)) return false;
+    if (selectedTypes.length > 0 && (!c.content_type || !selectedTypes.includes(c.content_type))) return false;
+    return true;
+  });
 
-      <TabsContent value="saved">
-        <SavedTab
-          bookmarks={bookmarks}
-          isLoading={isLoadingBookmarks}
-          onRefresh={() => {
-            setHasLoadedBookmarks(false);
-            loadBookmarks();
-          }}
-        />
-      </TabsContent>
-    </Tabs>
-  );
-}
-
-function BrowseTab({ contents }: { contents: Content[] }) {
-  if (!contents || contents.length === 0) {
-    return (
-      <Card>
-        <CardContent className="flex flex-col items-center justify-center py-12">
-          <BookOpen className="h-12 w-12 text-muted-foreground/50" />
-          <h3 className="mt-4 text-lg font-semibold">No content yet</h3>
-          <p className="mt-2 text-center text-sm text-muted-foreground">
-            Run the sample content SQL in your Supabase dashboard to add some
-            reading material.
-          </p>
-        </CardContent>
-      </Card>
-    );
-  }
+  const hasActiveFilters =
+    selectedLanguages.length > 0 || selectedDifficulties.length > 0 || selectedTypes.length > 0;
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-      {contents.map((content) => (
-        <Card key={content.id} className="flex flex-col">
-          <CardHeader>
-            <div className="flex items-start justify-between">
-              <CardTitle className="text-lg">{content.title}</CardTitle>
-              <span className="rounded bg-primary/10 px-2 py-1 text-xs font-medium text-primary">
-                {content.difficulty_level}
-              </span>
-            </div>
-            <CardDescription className="flex items-center gap-2">
-              <span className="capitalize">{content.language}</span>
-              <span>•</span>
-              <span>{content.content_type}</span>
-              {content.estimated_reading_time && (
-                <>
-                  <span>•</span>
-                  <span>{content.estimated_reading_time} min read</span>
-                </>
-              )}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-1 flex-col justify-end">
-            {content.topic_tags && content.topic_tags.length > 0 && (
-              <div className="mb-4 flex flex-wrap gap-1">
-                {content.topic_tags.map((tag: string) => (
-                  <span
-                    key={tag}
-                    className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground"
-                  >
-                    {tag}
-                  </span>
+    <div className="flex flex-1 overflow-hidden">
+      {/* Main content — scrolls independently */}
+      <div className="flex flex-1 flex-col overflow-hidden">
+        <div className="flex h-10 shrink-0 items-center px-4 pt-4">
+          <SidebarTrigger className="-ml-1 size-7 text-muted-foreground" />
+        </div>
+        <div className="flex-1 overflow-y-auto px-8 pb-10">
+          <div className="mb-6 pt-2">
+            <h1 className="text-2xl font-bold">Library</h1>
+            <p className="mt-1 text-sm text-muted-foreground">Browse content by language.</p>
+          </div>
+
+          {/* Tab pills with sliding indicator */}
+          <div className="mb-6 inline-flex rounded-lg bg-muted p-[3px]">
+            {(["browse", "my-content"] as const).map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`relative px-3 py-1 text-sm font-medium transition-colors duration-150 ${
+                  activeTab === tab ? "text-primary" : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {activeTab === tab && (
+                  <motion.div
+                    layoutId="tab-pill"
+                    className="absolute inset-0 rounded-md bg-primary/20 shadow-sm"
+                    transition={{ type: "spring", bounce: 0.2, duration: 0.35 }}
+                  />
+                )}
+                <span className="relative z-10">
+                  {tab === "browse" ? "Browse" : "My Content"}
+                </span>
+              </button>
+            ))}
+          </div>
+
+          {/* Tab content — instant switch */}
+          {activeTab === "browse" ? (
+            savedOnly ? (
+              <SavedGrid bookmarks={bookmarks} isLoading={isLoadingBookmarks} />
+            ) : filteredContents.length === 0 ? (
+              <div className="py-16 text-center text-sm text-muted-foreground">
+                No content matches the selected filters.
+              </div>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {filteredContents.map((content) => (
+                  <ContentCard key={content.id} content={content} />
                 ))}
               </div>
-            )}
-            <Button asChild className="w-full">
-              <Link href={`/reader/${content.id}`}>
-                <BookOpen className="mr-2 h-4 w-4" />
-                Read
-              </Link>
-            </Button>
-          </CardContent>
-        </Card>
-      ))}
+            )
+          ) : (
+            <MyContentTab
+              targetLanguage={targetLanguage}
+              userContent={filteredUserContent}
+              isLoadingContent={isLoadingContent}
+              onRefresh={() => setRefreshKey((k) => k + 1)}
+              onUpdateItem={handleUpdateUserContent}
+              onDeleteItem={handleDeleteUserContent}
+            />
+          )}
+        </div>
+      </div>
+
+      {/* Right filter panel */}
+      <aside className="w-56 shrink-0 overflow-y-auto border-l border-sidebar-border bg-sidebar px-4 py-6">
+        {activeTab === "browse" ? (
+          <>
+            <div className="mb-5 flex items-center justify-between">
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50">
+                Filters
+              </p>
+              <button
+                onClick={() => {
+                  setSelectedLanguages([]);
+                  setSelectedDifficulties([]);
+                  setSelectedTypes([]);
+                }}
+                className={`flex items-center gap-1 rounded-full border border-border/40 px-2 py-0.5 text-[10px] text-muted-foreground transition-colors hover:border-destructive/50 hover:text-destructive ${
+                  hasActiveFilters && !savedOnly ? "visible" : "invisible pointer-events-none"
+                }`}
+              >
+                <X className="h-2.5 w-2.5" />
+                Clear
+              </button>
+            </div>
+
+            <div className="space-y-5">
+              <button
+                onClick={handleSavedToggle}
+                className={`flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-all duration-150 ${
+                  savedOnly
+                    ? "border-primary/40 bg-primary/10 text-primary"
+                    : "border-border/30 text-muted-foreground hover:border-border/60 hover:text-foreground"
+                }`}
+              >
+                <Bookmark className={`h-3.5 w-3.5 transition-all ${savedOnly ? "fill-primary" : ""}`} />
+                Saved items
+              </button>
+
+              <div className={`space-y-5 transition-opacity duration-150 ${savedOnly ? "pointer-events-none opacity-30" : ""}`}>
+                <FilterSection
+                  title="Language"
+                  options={languages}
+                  selected={selectedLanguages}
+                  onToggle={(v) => setSelectedLanguages(toggle(selectedLanguages, v))}
+                  formatOption={formatLanguage}
+                />
+                <FilterSection
+                  title="Difficulty"
+                  options={difficulties}
+                  selected={selectedDifficulties}
+                  onToggle={(v) => setSelectedDifficulties(toggle(selectedDifficulties, v))}
+                />
+                <FilterSection
+                  title="Type"
+                  options={types}
+                  selected={selectedTypes}
+                  onToggle={(v) => setSelectedTypes(toggle(selectedTypes, v))}
+                  formatOption={(v) => v.charAt(0).toUpperCase() + v.slice(1)}
+                />
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="mb-5 flex items-center justify-between">
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50">
+                Filters
+              </p>
+              <button
+                onClick={() => {
+                  setMyContentSelectedLanguages([]);
+                  setMyContentSelectedDifficulties([]);
+                }}
+                className={`flex items-center gap-1 rounded-full border border-border/40 px-2 py-0.5 text-[10px] text-muted-foreground transition-colors hover:border-destructive/50 hover:text-destructive ${
+                  myContentHasActiveFilters ? "visible" : "invisible pointer-events-none"
+                }`}
+              >
+                <X className="h-2.5 w-2.5" />
+                Clear
+              </button>
+            </div>
+
+            <div className="space-y-5">
+              <FilterSection
+                title="Language"
+                options={myContentLanguages}
+                selected={myContentSelectedLanguages}
+                onToggle={(v) => setMyContentSelectedLanguages(toggle(myContentSelectedLanguages, v))}
+                formatOption={formatLanguage}
+              />
+              <FilterSection
+                title="Difficulty"
+                options={myContentDifficulties}
+                selected={myContentSelectedDifficulties}
+                onToggle={(v) => setMyContentSelectedDifficulties(toggle(myContentSelectedDifficulties, v))}
+              />
+            </div>
+          </>
+        )}
+      </aside>
     </div>
   );
 }
 
-function SavedTab({
+type UploadStep = "select" | "pdf-drop" | "pdf-extracting" | "metadata";
+
+type UserContent = {
+  id: string;
+  title: string;
+  language: string;
+  difficulty_level: string;
+  word_count: number | null;
+  estimated_reading_time: number | null;
+  created_at: string;
+};
+
+function MyContentTab({
+  targetLanguage,
+  userContent,
+  isLoadingContent,
+  onRefresh,
+  onUpdateItem,
+  onDeleteItem,
+}: {
+  targetLanguage: string | null;
+  userContent: UserContent[];
+  isLoadingContent: boolean;
+  onRefresh: () => void;
+  onUpdateItem: (id: string, updates: Partial<UserContent>) => void;
+  onDeleteItem: (id: string) => void;
+}) {
+  const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [step, setStep] = useState<UploadStep>("select");
+  const [extractedText, setExtractedText] = useState("");
+  const [extractError, setExtractError] = useState<string | null>(null);
+  const [title, setTitle] = useState("");
+  const [language, setLanguage] = useState(targetLanguage ?? "en");
+  const [difficulty, setDifficulty] = useState<string>("B1");
+  const [isDetecting, setIsDetecting] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  const [editingItem, setEditingItem] = useState<UserContent | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editLanguage, setEditLanguage] = useState("");
+  const [editDifficulty, setEditDifficulty] = useState("");
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const openEdit = (item: UserContent) => {
+    setEditingItem(item);
+    setEditTitle(item.title);
+    setEditLanguage(item.language);
+    setEditDifficulty(item.difficulty_level);
+    setEditError(null);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingItem) return;
+    setIsSavingEdit(true);
+    setEditError(null);
+    try {
+      const res = await fetch(`/api/content/${editingItem.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: editTitle.trim(),
+          language: editLanguage,
+          difficulty_level: editDifficulty,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to save");
+      onUpdateItem(editingItem.id, data);
+      setEditingItem(null);
+    } catch (err) {
+      setEditError(err instanceof Error ? err.message : "Failed to save");
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deletingId) return;
+    setIsDeleting(true);
+    setDeleteError(null);
+    try {
+      const res = await fetch(`/api/content/${deletingId}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error ?? "Failed to delete");
+      }
+      onDeleteItem(deletingId);
+      setDeletingId(null);
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : "Failed to delete");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const resetDialog = () => {
+    setStep("select");
+    setExtractedText("");
+    setExtractError(null);
+    setTitle("");
+    setLanguage(targetLanguage ?? "en");
+    setDifficulty("B1");
+    setSaveError(null);
+  };
+
+  const handleDialogOpenChange = (open: boolean) => {
+    setDialogOpen(open);
+    if (!open) resetDialog();
+  };
+
+  const extractPdf = async (file: File) => {
+    setStep("pdf-extracting");
+    setExtractError(null);
+    try {
+      const pdfjsLib = await import("pdfjs-dist");
+      pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      const parts: string[] = [];
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const content = await page.getTextContent();
+        const pageText = content.items
+          .map((item: unknown) => (item as { str: string }).str)
+          .join(" ");
+        parts.push(pageText);
+      }
+      const fullText = parts.join("\n\n").trim();
+      if (!fullText) throw new Error("No text found in PDF. It may be a scanned image.");
+      setExtractedText(fullText);
+      setTitle(file.name.replace(/\.pdf$/i, ""));
+      setStep("metadata");
+
+      // Auto-detect language and difficulty in the background
+      setIsDetecting(true);
+      fetch("/api/content/detect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: fullText }),
+      })
+        .then((r) => r.ok ? r.json() : null)
+        .then((meta) => {
+          if (meta?.language) setLanguage(meta.language);
+          if (meta?.difficulty) setDifficulty(meta.difficulty);
+        })
+        .catch(() => { /* silently fall back to defaults */ })
+        .finally(() => setIsDetecting(false));
+    } catch (err) {
+      setExtractError(err instanceof Error ? err.message : "Failed to extract text from PDF.");
+      setStep("pdf-drop");
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) extractPdf(file);
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files?.[0];
+    if (file?.type === "application/pdf") extractPdf(file);
+  };
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    setSaveError(null);
+    try {
+      const res = await fetch("/api/content/upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: title.trim(),
+          body: extractedText,
+          language,
+          difficulty_level: difficulty,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to save");
+      setDialogOpen(false);
+      resetDialog();
+      onRefresh();
+      router.push(`/reader/${data.id}`);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Failed to save content.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <div>
+      {/* Upload trigger */}
+      <button
+        onClick={() => setDialogOpen(true)}
+        className="group mb-8 flex w-full items-center gap-4 rounded-xl border-2 border-dashed border-primary/25 px-6 py-5 text-left transition-all duration-200 hover:border-primary/50 hover:bg-primary/[0.03]"
+      >
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted transition-colors group-hover:bg-primary/10">
+          <Upload className="h-4 w-4 text-muted-foreground transition-colors group-hover:text-primary" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-foreground">Upload your own content</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Add a PDF, paste text, or enter a URL — read it with iLiterate
+          </p>
+        </div>
+        <span className="shrink-0 rounded-full border border-border/40 px-3 py-1 text-xs font-medium text-muted-foreground transition-all group-hover:border-primary/40 group-hover:text-primary">
+          Add content
+        </span>
+      </button>
+
+      {/* Multi-step upload dialog */}
+      <Dialog open={dialogOpen} onOpenChange={handleDialogOpenChange}>
+        <DialogContent className="overflow-hidden p-0 sm:max-w-lg">
+          <div>
+            <DialogHeader className="px-6 pt-6">
+              <DialogTitle className="flex items-center gap-2">
+                {step !== "select" && (
+                  <button
+                    onClick={() => setStep(step === "metadata" ? "pdf-drop" : "select")}
+                    className="mr-1 rounded p-0.5 text-muted-foreground hover:text-foreground"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </button>
+                )}
+                <Upload className="h-4 w-4 text-primary" />
+                <span>
+                    {step === "select" && "Add your own content"}
+                    {step === "pdf-drop" && "Upload PDF"}
+                    {step === "pdf-extracting" && "Extracting text…"}
+                    {step === "metadata" && "Save content"}
+                </span>
+              </DialogTitle>
+            </DialogHeader>
+
+              <div className="px-6 pb-6">
+                <AnimatePresence mode="popLayout" initial={false}>
+
+                  {/* Step: method selection */}
+                  {step === "select" && (
+                    <motion.div
+                      key="select"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0, transition: { duration: 0.07 } }}
+                      transition={{ duration: 0.1 }}
+                      className="grid grid-cols-3 gap-3 pt-4"
+                    >
+                      <motion.button
+                        layoutId="pdf-upload-tile"
+                        onClick={() => setStep("pdf-drop")}
+                        style={{ borderRadius: 8 }}
+                        transition={{ type: "spring", duration: 0.3, bounce: 0.15 }}
+                        className="group flex cursor-pointer flex-col items-center gap-3 border border-border/40 bg-muted/30 px-4 py-5 text-center transition-colors hover:border-primary/40 hover:bg-primary/[0.04] hover:shadow-sm"
+                      >
+                        <motion.div
+                          layoutId="pdf-upload-icon"
+                          style={{ borderRadius: 8 }}
+                          transition={{ type: "spring", duration: 0.3, bounce: 0.15 }}
+                          className="flex h-10 w-10 items-center justify-center bg-background shadow-sm text-muted-foreground transition-colors group-hover:text-primary group-hover:bg-primary/10"
+                        >
+                          <FileText className="h-5 w-5" />
+                        </motion.div>
+                        <motion.div layoutId="pdf-upload-label" transition={{ type: "spring", duration: 0.3, bounce: 0.15 }}>
+                          <p className="text-xs font-semibold text-foreground">Upload PDF</p>
+                          <p className="mt-0.5 text-[11px] text-muted-foreground">Import a PDF file</p>
+                        </motion.div>
+                      </motion.button>
+                      <button
+                        disabled
+                        className="flex flex-col items-center gap-3 rounded-lg border border-border/40 bg-muted/30 px-4 py-5 text-center opacity-40 cursor-not-allowed"
+                      >
+                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-background shadow-sm text-muted-foreground">
+                          <Type className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold text-foreground">Paste text</p>
+                          <p className="mt-0.5 text-[11px] text-muted-foreground">Coming soon</p>
+                        </div>
+                      </button>
+                      <button
+                        disabled
+                        className="flex flex-col items-center gap-3 rounded-lg border border-border/40 bg-muted/30 px-4 py-5 text-center opacity-40 cursor-not-allowed"
+                      >
+                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-background shadow-sm text-muted-foreground">
+                          <LinkIcon className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold text-foreground">From URL</p>
+                          <p className="mt-0.5 text-[11px] text-muted-foreground">Coming soon</p>
+                        </div>
+                      </button>
+                    </motion.div>
+                  )}
+
+                  {/* Step: PDF drop zone */}
+                  {step === "pdf-drop" && (
+                    <motion.div
+                      key="pdf-drop"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0, transition: { duration: 0.07 } }}
+                      transition={{ duration: 0.1 }}
+                      className="pt-4"
+                    >
+                      <motion.div
+                        layoutId="pdf-upload-tile"
+                        onDrop={handleDrop}
+                        onDragOver={(e) => e.preventDefault()}
+                        onClick={() => fileInputRef.current?.click()}
+                        style={{ borderRadius: 12, cursor: "pointer" }}
+                        transition={{ type: "spring", duration: 0.3, bounce: 0.15 }}
+                        className="flex flex-col items-center gap-4 border-2 border-dashed border-border/50 px-8 py-12 text-center transition-colors hover:border-primary/40 hover:bg-primary/[0.02]"
+                      >
+                        <motion.div
+                          layoutId="pdf-upload-icon"
+                          style={{ borderRadius: "50%" }}
+                          transition={{ type: "spring", duration: 0.3, bounce: 0.15 }}
+                          className="flex h-14 w-14 items-center justify-center bg-muted"
+                        >
+                          <FileText className="h-6 w-6 text-muted-foreground" />
+                        </motion.div>
+                        <motion.div layoutId="pdf-upload-label" transition={{ type: "spring", duration: 0.3, bounce: 0.15 }}>
+                          <p className="text-sm font-medium">Drop your PDF here</p>
+                          <p className="mt-1 text-xs text-muted-foreground">or click to browse</p>
+                        </motion.div>
+                        <span className="rounded-full border border-border/40 px-4 py-1.5 text-xs font-medium text-muted-foreground">
+                          Select PDF
+                        </span>
+                      </motion.div>
+                      {extractError && (
+                        <p className="mt-3 text-xs text-destructive">{extractError}</p>
+                      )}
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="application/pdf"
+                        className="hidden"
+                        onChange={handleFileChange}
+                      />
+                    </motion.div>
+                  )}
+
+                  {/* Step: extracting */}
+                  {step === "pdf-extracting" && (
+                    <motion.div
+                      key="pdf-extracting"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0, transition: { duration: 0.07 } }}
+                      transition={{ duration: 0.1 }}
+                      className="flex flex-col items-center gap-4 py-12"
+                    >
+                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                      <p className="text-sm text-muted-foreground">Reading your PDF…</p>
+                    </motion.div>
+                  )}
+
+                  {/* Step: metadata form */}
+                  {step === "metadata" && (
+                    <motion.div
+                      key="metadata"
+                      initial={{ opacity: 0, y: 4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, transition: { duration: 0.07 } }}
+                      transition={{ duration: 0.12 }}
+                      className="space-y-4 pt-2"
+                    >
+                      <div className="flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
+                        <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />
+                        <p className="text-xs text-primary">
+                          Extracted {extractedText.trim().split(/\s+/).length.toLocaleString()} words
+                        </p>
+                        {isDetecting && (
+                          <span className="ml-auto flex items-center gap-1 text-[11px] text-muted-foreground">
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                            Detecting language &amp; difficulty…
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-medium text-foreground">Title</label>
+                        <input
+                          value={title}
+                          onChange={(e) => setTitle(e.target.value)}
+                          className="w-full rounded-md border border-border/60 bg-background px-3 py-2 text-sm outline-none focus:border-primary/60 focus:ring-1 focus:ring-primary/20"
+                          placeholder="Enter a title"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                          <label className="flex items-center gap-1.5 text-xs font-medium text-foreground">
+                            Language
+                            {isDetecting && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+                          </label>
+                          <select
+                            value={language}
+                            onChange={(e) => setLanguage(e.target.value)}
+                            disabled={isDetecting}
+                            className="w-full rounded-md border border-border/60 bg-background px-3 py-2 text-sm outline-none focus:border-primary/60 focus:ring-1 focus:ring-primary/20 disabled:opacity-60"
+                          >
+                            {Object.entries(LANGUAGE_NAMES).map(([code, name]) => (
+                              <option key={code} value={code}>{name}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="flex items-center gap-1.5 text-xs font-medium text-foreground">
+                            Difficulty
+                            {isDetecting && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+                          </label>
+                          <select
+                            value={difficulty}
+                            onChange={(e) => setDifficulty(e.target.value)}
+                            disabled={isDetecting}
+                            className="w-full rounded-md border border-border/60 bg-background px-3 py-2 text-sm outline-none focus:border-primary/60 focus:ring-1 focus:ring-primary/20 disabled:opacity-60"
+                          >
+                            {["A1", "A2", "B1", "B2", "C1", "C2"].map((l) => (
+                              <option key={l} value={l}>{l}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+
+                      {saveError && (
+                        <p className="text-xs text-destructive">{saveError}</p>
+                      )}
+
+                      <div className="flex justify-end gap-2 pt-1">
+                        <Button variant="outline" size="sm" onClick={() => handleDialogOpenChange(false)}>
+                          Cancel
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={handleSave}
+                          disabled={isSaving || isDetecting || !title.trim()}
+                        >
+                          {isSaving ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : null}
+                          Save &amp; Read
+                        </Button>
+                      </div>
+                    </motion.div>
+                  )}
+
+                </AnimatePresence>
+              </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* User's uploaded content list */}
+      {isLoadingContent ? (
+        <div className="flex justify-center py-16">
+          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        </div>
+      ) : userContent.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-muted">
+            <BookOpen className="h-6 w-6 text-muted-foreground" />
+          </div>
+          <p className="text-sm font-medium text-foreground">No content yet</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Upload a PDF to start reading.
+          </p>
+        </div>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {userContent.map((item) => (
+            <Card key={item.id} className="flex flex-col">
+              <CardHeader>
+                <div className="flex items-start justify-between gap-2">
+                  <CardTitle className="text-base leading-snug">{item.title}</CardTitle>
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button className="cursor-pointer rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-36">
+                        <DropdownMenuItem className="cursor-pointer" onClick={() => openEdit(item)}>
+                          <Pencil className="mr-2 h-3.5 w-3.5" />
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          onClick={() => { setDeletingId(item.id); setDeleteError(null); }}
+                          className="cursor-pointer text-destructive focus:text-destructive"
+                        >
+                          <Trash2 className="mr-2 h-3.5 w-3.5" />
+                          Remove
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </div>
+                <CardDescription className="flex items-center gap-2">
+                  <span>{formatLanguage(item.language)}</span>
+                  <span>•</span>
+                  <span className="rounded bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-primary">{item.difficulty_level}</span>
+                  {item.estimated_reading_time && (
+                    <>
+                      <span>•</span>
+                      <span>{item.estimated_reading_time} min read</span>
+                    </>
+                  )}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-1 flex-col justify-end">
+                <Button asChild variant="outline" className="w-full">
+                  <Link href={`/reader/${item.id}`}>
+                    <BookOpen className="mr-2 h-4 w-4" />
+                    Read
+                  </Link>
+                </Button>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* Edit dialog */}
+      <Dialog open={!!editingItem} onOpenChange={(open) => { if (!open) setEditingItem(null); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="h-4 w-4 text-primary" />
+              Edit content
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-1">
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-foreground">Title</label>
+              <input
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                className="w-full rounded-md border border-border/60 bg-background px-3 py-2 text-sm outline-none focus:border-primary/60 focus:ring-1 focus:ring-primary/20"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-foreground">Language</label>
+                <select
+                  value={editLanguage}
+                  onChange={(e) => setEditLanguage(e.target.value)}
+                  className="w-full rounded-md border border-border/60 bg-background px-3 py-2 text-sm outline-none focus:border-primary/60 focus:ring-1 focus:ring-primary/20"
+                >
+                  {Object.entries(LANGUAGE_NAMES).map(([code, name]) => (
+                    <option key={code} value={code}>{name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-foreground">Difficulty</label>
+                <select
+                  value={editDifficulty}
+                  onChange={(e) => setEditDifficulty(e.target.value)}
+                  className="w-full rounded-md border border-border/60 bg-background px-3 py-2 text-sm outline-none focus:border-primary/60 focus:ring-1 focus:ring-primary/20"
+                >
+                  {["A1", "A2", "B1", "B2", "C1", "C2"].map((l) => (
+                    <option key={l} value={l}>{l}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            {editError && <p className="text-xs text-destructive">{editError}</p>}
+            <div className="flex justify-end gap-2 pt-1">
+              <Button variant="outline" size="sm" onClick={() => setEditingItem(null)}>
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleSaveEdit}
+                disabled={isSavingEdit || !editTitle.trim()}
+              >
+                {isSavingEdit ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : null}
+                Save
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete confirm dialog */}
+      <Dialog open={!!deletingId} onOpenChange={(open) => { if (!open) setDeletingId(null); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Trash2 className="h-4 w-4 text-destructive" />
+              Remove content
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-1">
+            <p className="text-sm text-muted-foreground">
+              This will permanently remove the item from your library. This cannot be undone.
+            </p>
+            {deleteError && <p className="text-xs text-destructive">{deleteError}</p>}
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" size="sm" onClick={() => setDeletingId(null)}>
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={handleDelete}
+                disabled={isDeleting}
+              >
+                {isDeleting ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : null}
+                Remove
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function ContentCard({ content }: { content: Content }) {
+  return (
+    <Card className="flex flex-col">
+      <CardHeader>
+        <div className="flex items-start justify-between">
+          <CardTitle className="text-lg">{content.title}</CardTitle>
+          <span className="rounded bg-primary/10 px-2 py-1 text-xs font-medium text-primary">
+            {content.difficulty_level}
+          </span>
+        </div>
+        <CardDescription className="flex items-center gap-2">
+          <span>{formatLanguage(content.language)}</span>
+          <span>•</span>
+          <span>{content.content_type}</span>
+          {content.estimated_reading_time && (
+            <>
+              <span>•</span>
+              <span>{content.estimated_reading_time} min read</span>
+            </>
+          )}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-1 flex-col justify-end">
+        {content.topic_tags && content.topic_tags.length > 0 && (
+          <div className="mb-4 flex flex-wrap gap-1">
+            {content.topic_tags.map((tag: string) => (
+              <span
+                key={tag}
+                className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground"
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
+        <Button asChild variant="outline" className="w-full">
+          <Link href={`/reader/${content.id}`}>
+            <BookOpen className="mr-2 h-4 w-4" />
+            Read
+          </Link>
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+function SavedGrid({
   bookmarks,
   isLoading,
 }: {
   bookmarks: BookmarkWithMetadata[];
   isLoading: boolean;
-  onRefresh: () => void;
 }) {
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-12">
+      <div className="flex items-center justify-center py-16">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
@@ -158,20 +1059,14 @@ function SavedTab({
 
   if (bookmarks.length === 0) {
     return (
-      <Card>
-        <CardContent className="flex flex-col items-center justify-center py-12">
-          <Bookmark className="h-12 w-12 text-muted-foreground/50" />
-          <h3 className="mt-4 text-lg font-semibold">No saved items yet</h3>
-          <p className="mt-2 text-center text-sm text-muted-foreground">
-            Bookmark content while reading to save it here.
-          </p>
-        </CardContent>
-      </Card>
+      <p className="py-16 text-center text-sm text-muted-foreground">
+        Bookmark content while reading to save it here.
+      </p>
     );
   }
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
       {bookmarks.map((bookmark) =>
         bookmark.item_type === "content" ? (
           <SavedContentCard key={bookmark.id} bookmark={bookmark} />
@@ -195,7 +1090,7 @@ function SavedContentCard({ bookmark }: { bookmark: BookmarkWithMetadata }) {
           </span>
         </div>
         <CardDescription className="flex items-center gap-2">
-          <span className="capitalize">{m.language as string}</span>
+          <span>{formatLanguage(m.language as string)}</span>
           <span>•</span>
           <span>{m.content_type as string}</span>
           {Number(m.estimated_reading_time) > 0 && (

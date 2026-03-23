@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
 
     // Transform lessons for response
     const transformedLessons = (lessons || []).map((lesson) => {
-      const topicInfo = getTopicInfo(lesson.topic);
+      const topicInfo = getTopicInfo(lesson.topics?.[0]);
       const percentage = lesson.quiz_max_score > 0
         ? Math.round((lesson.quiz_score / lesson.quiz_max_score) * 100)
         : null;

@@ -1,0 +1,87 @@
+{
+  "nav": {
+    "learn": "Lernen",
+    "practice": "Üben",
+    "community": "Gemeinschaft",
+    "lessonPlan": "Lernplan",
+    "library": "Bibliothek",
+    "flashcards": "Karteikarten",
+    "quizzes": "Quiz",
+    "social": "Sozial",
+    "leaderboard": "Bestenliste",
+    "progress": "Fortschritt",
+    "profile": "Profil",
+    "search": "Suchen..."
+  },
+  "common": {
+    "back": "Zurück",
+    "next": "Weiter",
+    "finish": "Fertig",
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "loading": "Laden...",
+    "saving": "Speichern...",
+    "loadMore": "Mehr laden",
+    "viewAll": "Alle anzeigen",
+    "create": "Erstellen",
+    "error": "Etwas ist schiefgelaufen."
+  },
+  "home": {
+    "title": "Startseite",
+    "subtitle": "Mach weiter, wo du aufgehört hast, oder fang etwas Neues an."
+  },
+  "flashcards": {
+    "title": "Karteikarten",
+    "subtitle": "Wiederholen Sie Ihren gespeicherten Wortschatz.",
+    "startReview": "Wiederholung starten",
+    "viewFlashcards": "Karteikarten anzeigen",
+    "viewFlashcardsDesc": "Schau dir alle neuen Wörter an, die du bisher gelernt hast!",
+    "createNew": "Neue Karteikarte erstellen",
+    "createNewDesc": "Erstelle deine eigene Karteikarte für einen Begriff!",
+    "dueCount": "{count} fällig",
+    "checkingDue": "Fällige Karten werden geprüft...",
+    "noDue": "Momentan keine fälligen Karten.",
+    "oneCardReady": "1 Karte bereit zur Wiederholung.",
+    "cardsReady": "{count} Karten bereit zur Wiederholung."
+  },
+  "leaderboard": {
+    "title": "Bestenliste",
+    "subtitleFriends": "Sieh, wie du im Vergleich zu deinen Freunden abschneidest",
+    "subtitleGlobal": "Sieh, wie du im Vergleich zu anderen Lernenden abschneidest",
+    "global": "Global",
+    "friends": "Freunde",
+    "thisWeek": "Diese Woche",
+    "thisMonth": "Diesen Monat",
+    "noFriendActivity": "Keine Freundesaktivität in diesem Zeitraum.",
+    "findFriends": "Freunde finden",
+    "compareScores": "um Punkte zu vergleichen!"
+  },
+  "quizzes": {
+    "title": "Quiz",
+    "subtitle": "Teste dein Verständnis und verdiene XP",
+    "readyToTake": "Bereit zum Lösen",
+    "readyToTakeDesc": "Löse diese Quizze, um XP für gelesene Inhalte zu verdienen",
+    "completed": "Abgeschlossen",
+    "completedDesc": "Deine Quiz-Geschichte",
+    "noQuizzes": "Noch keine Quizze verfügbar. Lies Inhalte aus der Bibliothek, um Quizze freizuschalten!",
+    "noCompleted": "Noch keine abgeschlossenen Quizze",
+    "goToLibrary": "Zur Bibliothek",
+    "takeQuiz": "Quiz starten",
+    "read": "gelesen"
+  },
+  "library": {
+    "title": "Bibliothek"
+  },
+  "progress": {
+    "title": "Fortschritt"
+  },
+  "profile": {
+    "title": "Profil"
+  },
+  "social": {
+    "title": "Sozial"
+  },
+  "lessonPlan": {
+    "title": "Lernplan"
+  }
+}

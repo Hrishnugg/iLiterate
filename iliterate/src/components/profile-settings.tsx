@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { User } from "@supabase/supabase-js";
 import { useTheme } from "next-themes";
-import { AtSign, Sun, Moon, Monitor } from "lucide-react";
+import { AtSign, Sun, Moon, Monitor, TriangleAlert } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -15,6 +16,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Field,
   FieldDescription,
@@ -239,11 +248,36 @@ export function ProfileSettings({ user, profile, socialProfile }: ProfileSetting
     }
   };
 
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
+
   const handleSignOut = async () => {
     const supabase = createClient();
     await supabase.auth.signOut();
     router.push("/login");
     router.refresh();
+  };
+
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmText !== "delete my account") return;
+    setIsDeleting(true);
+    try {
+      const response = await fetch("/api/account/delete", { method: "DELETE" });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        toast.error(payload?.error || "Failed to delete account");
+        return;
+      }
+      const supabase = createClient();
+      await supabase.auth.signOut();
+      router.push("/login");
+      router.refresh();
+    } catch {
+      toast.error("An unexpected error occurred");
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   return (
@@ -466,9 +500,6 @@ export function ProfileSettings({ user, profile, socialProfile }: ProfileSetting
               </div>
             </Field>
 
-            <Button onClick={handleSave} disabled={isLoading || !hasChanges}>
-              {isLoading ? "Saving..." : "Save changes"}
-            </Button>
           </FieldGroup>
         </CardContent>
       </Card>
@@ -548,17 +579,109 @@ export function ProfileSettings({ user, profile, socialProfile }: ProfileSetting
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="border-destructive/50">
         <CardHeader>
-          <CardTitle>Sign out</CardTitle>
-          <CardDescription>Sign out of your account</CardDescription>
+          <CardTitle className="flex items-center gap-2 text-destructive">
+            <TriangleAlert className="size-5" />
+            Danger Zone
+          </CardTitle>
         </CardHeader>
-        <CardContent>
-          <Button variant="outline" onClick={handleSignOut}>
-            Sign out
-          </Button>
+        <CardContent className="space-y-6">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium">Sign out</p>
+            </div>
+            <Button variant="outline" onClick={handleSignOut} className="shrink-0">
+              Sign out
+            </Button>
+          </div>
+
+          <div className="border-t border-border pt-6">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium">Delete account</p>
+                <p className="text-sm text-muted-foreground">
+                  Permanently delete your account and all associated data. This cannot be undone.
+                </p>
+              </div>
+              <Button
+                variant="destructive"
+                onClick={() => setShowDeleteConfirm(true)}
+                className="shrink-0"
+              >
+                Delete account
+              </Button>
+            </div>
+          </div>
+
+          <Dialog
+            open={showDeleteConfirm}
+            onOpenChange={(open) => {
+              if (!open) {
+                setShowDeleteConfirm(false);
+                setDeleteConfirmText("");
+              }
+            }}
+          >
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle className="text-destructive">Delete account</DialogTitle>
+                <DialogDescription>
+                  This will permanently delete your account and all your data. This cannot be undone.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  Type <span className="font-bold text-white">&quot;delete my account&quot;</span> to confirm.
+                </p>
+                <Input
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                  placeholder="delete my account"
+                  disabled={isDeleting}
+                />
+              </div>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowDeleteConfirm(false);
+                    setDeleteConfirmText("");
+                  }}
+                  disabled={isDeleting}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={handleDeleteAccount}
+                  disabled={deleteConfirmText !== "delete my account" || isDeleting}
+                >
+                  {isDeleting ? "Deleting..." : "Permanently delete"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </CardContent>
       </Card>
+      <AnimatePresence>
+        {hasChanges && (
+          <motion.div
+            className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2"
+            initial={{ y: 24, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 24, opacity: 0 }}
+            transition={{ type: "spring", stiffness: 400, damping: 30 }}
+          >
+            <div className="flex items-center gap-4 rounded-xl border border-border bg-card px-5 py-3 shadow-lg">
+              <p className="text-sm text-muted-foreground">You have unsaved changes</p>
+              <Button onClick={handleSave} disabled={isLoading} size="sm">
+                {isLoading ? "Saving..." : "Save changes"}
+              </Button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

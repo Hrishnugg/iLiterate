@@ -11,11 +11,11 @@ interface LeaderboardTableProps {
 function getRankStyle(rank: number): string {
   switch (rank) {
     case 1:
-      return "bg-yellow-100 dark:bg-yellow-900/30 border-yellow-300 dark:border-yellow-700";
+      return "bg-yellow-50 dark:bg-transparent border-yellow-300 dark:border-yellow-700/30";
     case 2:
-      return "bg-gray-100 dark:bg-gray-800/50 border-gray-300 dark:border-gray-600";
+      return "bg-gray-50 dark:bg-transparent border-gray-300 dark:border-gray-600/30";
     case 3:
-      return "bg-orange-50 dark:bg-orange-900/20 border-orange-300 dark:border-orange-700";
+      return "bg-orange-50 dark:bg-transparent border-orange-300 dark:border-orange-700/30";
     default:
       return "";
   }

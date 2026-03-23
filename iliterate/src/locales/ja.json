@@ -1,0 +1,87 @@
+{
+  "nav": {
+    "learn": "学習",
+    "practice": "練習",
+    "community": "コミュニティ",
+    "lessonPlan": "レッスン計画",
+    "library": "ライブラリ",
+    "flashcards": "フラッシュカード",
+    "quizzes": "クイズ",
+    "social": "ソーシャル",
+    "leaderboard": "ランキング",
+    "progress": "進捗",
+    "profile": "プロフィール",
+    "search": "検索..."
+  },
+  "common": {
+    "back": "戻る",
+    "next": "次へ",
+    "finish": "完了",
+    "save": "保存",
+    "cancel": "キャンセル",
+    "loading": "読み込み中...",
+    "saving": "保存中...",
+    "loadMore": "もっと読む",
+    "viewAll": "すべて表示",
+    "create": "作成",
+    "error": "エラーが発生しました。"
+  },
+  "home": {
+    "title": "ホーム",
+    "subtitle": "続きから再開するか、新しいことを始めましょう。"
+  },
+  "flashcards": {
+    "title": "フラッシュカード",
+    "subtitle": "保存した語彙を復習しましょう。",
+    "startReview": "復習を始める",
+    "viewFlashcards": "フラッシュカードを見る",
+    "viewFlashcardsDesc": "これまでに学んだ新しい言葉をすべて見てみましょう！",
+    "createNew": "新しいフラッシュカードを作成",
+    "createNewDesc": "用語の独自のフラッシュカードを作成しましょう！",
+    "dueCount": "{count}件期限",
+    "checkingDue": "期限カードを確認中...",
+    "noDue": "今すぐ復習するカードはありません。",
+    "oneCardReady": "1枚のカードが復習の準備ができています。",
+    "cardsReady": "{count}枚のカードが復習の準備ができています。"
+  },
+  "leaderboard": {
+    "title": "ランキング",
+    "subtitleFriends": "友達の中での順位を確認しましょう",
+    "subtitleGlobal": "他の学習者との順位を確認しましょう",
+    "global": "グローバル",
+    "friends": "友達",
+    "thisWeek": "今週",
+    "thisMonth": "今月",
+    "noFriendActivity": "この期間の友達のアクティビティはありません。",
+    "findFriends": "友達を探す",
+    "compareScores": "でスコアを比較しましょう！"
+  },
+  "quizzes": {
+    "title": "クイズ",
+    "subtitle": "理解度を確認してXPを獲得しましょう",
+    "readyToTake": "受験可能",
+    "readyToTakeDesc": "これらのクイズを完了して読んだコンテンツのXPを獲得しましょう",
+    "completed": "完了済み",
+    "completedDesc": "クイズの履歴",
+    "noQuizzes": "まだクイズはありません。ライブラリからコンテンツを読んでクイズを解放しましょう！",
+    "noCompleted": "まだ完了したクイズはありません",
+    "goToLibrary": "ライブラリへ",
+    "takeQuiz": "クイズを受ける",
+    "read": "読了"
+  },
+  "library": {
+    "title": "ライブラリ"
+  },
+  "progress": {
+    "title": "進捗"
+  },
+  "profile": {
+    "title": "プロフィール"
+  },
+  "social": {
+    "title": "ソーシャル"
+  },
+  "lessonPlan": {
+    "title": "レッスン計画"
+  }
+}

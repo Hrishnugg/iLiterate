@@ -645,15 +645,17 @@ export function SocialHub() {
 
   if (!publicProfile?.username) {
     return (
-      <div className="space-y-8">
-        <SocialProfileGate
-          initialDisplayName={derivedDisplayName}
-          initialUsername={publicProfile?.username}
-          onSaved={(profile) => {
-            setPublicProfile(profile);
-            toast.success("Your social workspace is ready");
-          }}
-        />
+      <div className="flex justify-center p-8 pt-16">
+        <div className="w-full max-w-2xl">
+          <SocialProfileGate
+            initialDisplayName={derivedDisplayName}
+            initialUsername={publicProfile?.username}
+            onSaved={(profile) => {
+              setPublicProfile(profile);
+              toast.success("Your social workspace is ready");
+            }}
+          />
+        </div>
       </div>
     );
   }

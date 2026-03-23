@@ -1,7 +1,8 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { AnimatePresence, motion } from "motion/react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -15,7 +16,6 @@ import {
 import {
   Field,
   FieldDescription,
-  FieldError,
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field";
@@ -27,6 +27,22 @@ export function LoginForm({
   ...props
 }: React.ComponentProps<"div">) {
   const [state, formAction, pending] = useActionState(login, null);
+  const [errorVisible, setErrorVisible] = useState(false);
+
+  // Detect the pending→false transition synchronously to avoid a render where
+  // showError is still false (which would flash "Sign In" between "Signing in..." and error)
+  const prevPendingRef = useRef(false);
+  const wasPending = prevPendingRef.current;
+  prevPendingRef.current = pending;
+  const showError = errorVisible || (!pending && wasPending && !!state?.error);
+
+  useEffect(() => {
+    if (pending) { setErrorVisible(false); return; }
+    if (!state?.error) return;
+    setErrorVisible(true);
+    const timer = setTimeout(() => setErrorVisible(false), 3000);
+    return () => clearTimeout(timer);
+  }, [pending, state]);
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
@@ -40,7 +56,6 @@ export function LoginForm({
         <CardContent>
           <form action={formAction}>
             <FieldGroup>
-              {state?.error && <FieldError>{state.error}</FieldError>}
               <Field>
                 <FieldLabel htmlFor="email">Email</FieldLabel>
                 <Input
@@ -48,6 +63,8 @@ export function LoginForm({
                   name="email"
                   type="email"
                   placeholder="m@example.com"
+                  defaultValue={state?.fields?.email}
+                  aria-invalid={showError && state?.errorFields?.includes("email")}
                   required
                 />
               </Field>
@@ -57,12 +74,28 @@ export function LoginForm({
                   id="password"
                   name="password"
                   type="password"
+                  aria-invalid={showError && state?.errorFields?.includes("password")}
                   required
                 />
               </Field>
               <Field>
-                <Button type="submit" className="w-full" disabled={pending}>
-                  {pending ? "Signing in..." : "Sign In"}
+                <Button
+                  type="submit"
+                  variant={showError ? "destructive" : "default"}
+                  className="w-full overflow-hidden transition-colors duration-300"
+                  disabled={pending}
+                >
+                  <AnimatePresence mode="wait" initial={false}>
+                    <motion.span
+                      key={pending || showError ? "active" : "idle"}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      transition={{ duration: 0.2, ease: "easeOut" }}
+                    >
+                      {pending ? "Signing in..." : showError ? state!.error : "Sign In"}
+                    </motion.span>
+                  </AnimatePresence>
                 </Button>
                 <FieldDescription className="text-center">
                   Don&apos;t have an account?{" "}

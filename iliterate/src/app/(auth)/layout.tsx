@@ -1,3 +1,5 @@
+import { BookOpen } from "lucide-react";
+
 export default function AuthLayout({
   children,
 }: {
@@ -7,23 +9,32 @@ export default function AuthLayout({
     <div className="flex min-h-svh">
       {/* Brand panel — left half */}
       <div className="relative hidden w-1/2 flex-col items-center justify-center overflow-hidden bg-primary lg:flex">
+        <style>{`
+          .auth-char {
+            transition: color 0.35s ease;
+            cursor: default;
+          }
+          .auth-char:hover {
+            color: rgba(180, 240, 190, 0.95) !important;
+          }
+        `}</style>
         {/* Decorative floating script characters */}
-        <span className="absolute left-[10%] top-[10%] text-6xl font-light text-primary-foreground/[0.07]">
+        <span className="auth-char absolute left-[10%] top-[10%] text-6xl font-light text-primary-foreground/[0.07]">
           文
         </span>
-        <span className="absolute right-[12%] top-[22%] text-5xl font-light text-primary-foreground/[0.06]">
+        <span className="auth-char absolute right-[12%] top-[22%] text-5xl font-light text-primary-foreground/[0.06]">
           あ
         </span>
-        <span className="absolute bottom-[25%] left-[14%] text-5xl font-light text-primary-foreground/[0.07]">
+        <span className="auth-char absolute bottom-[25%] left-[14%] text-5xl font-light text-primary-foreground/[0.07]">
           한
         </span>
-        <span className="absolute bottom-[15%] right-[16%] text-5xl font-light text-primary-foreground/[0.06]">
+        <span className="auth-char absolute bottom-[15%] right-[16%] text-5xl font-light text-primary-foreground/[0.06]">
           ع
         </span>
-        <span className="absolute left-[8%] top-[45%] text-4xl font-light text-primary-foreground/[0.05]">
+        <span className="auth-char absolute left-[8%] top-[45%] text-4xl font-light text-primary-foreground/[0.05]">
           Я
         </span>
-        <span className="absolute right-[10%] top-[40%] text-4xl font-light text-primary-foreground/[0.06]">
+        <span className="auth-char absolute right-[10%] top-[40%] text-4xl font-light text-primary-foreground/[0.06]">
           語
         </span>
 
@@ -31,9 +42,7 @@ export default function AuthLayout({
         <div className="relative z-10 flex flex-col items-center gap-4">
           <div className="flex items-center gap-3">
             <div className="flex size-11 items-center justify-center rounded-lg bg-primary-foreground/15">
-              <span className="text-lg font-bold text-primary-foreground">
-                iL
-              </span>
+              <BookOpen className="size-6 text-primary-foreground" />
             </div>
             <span className="text-3xl font-semibold tracking-tight text-primary-foreground">
               iLiterate

@@ -16,11 +16,23 @@ interface SkillWeightsEditorProps {
   onUpdate?: () => void;
 }
 
+function detectPreset(weights: { reading: number; vocabulary: number; grammar: number }): WeightPresetKey | null {
+  return (Object.keys(WEIGHT_PRESETS) as WeightPresetKey[]).find((key) => {
+    const p = WEIGHT_PRESETS[key];
+    return (
+      Math.abs(p.reading - weights.reading) < 0.02 &&
+      Math.abs(p.vocabulary - weights.vocabulary) < 0.02 &&
+      Math.abs(p.grammar - weights.grammar) < 0.02
+    );
+  }) ?? null;
+}
+
 export function SkillWeightsEditor({
   currentWeights,
   onUpdate,
 }: SkillWeightsEditorProps) {
   const [weights, setWeights] = useState(currentWeights);
+  const [activePreset, setActivePreset] = useState<WeightPresetKey | null>(() => detectPreset(currentWeights));
   const [isSaving, setIsSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
 
@@ -52,6 +64,7 @@ export function SkillWeightsEditor({
     newWeights.grammar = Math.round((1 - newWeights.reading - newWeights.vocabulary) * 100) / 100;
 
     setWeights(newWeights);
+    setActivePreset(null);
     setHasChanges(true);
   };
 
@@ -62,6 +75,7 @@ export function SkillWeightsEditor({
       vocabulary: preset.vocabulary,
       grammar: preset.grammar,
     });
+    setActivePreset(presetKey);
     setHasChanges(true);
   };
 
@@ -103,7 +117,7 @@ export function SkillWeightsEditor({
           {(Object.keys(WEIGHT_PRESETS) as WeightPresetKey[]).map((key) => (
             <Button
               key={key}
-              variant="outline"
+              variant={activePreset === key ? "default" : "outline"}
               size="sm"
               onClick={() => applyPreset(key)}
               className="text-xs"
@@ -114,15 +128,15 @@ export function SkillWeightsEditor({
         </div>
 
         {/* Sliders */}
-        <div className="space-y-4">
+        <div className="space-y-5">
           {/* Reading */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <span className="flex items-center gap-2 text-sm">
-                <BookOpen className="h-4 w-4 text-blue-500" />
+              <span className="flex items-center gap-2 text-sm font-medium">
+                <BookOpen className="h-4 w-4 text-primary" />
                 Reading
               </span>
-              <span className="text-sm font-medium">
+              <span className="font-mono text-sm font-medium tabular-nums">
                 {Math.round(weights.reading * 100)}%
               </span>
             </div>
@@ -132,18 +146,18 @@ export function SkillWeightsEditor({
               min={0.1}
               max={0.7}
               step={0.05}
-              className="[&_[role=slider]]:bg-blue-500"
+              className=""
             />
           </div>
 
           {/* Vocabulary */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <span className="flex items-center gap-2 text-sm">
-                <Languages className="h-4 w-4 text-green-500" />
+              <span className="flex items-center gap-2 text-sm font-medium">
+                <Languages className="h-4 w-4 text-primary" />
                 Vocabulary
               </span>
-              <span className="text-sm font-medium">
+              <span className="font-mono text-sm font-medium tabular-nums">
                 {Math.round(weights.vocabulary * 100)}%
               </span>
             </div>
@@ -153,18 +167,18 @@ export function SkillWeightsEditor({
               min={0.1}
               max={0.7}
               step={0.05}
-              className="[&_[role=slider]]:bg-green-500"
+              className=""
             />
           </div>
 
           {/* Grammar */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <span className="flex items-center gap-2 text-sm">
-                <PenTool className="h-4 w-4 text-purple-500" />
+              <span className="flex items-center gap-2 text-sm font-medium">
+                <PenTool className="h-4 w-4 text-primary" />
                 Grammar
               </span>
-              <span className="text-sm font-medium">
+              <span className="font-mono text-sm font-medium tabular-nums">
                 {Math.round(weights.grammar * 100)}%
               </span>
             </div>
@@ -174,14 +188,14 @@ export function SkillWeightsEditor({
               min={0.1}
               max={0.7}
               step={0.05}
-              className="[&_[role=slider]]:bg-purple-500"
+              className=""
             />
           </div>
         </div>
 
         {/* Save Button */}
         {hasChanges && (
-          <Button onClick={handleSave} disabled={isSaving} className="w-full">
+          <Button onClick={handleSave} disabled={isSaving} variant="outline" className="w-full">
             {isSaving ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

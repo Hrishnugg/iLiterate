@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
+import { AnimatePresence } from "motion/react";
 import { ArrowDown } from "lucide-react";
 import { Highlight, TranslationLookup, Content } from "@/types/database";
 import { TextSelection } from "./TextHighlighter";
@@ -569,16 +570,19 @@ export function ArticleRenderer({ content, isLesson = false }: ArticleRendererPr
         )}
       </ReaderLayout>
 
-      {selection && (
-        <TranslatePopover
-          selection={selection}
-          position={popoverPosition}
-          onTranslate={handleTranslate}
-          onAddNote={handleAddNote}
-          onSaveWord={handleSaveWord}
-          onClose={handlePopoverClose}
-        />
-      )}
+      <AnimatePresence mode="wait">
+        {selection && (
+          <TranslatePopover
+            key={selection.text + selection.startOffset}
+            selection={selection}
+            position={popoverPosition}
+            onTranslate={handleTranslate}
+            onAddNote={handleAddNote}
+            onSaveWord={handleSaveWord}
+            onClose={handlePopoverClose}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Back to reading position button */}
       {savedScrollPosition !== null && (

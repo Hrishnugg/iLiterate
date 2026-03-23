@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BookOpen } from "lucide-react";
 import LanguageShowcase from "@/components/LanguageShowcase";
 import ThemeToggle from "@/components/ThemeToggle";
 import { BlurFade } from "@/components/BlurFade";
@@ -23,7 +24,7 @@ export default function Home() {
   return (
     <div
       className={`${ebGaramond.variable} ${dmSans.variable} min-h-screen`}
-      style={{ background: "#FAF7F0", color: "#1C1917" }}
+      style={{ background: "#FAF7F0", color: "#091413" }}
     >
       <style>{`
         .lp-display { font-family: var(--font-display), 'Georgia', serif; }
@@ -34,9 +35,9 @@ export default function Home() {
           50%      { transform: translateY(-10px); }
         }
 
-        .lp-float-slow { animation: lp-float 9s ease-in-out infinite; }
-        .lp-float-med  { animation: lp-float 7s 1.5s ease-in-out infinite; }
-        .lp-float-fast { animation: lp-float 5.5s 0.8s ease-in-out infinite; }
+        .lp-float-slow { animation: lp-float 14s ease-in-out infinite; }
+        .lp-float-med  { animation: lp-float 11s 1.5s ease-in-out infinite; }
+        .lp-float-fast { animation: lp-float 8.5s 0.8s ease-in-out infinite; }
 
         .lp-nav-link { position: relative; }
         .lp-nav-link::after {
@@ -44,28 +45,28 @@ export default function Home() {
           position: absolute;
           bottom: -2px; left: 0;
           width: 0; height: 1px;
-          background: #2E5D3B;
+          background: #285A48;
           transition: width 0.3s ease;
         }
         .lp-nav-link:hover::after { width: 100%; }
 
         .lp-btn-green {
-          background: #2E5D3B; color: #FAF7F0;
+          background: #285A48; color: #FAF7F0;
           transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
         }
         .lp-btn-green:hover {
-          background: #1F3F28;
+          background: #1C3F34;
           transform: translateY(-1px);
-          box-shadow: 0 6px 20px rgba(46,93,59,0.35);
+          box-shadow: 0 6px 20px rgba(40,90,72,0.35);
         }
         .lp-btn-outline {
-          border: 1.5px solid rgba(28,25,23,0.2); color: #1C1917;
+          border: 1.5px solid rgba(9,20,19,0.2); color: #091413;
           transition: background 0.2s ease, border-color 0.2s ease;
         }
-        .lp-btn-outline:hover { background: rgba(46,93,59,0.06); border-color: rgba(46,93,59,0.4); }
+        .lp-btn-outline:hover { background: rgba(40,90,72,0.06); border-color: rgba(40,90,72,0.4); }
 
         .lp-btn-cream {
-          background: #FAF7F0; color: #1C1917;
+          background: #FAF7F0; color: #091413;
           transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
         }
         .lp-btn-cream:hover {
@@ -77,21 +78,29 @@ export default function Home() {
         .lp-card {
           transition: transform 0.3s ease, box-shadow 0.3s ease;
           background: #FAF7F0;
-          border: 1px solid rgba(28,25,23,0.08);
+          border: 1px solid rgba(9,20,19,0.08);
         }
         .lp-card:hover {
           transform: translateY(-5px);
-          box-shadow: 0 24px 48px rgba(28,25,23,0.09);
+          box-shadow: 0 24px 48px rgba(9,20,19,0.09);
         }
 
         .lp-chip {
           display: inline-flex; align-items: center; gap: 6px;
-          background: rgba(28,25,23,0.05);
-          border: 1px solid rgba(28,25,23,0.08);
+          background: rgba(9,20,19,0.05);
+          border: 1px solid rgba(9,20,19,0.08);
           border-radius: 999px;
           padding: 6px 14px;
           font-size: 0.78rem;
           color: #5C4F3A;
+        }
+
+        .lp-char {
+          transition: color 0.35s ease;
+          cursor: default;
+        }
+        .lp-char:hover {
+          color: rgba(64, 138, 113, 0.9) !important;
         }
       `}</style>
 
@@ -99,16 +108,13 @@ export default function Home() {
       <nav
         className="sticky top-0 z-50 px-6 md:px-12 py-4 flex items-center justify-between"
         style={{
-          borderBottom: "1px solid rgba(28,25,23,0.07)",
+          borderBottom: "1px solid rgba(9,20,19,0.07)",
           background: "rgba(250,247,240,0.85)",
           backdropFilter: "blur(12px)",
         }}
       >
-        <div
-          className="lp-display text-xl font-semibold tracking-tight"
-          style={{ color: "#1C1917" }}
-        >
-          i<span style={{ color: "#2E5D3B" }}>Literate</span>
+        <div className="flex size-9 items-center justify-center rounded-lg" style={{ background: "#285A48" }}>
+          <BookOpen className="size-5 text-white" />
         </div>
         <div className="flex items-center gap-6 lp-body text-sm">
           <Link
@@ -136,10 +142,10 @@ export default function Home() {
         {/* CJK */}
         <span
           aria-hidden="true"
-          className="lp-float-slow pointer-events-none select-none absolute top-10 right-6 md:right-20 lp-display font-light"
+          className="lp-float-slow lp-char select-none absolute top-10 right-6 md:right-20 lp-display font-light"
           style={{
             fontSize: "clamp(5rem,12vw,9rem)",
-            color: "rgba(28,25,23,0.04)",
+            color: "rgba(9,20,19,0.04)",
             lineHeight: 1,
           }}
         >
@@ -147,10 +153,10 @@ export default function Home() {
         </span>
         <span
           aria-hidden="true"
-          className="lp-float-med pointer-events-none select-none absolute bottom-16 right-16 md:right-36 lp-display font-light"
+          className="lp-float-med lp-char select-none absolute bottom-16 right-16 md:right-36 lp-display font-light"
           style={{
             fontSize: "clamp(3rem,8vw,6rem)",
-            color: "rgba(46,93,59,0.05)",
+            color: "rgba(40,90,72,0.05)",
             lineHeight: 1,
           }}
         >
@@ -159,10 +165,10 @@ export default function Home() {
         {/* Japanese */}
         <span
           aria-hidden="true"
-          className="lp-float-fast pointer-events-none select-none absolute top-28 left-2 md:left-6 lp-display font-light"
+          className="lp-float-fast lp-char select-none absolute top-28 left-2 md:left-6 lp-display font-light"
           style={{
             fontSize: "clamp(2rem,6vw,4rem)",
-            color: "rgba(28,25,23,0.04)",
+            color: "rgba(9,20,19,0.04)",
             lineHeight: 1,
           }}
         >
@@ -171,10 +177,10 @@ export default function Home() {
         {/* Korean */}
         <span
           aria-hidden="true"
-          className="lp-float-slow pointer-events-none select-none absolute bottom-24 left-8 md:left-20 lp-display font-light"
+          className="lp-float-slow lp-char select-none absolute bottom-24 left-8 md:left-20 lp-display font-light"
           style={{
             fontSize: "clamp(4rem,9vw,7rem)",
-            color: "rgba(46,93,59,0.04)",
+            color: "rgba(40,90,72,0.04)",
             lineHeight: 1,
           }}
         >
@@ -183,10 +189,10 @@ export default function Home() {
         {/* Arabic */}
         <span
           aria-hidden="true"
-          className="lp-float-med pointer-events-none select-none absolute top-16 left-1/4 lp-display font-light"
+          className="lp-float-med lp-char select-none absolute top-16 left-1/4 lp-display font-light"
           style={{
             fontSize: "clamp(3.5rem,9vw,7rem)",
-            color: "rgba(28,25,23,0.035)",
+            color: "rgba(9,20,19,0.035)",
             lineHeight: 1,
           }}
         >
@@ -195,10 +201,10 @@ export default function Home() {
         {/* Devanagari (Hindi) */}
         <span
           aria-hidden="true"
-          className="lp-float-fast pointer-events-none select-none absolute bottom-32 right-1/4 lp-display font-light"
+          className="lp-float-fast lp-char select-none absolute bottom-32 right-1/4 lp-display font-light"
           style={{
             fontSize: "clamp(2.5rem,7vw,5rem)",
-            color: "rgba(46,93,59,0.045)",
+            color: "rgba(40,90,72,0.045)",
             lineHeight: 1,
           }}
         >
@@ -207,10 +213,10 @@ export default function Home() {
         {/* Greek */}
         <span
           aria-hidden="true"
-          className="lp-float-slow pointer-events-none select-none absolute top-1/3 right-2 md:right-10 lp-display font-light"
+          className="lp-float-slow lp-char select-none absolute top-1/3 right-2 md:right-10 lp-display font-light"
           style={{
             fontSize: "clamp(2rem,5vw,3.5rem)",
-            color: "rgba(28,25,23,0.035)",
+            color: "rgba(9,20,19,0.035)",
             lineHeight: 1,
           }}
         >
@@ -219,10 +225,10 @@ export default function Home() {
         {/* Cyrillic (Russian) */}
         <span
           aria-hidden="true"
-          className="lp-float-med pointer-events-none select-none absolute top-1/2 left-3 md:left-14 lp-display font-light"
+          className="lp-float-med lp-char select-none absolute top-1/2 left-3 md:left-14 lp-display font-light"
           style={{
             fontSize: "clamp(2.5rem,6vw,4.5rem)",
-            color: "rgba(46,93,59,0.04)",
+            color: "rgba(40,90,72,0.04)",
             lineHeight: 1,
           }}
         >
@@ -231,10 +237,10 @@ export default function Home() {
         {/* Thai */}
         <span
           aria-hidden="true"
-          className="lp-float-fast pointer-events-none select-none absolute bottom-10 left-1/3 lp-display font-light"
+          className="lp-float-fast lp-char select-none absolute bottom-10 left-1/3 lp-display font-light"
           style={{
             fontSize: "clamp(2rem,5vw,3.5rem)",
-            color: "rgba(28,25,23,0.04)",
+            color: "rgba(9,20,19,0.04)",
             lineHeight: 1,
           }}
         >
@@ -243,14 +249,62 @@ export default function Home() {
         {/* Hebrew */}
         <span
           aria-hidden="true"
-          className="lp-float-slow pointer-events-none select-none absolute top-8 left-1/2 lp-display font-light"
+          className="lp-float-slow lp-char select-none absolute top-8 left-1/2 lp-display font-light"
           style={{
             fontSize: "clamp(2.5rem,6vw,4rem)",
-            color: "rgba(46,93,59,0.035)",
+            color: "rgba(40,90,72,0.035)",
             lineHeight: 1,
           }}
         >
           א
+        </span>
+        {/* Georgian */}
+        <span
+          aria-hidden="true"
+          className="lp-float-med lp-char select-none absolute top-2/3 right-1/4 lp-display font-light"
+          style={{
+            fontSize: "clamp(2rem,5vw,3.5rem)",
+            color: "rgba(9,20,19,0.04)",
+            lineHeight: 1,
+          }}
+        >
+          ა
+        </span>
+        {/* Bengali */}
+        <span
+          aria-hidden="true"
+          className="lp-float-fast lp-char select-none absolute top-20 right-1/3 lp-display font-light"
+          style={{
+            fontSize: "clamp(2.5rem,6vw,4rem)",
+            color: "rgba(40,90,72,0.04)",
+            lineHeight: 1,
+          }}
+        >
+          ই
+        </span>
+        {/* Tamil */}
+        <span
+          aria-hidden="true"
+          className="lp-float-slow lp-char select-none absolute bottom-40 right-8 md:right-24 lp-display font-light"
+          style={{
+            fontSize: "clamp(2rem,4.5vw,3rem)",
+            color: "rgba(9,20,19,0.035)",
+            lineHeight: 1,
+          }}
+        >
+          ழ
+        </span>
+        {/* Ethiopic */}
+        <span
+          aria-hidden="true"
+          className="lp-float-med lp-char select-none absolute top-44 left-1/3 lp-display font-light"
+          style={{
+            fontSize: "clamp(2rem,5vw,3.5rem)",
+            color: "rgba(40,90,72,0.035)",
+            lineHeight: 1,
+          }}
+        >
+          ሀ
         </span>
 
         <div className="max-w-6xl mx-auto text-center">
@@ -262,14 +316,14 @@ export default function Home() {
               lineHeight: 1,
               fontWeight: 400,
               letterSpacing: "-0.02em",
-              color: "#1C1917",
+              color: "#091413",
             }}
           >
             <BlurText text="Read the " delay={0.05} />
             <BlurText
               text="world."
               delay={0.05 + 9 * 0.03}
-              style={{ fontStyle: "italic", color: "#2E5D3B" }}
+              style={{ fontStyle: "italic", color: "#285A48" }}
             />
           </h1>
 
@@ -332,7 +386,7 @@ export default function Home() {
       {/* ─── Features (dark gray) ────────────────────────────────────────── */}
       <section
         className="px-6 md:px-12 py-16 md:py-24"
-        style={{ background: "#252422" }}
+        style={{ background: "#0D1816" }}
       >
         <div className="max-w-6xl mx-auto">
           <div className="mb-12 md:mb-16">
@@ -347,7 +401,7 @@ export default function Home() {
               Everything you need
               <br />
               <em
-                style={{ fontStyle: "italic", color: "rgba(180,220,170,0.9)" }}
+                style={{ fontStyle: "italic", color: "rgba(176,228,204,0.9)" }}
               >
                 to truly learn.
               </em>
@@ -376,7 +430,7 @@ export default function Home() {
                 key={num}
                 className="rounded-2xl p-7 md:p-8"
                 style={{
-                  background: "#2E2C29",
+                  background: "#132219",
                   border: "1px solid rgba(250,247,240,0.07)",
                 }}
               >
@@ -425,12 +479,12 @@ export default function Home() {
               className="lp-display font-light"
               style={{
                 fontSize: "clamp(2.2rem, 5vw, 3.5rem)",
-                color: "#1C1917",
+                color: "#091413",
                 lineHeight: 1.1,
               }}
             >
               Why it{" "}
-              <em style={{ fontStyle: "italic", color: "#2E5D3B" }}>works.</em>
+              <em style={{ fontStyle: "italic", color: "#285A48" }}>works.</em>
             </h2>
           </div>
 
@@ -462,7 +516,7 @@ export default function Home() {
                   className="lp-display font-light shrink-0"
                   style={{
                     fontSize: "1.1rem",
-                    color: "rgba(28,25,23,0.15)",
+                    color: "rgba(9,20,19,0.15)",
                     lineHeight: 1.6,
                     width: "2rem",
                   }}
@@ -474,7 +528,7 @@ export default function Home() {
                     className="lp-display font-medium mb-3"
                     style={{
                       fontSize: "clamp(1.3rem, 2.5vw, 1.6rem)",
-                      color: "#1C1917",
+                      color: "#091413",
                       lineHeight: 1.2,
                     }}
                   >
@@ -482,7 +536,7 @@ export default function Home() {
                   </h3>
                   <p
                     className="lp-body text-sm leading-relaxed"
-                    style={{ color: "rgba(28,25,23,0.5)" }}
+                    style={{ color: "rgba(9,20,19,0.5)" }}
                   >
                     {body}
                   </p>
@@ -496,7 +550,7 @@ export default function Home() {
       {/* ─── CTA Banner (green) ──────────────────────────────────────────── */}
       <section
         className="px-8 md:px-16 py-16 md:py-24 text-center"
-        style={{ background: "#252422" }}
+        style={{ background: "#0D1816" }}
       >
         <h2
           className="lp-display font-light"
@@ -507,10 +561,10 @@ export default function Home() {
           }}
         >
           Start{" "}
-          <em style={{ fontStyle: "italic", color: "#4CAF72" }}>reading.</em>
+          <em style={{ fontStyle: "italic", color: "#408A71" }}>reading.</em>
           <br />
           Start{" "}
-          <em style={{ fontStyle: "italic", color: "#4CAF72" }}>learning.</em>
+          <em style={{ fontStyle: "italic", color: "#408A71" }}>learning.</em>
         </h2>
         <p
           className="lp-body mt-6 mb-10 mx-auto"
@@ -551,13 +605,13 @@ export default function Home() {
       {/* ─── Footer (dark gray) ──────────────────────────────────────────── */}
       <footer
         className="px-6 md:px-12 py-8 flex flex-col sm:flex-row items-center justify-between gap-4"
-        style={{ background: "#2E5D3B" }}
+        style={{ background: "#285A48" }}
       >
         <div
           className="lp-display text-lg font-semibold"
           style={{ color: "#FAF7F0" }}
         >
-          i<span style={{ color: "rgba(180,220,170,0.9)" }}>Literate</span>
+          i<span style={{ color: "rgba(176,228,204,0.9)" }}>Literate</span>
         </div>
         <p
           className="lp-body text-xs"
