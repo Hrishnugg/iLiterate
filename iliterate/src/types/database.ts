@@ -26,6 +26,10 @@ export type ContentType =
   | "pdf"
   | "epub";
 
+export type UploadScope = "content_import" | "study_chat" | "dm_attachment";
+export type UploadStatus = "uploaded" | "processed" | "failed";
+export type UploadKind = "image" | "pdf" | "docx" | "unknown";
+
 export type QuizType = "comprehension" | "vocabulary" | "grammar";
 
 export type LearningMotivation =
@@ -81,6 +85,7 @@ export interface Content {
   word_count: number | null;
   estimated_reading_time: number | null;
   source_url: string | null;
+  source_upload_id: string | null;
   is_generated: boolean;
   created_at: string;
 }
@@ -140,10 +145,43 @@ export interface QuizResult {
 export interface UserUpload {
   id: string;
   user_id: string;
+  title: string | null;
+  scope: UploadScope;
+  status: UploadStatus;
+  kind: UploadKind;
   storage_path: string;
+  original_filename: string | null;
+  mime_type: string | null;
+  file_size_bytes: number | null;
+  source_url: string | null;
   extracted_text: string | null;
   language_detected: string | null;
   processed_at: string | null;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+}
+
+export type StudyChatRole = "user" | "assistant";
+
+export interface StudyChatSession {
+  id: string;
+  user_id: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StudyChatMessage {
+  id: string;
+  session_id: string;
+  role: StudyChatRole;
+  body: string;
+  created_at: string;
+}
+
+export interface StudyChatSessionUpload {
+  session_id: string;
+  upload_id: string;
   created_at: string;
 }
 
@@ -184,6 +222,8 @@ export interface TranslationLookup {
 // ============================================================================
 
 export type FriendshipStatus = "pending" | "accepted" | "declined";
+export type DirectMessageKind = "text" | "attachment" | "mixed";
+export type DirectMessageAttachmentType = "image" | "pdf" | "docx";
 
 export type SocialRelationshipState =
   | "none"
@@ -246,6 +286,23 @@ export interface DirectMessage {
   conversation_id: string;
   sender_id: string;
   body: string;
+  message_kind: DirectMessageKind;
+  primary_attachment_type: DirectMessageAttachmentType | null;
+  attachment_count: number;
+  attachments?: DirectMessageAttachment[];
+  created_at: string;
+}
+
+export interface DirectMessageAttachment {
+  id: string;
+  message_id: string;
+  upload_id: string;
+  attachment_type: DirectMessageAttachmentType;
+  file_name: string | null;
+  mime_type: string | null;
+  extracted_text: string | null;
+  detected_language: string | null;
+  storage_path: string | null;
   created_at: string;
 }
 
@@ -283,6 +340,35 @@ export interface SocialSummary {
   outgoing_requests: FriendRequestSummary[];
   friends: FriendSummary[];
   conversations: ConversationSummary[];
+}
+
+// ============================================================================
+// Study Chat Types
+// ============================================================================
+
+export type StudyChatMessageRole = "user" | "assistant";
+
+export interface StudyChatSession {
+  id: string;
+  user_id: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StudyChatMessage {
+  id: string;
+  session_id: string;
+  role: StudyChatMessageRole;
+  body: string;
+  created_at: string;
+}
+
+export interface StudyChatSessionUpload {
+  session_id: string;
+  upload_id: string;
+  created_at: string;
+  upload?: UserUpload | null;
 }
 
 // ============================================================================

@@ -662,6 +662,7 @@ export default function LessonPage() {
     word_count: lesson.wordCount,
     estimated_reading_time: Math.ceil(lesson.wordCount / 200),
     source_url: null,
+    source_upload_id: null,
     is_generated: true,
     created_at: lesson.createdAt,
   };

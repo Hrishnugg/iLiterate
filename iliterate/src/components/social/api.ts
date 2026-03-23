@@ -1,6 +1,7 @@
 "use client";
 
 import type {
+  ChatAttachment,
   ChatMessage,
   ConversationPayload,
   ConversationSummary,
@@ -168,9 +169,55 @@ function normalizeMessage(raw: unknown): ChatMessage {
       conversation_id: "",
       sender_id: "",
       body: "",
+      message_kind: "text",
       created_at: "",
     };
   }
+
+  const attachments = Array.isArray(raw.attachments)
+    ? raw.attachments.flatMap<ChatAttachment>((attachment) => {
+        if (!isRecord(attachment)) {
+          return [];
+        }
+
+        return [
+          {
+            id: asString(attachment.id) || "",
+            message_id:
+              asString(attachment.message_id) ||
+              asString(attachment.messageId) ||
+              "",
+            upload_id:
+              asString(attachment.upload_id) ||
+              asString(attachment.uploadId) ||
+              "",
+            attachment_type:
+              (asString(attachment.attachment_type) ||
+                asString(attachment.attachmentType) ||
+                "image") as ChatAttachment["attachment_type"],
+            file_name:
+              asString(attachment.file_name) ||
+              asString(attachment.fileName),
+            mime_type:
+              asString(attachment.mime_type) ||
+              asString(attachment.mimeType),
+            extracted_text:
+              asString(attachment.extracted_text) ||
+              asString(attachment.extractedText),
+            detected_language:
+              asString(attachment.detected_language) ||
+              asString(attachment.detectedLanguage),
+            storage_path:
+              asString(attachment.storage_path) ||
+              asString(attachment.storagePath),
+            created_at:
+              asString(attachment.created_at) ||
+              asString(attachment.createdAt) ||
+              "",
+          },
+        ];
+      })
+    : [];
 
   return {
     id: asString(raw.id) || "",
@@ -178,6 +225,18 @@ function normalizeMessage(raw: unknown): ChatMessage {
       asString(raw.conversation_id) || asString(raw.conversationId) || "",
     sender_id: asString(raw.sender_id) || asString(raw.senderId) || "",
     body: asString(raw.body) || "",
+    message_kind:
+      (asString(raw.message_kind) || asString(raw.messageKind) || "text") as ChatMessage["message_kind"],
+    primary_attachment_type:
+      (asString(raw.primary_attachment_type) ||
+        asString(raw.primaryAttachmentType)) as ChatMessage["primary_attachment_type"],
+    attachment_count:
+      typeof raw.attachment_count === "number"
+        ? raw.attachment_count
+        : typeof raw.attachmentCount === "number"
+          ? raw.attachmentCount
+          : attachments.length,
+    attachments,
     created_at: asString(raw.created_at) || asString(raw.createdAt) || "",
     sender: raw.sender ? normalizePerson(raw.sender) : null,
   };
@@ -337,13 +396,21 @@ export async function getConversation(
 
 export async function sendMessage(
   conversationId: string,
-  body: string
+  body: string,
+  attachments: Array<{
+    uploadId: string;
+    attachmentType: ChatAttachment["attachment_type"];
+    fileName?: string | null;
+    mimeType?: string | null;
+    extractedText?: string | null;
+    detectedLanguage?: string | null;
+  }> = []
 ): Promise<ChatMessage> {
   const payload = await fetchJson<ChatMessage | { message: ChatMessage }>(
     `/api/social/conversations/${conversationId}/messages`,
     {
       method: "POST",
-      body: JSON.stringify({ body }),
+      body: JSON.stringify({ body, attachments }),
     }
   );
 

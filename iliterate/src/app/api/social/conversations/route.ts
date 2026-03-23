@@ -4,10 +4,10 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import {
   getOrCreatePublicProfile,
+  listConversationMessages,
   getPublicProfilesByIds,
   getUnreadCountForConversation,
   mapDirectConversation,
-  mapDirectMessage,
   mapFriendship,
   normalizeSocialPair,
 } from "@/lib/social/server";
@@ -192,20 +192,7 @@ export async function POST(request: NextRequest) {
     const profiles = await getPublicProfilesByIds(supabase, [parsed.data.friendId]);
     const friend = profiles.get(parsed.data.friendId) ?? null;
 
-    const { data: messageRows, error: messagesError } = await supabase
-      .from("direct_messages")
-      .select("*")
-      .eq("conversation_id", conversation.id)
-      .order("created_at", { ascending: false })
-      .limit(50);
-
-    if (messagesError) {
-      throw messagesError;
-    }
-
-    const messages = (messageRows ?? [])
-      .map((row) => mapDirectMessage(row))
-      .reverse();
+    const messages = await listConversationMessages(supabase, conversation.id);
 
     return NextResponse.json({
       conversation: {

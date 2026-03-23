@@ -1,10 +1,20 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ComponentProps } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ReaderLayout } from "../ReaderLayout";
 
-function renderLayout(overrides: Partial<ComponentProps<typeof ReaderLayout>> = {}) {
+const back = vi.fn();
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({
+    back,
+  }),
+}));
+
+function renderLayout(
+  overrides: Partial<ComponentProps<typeof ReaderLayout>> = {}
+) {
   return render(
     <ReaderLayout
       title="Sample Article"
@@ -18,90 +28,80 @@ function renderLayout(overrides: Partial<ComponentProps<typeof ReaderLayout>> = 
 }
 
 describe("ReaderLayout", () => {
-  it("hides left sidebar entirely when requested", () => {
-    renderLayout({ hideLeftSidebar: true });
-
-    expect(screen.queryByText("TOC Sidebar")).not.toBeInTheDocument();
-    expect(screen.getByText("Notes Sidebar")).toBeInTheDocument();
-  });
-
-  it("toggles left sidebar visibility from toolbar", async () => {
-    const user = userEvent.setup();
-    const { container } = renderLayout();
-    const asides = container.querySelectorAll("aside");
-    const leftAside = asides[0];
-
-    expect(leftAside).toHaveClass("w-64");
-
-    await user.click(screen.getByTitle("Toggle table of contents"));
-
-    expect(leftAside).toHaveClass("w-0");
-  });
-
-  it("toggles audio bar visibility", async () => {
-    const user = userEvent.setup();
-    renderLayout({ audioPlayer: <div>Audio Controls</div> });
-
-    const audioToggle = screen.getByTitle("Audio playback");
-    expect(screen.queryByText("Audio Controls")).not.toBeInTheDocument();
-
-    await user.click(audioToggle);
-    expect(screen.getByText("Audio Controls")).toBeInTheDocument();
-
-    await user.click(audioToggle);
-    expect(screen.queryByText("Audio Controls")).not.toBeInTheDocument();
-  });
-
-  it("reopens right sidebar when requestRightOpen changes", async () => {
-    const user = userEvent.setup();
-    const { container, rerender } = renderLayout();
-
-    let asides = container.querySelectorAll("aside");
-    const rightAside = asides[1];
-
-    await user.click(screen.getByTitle("Toggle notes sidebar"));
-    expect(rightAside).toHaveClass("w-0");
-
-    rerender(
-      <ReaderLayout
-        title="Sample Article"
-        leftSidebar={<div>TOC Sidebar</div>}
-        rightSidebar={<div>Notes Sidebar</div>}
-        requestRightOpen="highlight-1"
-      >
-        <p>Main content</p>
-      </ReaderLayout>
-    );
-
-    asides = container.querySelectorAll("aside");
-    await waitFor(() => {
-      expect(asides[1]).toHaveClass("w-80");
+  beforeEach(() => {
+    back.mockReset();
+    Object.defineProperty(window, "localStorage", {
+      configurable: true,
+      value: {
+        getItem: vi.fn(() => null),
+        setItem: vi.fn(),
+        removeItem: vi.fn(),
+        clear: vi.fn(),
+      },
     });
   });
 
-  it("switches wrapper behavior for RSVP mode and calls toggle", async () => {
-    const onToggleRSVP = vi.fn();
+  it("hides the table of contents control when requested", () => {
+    renderLayout({ hideLeftSidebar: true });
+
+    expect(screen.queryByTitle("Table of Contents")).not.toBeInTheDocument();
+    expect(screen.getByTitle("Notes & Lookups")).toBeInTheDocument();
+  });
+
+  it("toggles the audio panel from the toolbar", async () => {
     const user = userEvent.setup();
-    const { container, rerender } = renderLayout({ onToggleRSVP });
+    renderLayout({ audioPlayer: <div>Audio Controls</div> });
 
-    expect(container.querySelector("article")).toBeInTheDocument();
+    expect(screen.queryByText("Audio Controls")).not.toBeInTheDocument();
 
-    const rsvpButton = screen.getByTitle("RSVP Speed Reader");
-    await user.click(rsvpButton);
+    await user.click(screen.getByTitle("Audio playback"));
+    expect(screen.getByText("Audio Controls")).toBeInTheDocument();
+
+    await user.click(screen.getByTitle("Audio playback"));
+    await waitFor(() => {
+      expect(screen.queryByText("Audio Controls")).not.toBeInTheDocument();
+    });
+  });
+
+  it("renders karaoke controls and hides audio while karaoke mode is active", () => {
+    renderLayout({
+      audioPlayer: <div>Audio Controls</div>,
+      isKaraokeAvailable: true,
+      isKaraokeMode: true,
+      onToggleKaraoke: vi.fn(),
+      modePanel: <div>Guided Reader Panel</div>,
+    });
+
+    expect(screen.getByTitle("Karaoke Mode")).toBeInTheDocument();
+    expect(screen.getByText("Guided Reader Panel")).toBeInTheDocument();
+    expect(screen.queryByTitle("Audio playback")).not.toBeInTheDocument();
+  });
+
+  it("calls the reader mode toggles from the toolbar", async () => {
+    const user = userEvent.setup();
+    const onToggleRSVP = vi.fn();
+    const onToggleKaraoke = vi.fn();
+
+    renderLayout({
+      onToggleRSVP,
+      isKaraokeAvailable: true,
+      onToggleKaraoke,
+    });
+
+    await user.click(screen.getByTitle("RSVP Speed Reader"));
+    await user.click(screen.getByTitle("Karaoke Mode"));
+
     expect(onToggleRSVP).toHaveBeenCalledTimes(1);
+    expect(onToggleKaraoke).toHaveBeenCalledTimes(1);
+  });
 
-    rerender(
-      <ReaderLayout
-        title="Sample Article"
-        leftSidebar={<div>TOC Sidebar</div>}
-        rightSidebar={<div>Notes Sidebar</div>}
-        onToggleRSVP={onToggleRSVP}
-        isRSVPMode
-      >
-        <p>Main content</p>
-      </ReaderLayout>
-    );
+  it("removes the article wrapper in RSVP mode", () => {
+    const { container } = renderLayout({
+      isRSVPMode: true,
+      onToggleRSVP: vi.fn(),
+    });
 
     expect(container.querySelector("article")).not.toBeInTheDocument();
+    expect(screen.queryByTitle("Two-page book mode")).not.toBeInTheDocument();
   });
 });

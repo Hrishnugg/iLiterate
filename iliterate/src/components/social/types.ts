@@ -39,11 +39,31 @@ export interface ConversationSummary {
   unread_count?: number;
 }
 
+export type ChatMessageKind = "text" | "attachment" | "mixed";
+export type ChatAttachmentType = "image" | "pdf" | "docx";
+
+export interface ChatAttachment {
+  id: string;
+  message_id: string;
+  upload_id: string;
+  attachment_type: ChatAttachmentType;
+  file_name?: string | null;
+  mime_type?: string | null;
+  extracted_text?: string | null;
+  detected_language?: string | null;
+  storage_path?: string | null;
+  created_at: string;
+}
+
 export interface ChatMessage {
   id: string;
   conversation_id: string;
   sender_id: string;
   body: string;
+  message_kind: ChatMessageKind;
+  primary_attachment_type?: ChatAttachmentType | null;
+  attachment_count?: number;
+  attachments?: ChatAttachment[];
   created_at: string;
   sender?: SocialPerson | null;
 }

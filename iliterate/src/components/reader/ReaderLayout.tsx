@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useEffectEvent, useRef } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import {
   ArrowLeft,
@@ -11,6 +11,7 @@ import {
   BookOpen,
   ChevronLeft,
   ChevronRight,
+  Captions,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -33,6 +34,10 @@ interface ReaderLayoutProps {
   hideLeftSidebar?: boolean;
   isRSVPMode?: boolean;
   onToggleRSVP?: () => void;
+  isKaraokeMode?: boolean;
+  isKaraokeAvailable?: boolean;
+  onToggleKaraoke?: () => void;
+  modePanel?: React.ReactNode;
   requestRightOpen?: string | null;
 }
 
@@ -47,6 +52,10 @@ export function ReaderLayout({
   hideLeftSidebar = false,
   isRSVPMode = false,
   onToggleRSVP,
+  isKaraokeMode = false,
+  isKaraokeAvailable = false,
+  onToggleKaraoke,
+  modePanel,
   requestRightOpen,
 }: ReaderLayoutProps) {
   const router = useRouter();
@@ -62,15 +71,28 @@ export function ReaderLayout({
   const [pageWidth, setPageWidth] = useState(0);
   const viewportRef = useRef<HTMLDivElement>(null);
   const contentPagesRef = useRef<HTMLDivElement>(null);
+  const isImmersiveMode = isRSVPMode || isKaraokeMode;
+  const openRightPanel = useEffectEvent(() => {
+    setRightOpen(true);
+  });
+  const hideAudioPanel = useEffectEvent(() => {
+    setShowAudio(false);
+  });
 
   const showLeftSidebar = !hideLeftSidebar && leftSidebar;
 
   // Open right sheet when requested (e.g. highlight clicked)
   useEffect(() => {
     if (requestRightOpen) {
-      setRightOpen(true);
+      openRightPanel();
     }
   }, [requestRightOpen]);
+
+  useEffect(() => {
+    if (isImmersiveMode) {
+      hideAudioPanel();
+    }
+  }, [isImmersiveMode]);
 
   // Two-page mode: measure page count after render
   const calculatePages = useCallback(() => {
@@ -128,8 +150,8 @@ export function ReaderLayout({
       </button>
 
       {/* Floating toolbar */}
-      <div className="absolute bottom-0 left-0 right-0 z-20 flex flex-col items-center justify-end px-6 pb-4 gap-2">
-        <div className="flex flex-col rounded-lg border border-primary/20 bg-primary shadow-md text-primary-foreground overflow-hidden">
+      <div className="absolute bottom-0 left-0 right-0 z-20 flex flex-col items-center justify-end gap-2 px-6 pb-4">
+        <div className="flex flex-col overflow-hidden rounded-lg border border-primary/20 bg-primary text-primary-foreground shadow-md">
           <AnimatePresence>
             {audioPlayer && showAudio && (
               <motion.div
@@ -143,6 +165,21 @@ export function ReaderLayout({
                 <div className="px-4 pt-3 pb-2">
                   {audioPlayer}
                 </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <AnimatePresence>
+            {modePanel && (
+              <motion.div
+                key="mode-panel"
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
+                style={{ overflow: "hidden" }}
+              >
+                {modePanel}
               </motion.div>
             )}
           </AnimatePresence>
@@ -171,7 +208,7 @@ export function ReaderLayout({
             {bookmarkButton}
 
             <AnimatePresence>
-              {!isRSVPMode && (
+              {!isImmersiveMode && (
                 <motion.div
                   key="two-page-btn"
                   initial={{ width: 0, opacity: 0 }}
@@ -198,7 +235,7 @@ export function ReaderLayout({
             </AnimatePresence>
 
             <AnimatePresence>
-              {isTwoPageMode && (
+              {isTwoPageMode && !isImmersiveMode && (
                 <motion.div
                   key="page-counter"
                   initial={{ width: 0, opacity: 0 }}
@@ -230,8 +267,23 @@ export function ReaderLayout({
               </Button>
             )}
 
+            {isKaraokeAvailable && onToggleKaraoke && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onToggleKaraoke}
+                className={cn(
+                  "size-8 text-primary-foreground hover:bg-white/20 hover:text-primary-foreground",
+                  isKaraokeMode && "bg-white/30"
+                )}
+                title="Karaoke Mode"
+              >
+                <Captions className="size-4" />
+              </Button>
+            )}
+
             <AnimatePresence>
-              {audioPlayer && !isRSVPMode && (
+              {audioPlayer && !isImmersiveMode && (
                 <motion.div
                   key="audio-btn"
                   initial={{ width: 0, opacity: 0 }}
@@ -287,7 +339,7 @@ export function ReaderLayout({
       </div>
 
       {/* Main content — full bleed, centered article */}
-      {isTwoPageMode && !isRSVPMode ? (
+      {isTwoPageMode && !isImmersiveMode ? (
         <div ref={viewportRef} className="relative flex-1 overflow-hidden">
           {/* Page content */}
           <div

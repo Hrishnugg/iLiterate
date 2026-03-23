@@ -1,4 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import {
+  countWords,
+  estimateReadingTimeMinutes,
+  formatImportedTextAsHtml,
+} from "@/lib/content-imports";
 import { createClient } from "@/lib/supabase/server";
 import { z } from "zod";
 
@@ -9,6 +14,11 @@ const uploadSchema = z.object({
   body: z.string().min(1).max(MAX_BODY_CHARS),
   language: z.string().min(2).max(10),
   difficulty_level: z.enum(["A1", "A2", "B1", "B2", "C1", "C2"]),
+  content_type: z
+    .enum(["article", "story", "news", "dialogue", "menu", "sign", "pdf", "epub"])
+    .default("article"),
+  source_url: z.string().url().optional(),
+  source_upload_id: z.string().uuid().optional(),
 });
 
 // GET /api/content/upload — fetch the authenticated user's uploaded content
@@ -55,22 +65,48 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { title, body: text, language, difficulty_level } = parsed.data;
+  const {
+    title,
+    body: text,
+    language,
+    difficulty_level,
+    content_type,
+    source_url,
+    source_upload_id,
+  } = parsed.data;
 
-  const wordCount = text.trim().split(/\s+/).length;
-  const estimatedReadingTime = Math.max(1, Math.round(wordCount / 200));
+  if (source_upload_id) {
+    const { data: upload, error: uploadError } = await supabase
+      .from("user_uploads")
+      .select("id")
+      .eq("id", source_upload_id)
+      .eq("user_id", user.id)
+      .single();
+
+    if (uploadError || !upload) {
+      return NextResponse.json(
+        { error: "Source upload not found" },
+        { status: 404 }
+      );
+    }
+  }
+
+  const wordCount = countWords(text);
+  const estimatedReadingTime = estimateReadingTimeMinutes(text);
 
   const { data, error } = await supabase
     .from("content")
     .insert({
       title,
-      body: text,
+      body: formatImportedTextAsHtml(text),
       language,
       difficulty_level,
-      content_type: "pdf",
+      content_type,
       topic_tags: [],
       word_count: wordCount,
       estimated_reading_time: estimatedReadingTime,
+      source_url: source_url ?? null,
+      source_upload_id: source_upload_id ?? null,
       is_generated: false,
       user_id: user.id,
     })

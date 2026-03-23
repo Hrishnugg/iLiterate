@@ -8,6 +8,7 @@ import type {
   ConversationSummary,
   DirectConversation,
   DirectMessage,
+  DirectMessageAttachment,
   FriendRequestSummary,
   FriendSummary,
   Friendship,
@@ -22,6 +23,10 @@ const MAX_LIST_USERS_PAGES = 10;
 
 function asString(value: unknown): string | null {
   return typeof value === "string" ? value : null;
+}
+
+function asNumber(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
 function asJsonRecord(value: unknown): JsonRecord | null {
@@ -146,8 +151,121 @@ export function mapDirectMessage(row: JsonRecord): DirectMessage {
     conversation_id: String(row.conversation_id),
     sender_id: String(row.sender_id),
     body: asString(row.body) ?? "",
+    message_kind:
+      (asString(row.message_kind) as DirectMessage["message_kind"]) ?? "text",
+    primary_attachment_type:
+      (asString(row.primary_attachment_type) as DirectMessage["primary_attachment_type"]) ??
+      null,
+    attachment_count: asNumber(row.attachment_count) ?? 0,
     created_at: asString(row.created_at) ?? new Date(0).toISOString(),
   };
+}
+
+export function mapDirectMessageAttachment(
+  row: JsonRecord
+): DirectMessageAttachment {
+  return {
+    id: String(row.id),
+    message_id: String(row.message_id),
+    upload_id: String(row.upload_id),
+    attachment_type:
+      (asString(row.attachment_type) as DirectMessageAttachment["attachment_type"]) ??
+      "image",
+    file_name: asString(row.file_name),
+    mime_type: asString(row.mime_type),
+    extracted_text: asString(row.extracted_text),
+    detected_language: asString(row.detected_language),
+    storage_path: asString(row.storage_path),
+    created_at: asString(row.created_at) ?? new Date(0).toISOString(),
+  };
+}
+
+function groupAttachmentsByMessage(
+  rows: JsonRecord[]
+): Map<string, DirectMessageAttachment[]> {
+  const byMessage = new Map<string, DirectMessageAttachment[]>();
+
+  for (const row of rows) {
+    const attachment = mapDirectMessageAttachment(row);
+    const existing = byMessage.get(attachment.message_id) ?? [];
+    existing.push(attachment);
+    byMessage.set(attachment.message_id, existing);
+  }
+
+  return byMessage;
+}
+
+export async function listConversationMessages(
+  supabase: SupabaseClient,
+  conversationId: string,
+  limit = 50
+) {
+  const { data: messageRows, error: messagesError } = await supabase
+    .from("direct_messages")
+    .select("*")
+    .eq("conversation_id", conversationId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (messagesError) {
+    throw messagesError;
+  }
+
+  const reversedRows = [...(messageRows ?? [])].reverse();
+  if (reversedRows.length === 0) {
+    return [] as DirectMessage[];
+  }
+
+  const messageIds = reversedRows.map((row) => String(row.id));
+  const { data: attachmentRows, error: attachmentsError } = await supabase
+    .from("direct_message_attachments")
+    .select("*")
+    .in("message_id", messageIds)
+    .order("created_at", { ascending: true });
+
+  if (attachmentsError) {
+    throw attachmentsError;
+  }
+
+  const attachmentLookup = groupAttachmentsByMessage(
+    (attachmentRows ?? []) as JsonRecord[]
+  );
+
+  return reversedRows.map((row) => ({
+    ...mapDirectMessage(row as JsonRecord),
+    attachments: attachmentLookup.get(String(row.id)) ?? [],
+  }));
+}
+
+function resolveStorageLocation(storagePath: string) {
+  const normalized = storagePath.trim().replace(/^\/+/, "");
+
+  if (normalized.includes("::")) {
+    const [bucket, ...rest] = normalized.split("::");
+    return {
+      bucket,
+      path: rest.join("::"),
+    };
+  }
+
+  return {
+    bucket: "user-uploads",
+    path: normalized,
+  };
+}
+
+export async function getSignedUploadUrl(storagePath: string, expiresIn = 300) {
+  const admin = createAdminClient();
+  const { bucket, path } = resolveStorageLocation(storagePath);
+  const { data, error } = await admin.storage
+    .from(bucket)
+    .createSignedUrl(path, expiresIn);
+
+  if (error || !data?.signedUrl) {
+    throw error ?? new Error("Failed to create signed attachment URL");
+  }
+
+  return data.signedUrl;
 }
 
 export async function getOrCreatePublicProfile(

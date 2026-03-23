@@ -5,12 +5,30 @@ import { createClient } from "@/lib/supabase/server";
 import {
   getPublicProfilesByIds,
   getUnreadCountForConversation,
+  listConversationMessages,
   mapDirectConversation,
-  mapDirectMessage,
 } from "@/lib/social/server";
 
+const attachmentSchema = z.object({
+  uploadId: z.string().uuid(),
+  attachmentType: z.enum(["image", "pdf", "docx"]),
+  fileName: z.string().trim().max(255).nullable().optional(),
+  mimeType: z.string().trim().max(255).nullable().optional(),
+  extractedText: z.string().trim().max(10000).nullable().optional(),
+  detectedLanguage: z.string().trim().max(32).nullable().optional(),
+});
+
 const createMessageSchema = z.object({
-  body: z.string().trim().min(1).max(2000),
+  body: z.string().trim().max(2000).optional().default(""),
+  attachments: z.array(attachmentSchema).max(5).optional().default([]),
+}).superRefine((value, ctx) => {
+  if (!value.body.trim() && value.attachments.length === 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["body"],
+      message: "Message or attachment is required",
+    });
+  }
 });
 
 interface RouteContext {
@@ -69,24 +87,13 @@ export async function GET(_request: NextRequest, context: RouteContext) {
       typeof readRow?.last_read_at === "string" ? readRow.last_read_at : null
     );
 
-    const { data: messageRows, error: messagesError } = await supabase
-      .from("direct_messages")
-      .select("*")
-      .eq("conversation_id", conversationId)
-      .order("created_at", { ascending: false })
-      .limit(50);
-
-    if (messagesError) {
-      throw messagesError;
-    }
-
     return NextResponse.json({
       conversation: {
         ...conversation,
         friend,
         unread_count: unreadCount,
       },
-      messages: (messageRows ?? []).map((row) => mapDirectMessage(row)).reverse(),
+      messages: await listConversationMessages(supabase, conversationId),
     });
   } catch (error) {
     console.error("Get social messages error:", error);
@@ -130,12 +137,46 @@ export async function POST(request: NextRequest, context: RouteContext) {
       return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
     }
 
+    const normalizedBody = parsed.data.body.trim();
+    const attachmentIds = parsed.data.attachments.map((attachment) => attachment.uploadId);
+    if (attachmentIds.length > 0) {
+      const { data: uploads, error: uploadsError } = await supabase
+        .from("user_uploads")
+        .select("id")
+        .eq("user_id", user.id)
+        .in("id", attachmentIds);
+
+      if (uploadsError) {
+        throw uploadsError;
+      }
+
+      const ownedUploadIds = new Set((uploads ?? []).map((upload) => String(upload.id)));
+      const missingUpload = attachmentIds.find((id) => !ownedUploadIds.has(id));
+      if (missingUpload) {
+        return NextResponse.json(
+          { error: "Attachment not found or not owned by the sender" },
+          { status: 403 }
+        );
+      }
+    }
+
+    const messageKind =
+      parsed.data.attachments.length > 0
+        ? normalizedBody
+          ? "mixed"
+          : "attachment"
+        : "text";
+
     const { data: inserted, error: insertError } = await supabase
       .from("direct_messages")
       .insert({
         conversation_id: conversationId,
         sender_id: user.id,
-        body: parsed.data.body,
+        body: normalizedBody,
+        message_kind: messageKind,
+        primary_attachment_type:
+          parsed.data.attachments[0]?.attachmentType ?? null,
+        attachment_count: parsed.data.attachments.length,
       })
       .select("*")
       .single();
@@ -144,9 +185,38 @@ export async function POST(request: NextRequest, context: RouteContext) {
       throw insertError;
     }
 
+    if (parsed.data.attachments.length > 0) {
+      const { error: attachmentsError } = await supabase
+        .from("direct_message_attachments")
+        .insert(
+          parsed.data.attachments.map((attachment) => ({
+            message_id: inserted.id,
+            upload_id: attachment.uploadId,
+            attachment_type: attachment.attachmentType,
+            file_name: attachment.fileName ?? null,
+            mime_type: attachment.mimeType ?? null,
+            extracted_text: attachment.extractedText ?? null,
+            detected_language: attachment.detectedLanguage ?? null,
+          }))
+        );
+
+      if (attachmentsError) {
+        throw attachmentsError;
+      }
+    }
+
+    const [hydratedMessage] = await listConversationMessages(
+      supabase,
+      conversationId,
+      1
+    );
+
     return NextResponse.json({
       conversation: mapDirectConversation(conversationRow),
-      message: mapDirectMessage(inserted),
+      message: hydratedMessage ?? {
+        ...inserted,
+        attachments: [],
+      },
     });
   } catch (error) {
     console.error("Create social message error:", error);

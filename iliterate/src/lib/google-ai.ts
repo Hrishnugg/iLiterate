@@ -195,3 +195,27 @@ Important:
 
   return response;
 }
+
+export async function extractTextFromImage(
+  imageBytes: Buffer,
+  mimeType: string
+): Promise<string> {
+  const model = getGeminiModel();
+
+  const result = await model.generateContent([
+    {
+      inlineData: {
+        data: imageBytes.toString("base64"),
+        mimeType,
+      },
+    },
+    `Extract every readable word from this image.
+
+Return only the extracted text.
+- Preserve natural line breaks when possible.
+- Do not add commentary.
+- If there is no readable text, return an empty string.`,
+  ]);
+
+  return result.response.text().trim();
+}

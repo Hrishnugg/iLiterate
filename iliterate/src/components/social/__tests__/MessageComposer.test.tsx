@@ -27,7 +27,7 @@ describe("MessageComposer", () => {
     await user.type(textarea, "  hello there  ");
     await user.click(screen.getByRole("button", { name: /send/i }));
 
-    expect(onSend).toHaveBeenCalledWith("hello there");
+    expect(onSend).toHaveBeenCalledWith({ body: "hello there", files: [] });
     expect(textarea).toHaveValue("");
   });
 
@@ -39,9 +39,27 @@ describe("MessageComposer", () => {
 
     const textarea = screen.getByPlaceholderText(/write a message/i);
     await user.type(textarea, "hello{enter}");
-    expect(onSend).toHaveBeenCalledWith("hello");
+    expect(onSend).toHaveBeenCalledWith({ body: "hello", files: [] });
 
     await user.type(textarea, "line one{shift>}{enter}{/shift}line two");
     expect(textarea).toHaveValue("line one\nline two");
+  });
+
+  it("allows attachment-only sends", async () => {
+    const user = userEvent.setup();
+    const onSend = vi.fn().mockResolvedValue(undefined);
+
+    render(<MessageComposer onSend={onSend} />);
+
+    const fileInput = screen.getByLabelText(/attach/i, { selector: "input" });
+    const imageFile = new File(["image"], "photo.png", { type: "image/png" });
+
+    await user.upload(fileInput, imageFile);
+    await user.click(screen.getByRole("button", { name: /send/i }));
+
+    expect(onSend).toHaveBeenCalledWith({
+      body: "",
+      files: [imageFile],
+    });
   });
 });

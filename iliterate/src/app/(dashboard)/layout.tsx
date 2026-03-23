@@ -23,7 +23,12 @@ function deriveLayoutMode(pathname: string | null): LayoutMode {
   }
 
   // Split: social/messaging
-  if (pathname === "/social" || pathname.startsWith("/social/")) {
+  if (
+    pathname === "/social" ||
+    pathname.startsWith("/social/") ||
+    pathname === "/study-chat" ||
+    pathname.startsWith("/study-chat/")
+  ) {
     return "split";
   }
 

@@ -35,7 +35,7 @@ export const languageSchema = z.string().min(2).max(50).refine(
 // Translation request validation
 export const translateRequestSchema = z.object({
   text: z.string().min(1, "Text is required").max(10000, "Text too long (max 10000 characters)"),
-  sourceLang: languageSchema,
+  sourceLang: z.union([languageSchema, z.literal("auto")]),
   targetLang: languageSchema,
   contextBefore: z.string().max(500, "Context too long").optional(),
   contextAfter: z.string().max(500, "Context too long").optional(),

@@ -5,6 +5,7 @@ import DOMPurify from "dompurify";
 import dynamic from "next/dynamic";
 import { Content, Highlight } from "@/types/database";
 import { TextSelection } from "./TextHighlighter";
+import { buildReaderSegments, ReaderMode, ReaderSegment } from "./karaoke";
 
 // Dynamic imports to avoid SSR issues with browser-only APIs (DOMMatrix, etc.)
 const PDFRenderer = dynamic(() => import("./PDFRenderer").then(mod => mod.PDFRenderer), {
@@ -22,9 +23,13 @@ interface ContentRendererProps {
   highlights?: Highlight[];
   focusedHighlightId?: string | null;
   currentSelection?: TextSelection | null;
+  readerMode?: ReaderMode;
+  activeReaderSegmentId?: string | null;
   onSelection?: (selection: TextSelection | null) => void;
   onTocUpdate?: (toc: Array<{ label: string; href: string }>) => void;
   onHighlightClick?: (highlight: Highlight) => void;
+  onReaderSegmentsChange?: (segments: ReaderSegment[]) => void;
+  onReaderSegmentSelect?: (segment: ReaderSegment) => void;
 }
 
 export function ContentRenderer({
@@ -32,9 +37,13 @@ export function ContentRenderer({
   highlights = [],
   focusedHighlightId,
   currentSelection,
+  readerMode = "default",
+  activeReaderSegmentId,
   onSelection,
   onTocUpdate,
   onHighlightClick,
+  onReaderSegmentsChange,
+  onReaderSegmentSelect,
 }: ContentRendererProps) {
   const contentRef = useRef<HTMLDivElement>(null);
 
@@ -45,6 +54,7 @@ export function ContentRenderer({
   const isEPUB =
     content.source_url?.toLowerCase().endsWith(".epub") ||
     content.content_type === "epub";
+  const isKaraokeMode = readerMode === "karaoke" && !isPDF && !isEPUB;
 
   // Track if mounted to avoid hydration mismatch
   const [isMounted, setIsMounted] = useState(false);
@@ -256,6 +266,66 @@ export function ContentRenderer({
     return true;
   }, []);
 
+  const wrapReaderSegmentRange = useCallback(
+    (
+      doc: Document,
+      textNodes: { node: Text; start: number; end: number }[],
+      segment: ReaderSegment,
+      isActive: boolean
+    ): boolean => {
+      const affectedNodes: { node: Text; startInNode: number; endInNode: number }[] = [];
+
+      for (const textNode of textNodes) {
+        if (textNode.end <= segment.startOffset) continue;
+        if (textNode.start >= segment.endOffset) break;
+
+        affectedNodes.push({
+          node: textNode.node,
+          startInNode: Math.max(0, segment.startOffset - textNode.start),
+          endInNode: Math.min(
+            textNode.node.textContent?.length || 0,
+            segment.endOffset - textNode.start
+          ),
+        });
+      }
+
+      if (affectedNodes.length === 0) return false;
+
+      for (let index = affectedNodes.length - 1; index >= 0; index -= 1) {
+        const { node, startInNode, endInNode } = affectedNodes[index];
+        const text = node.textContent || "";
+        const before = text.slice(0, startInNode);
+        const matched = text.slice(startInNode, endInNode);
+        const after = text.slice(endInNode);
+
+        const span = doc.createElement("span");
+        span.className = [
+          "reader-segment rounded-md px-1 py-0.5 transition-all duration-300",
+          "cursor-pointer",
+          isActive
+            ? "bg-primary/12 text-foreground shadow-[inset_0_0_0_1px_rgba(15,23,42,0.08)] dark:bg-primary/20"
+            : "text-foreground/60 hover:text-foreground/85",
+        ].join(" ");
+        span.setAttribute("data-reader-segment-id", segment.id);
+        span.setAttribute("data-reader-segment-start", String(segment.startOffset));
+        span.setAttribute("data-reader-segment-end", String(segment.endOffset));
+        span.textContent = matched;
+
+        const parent = node.parentNode;
+        if (parent) {
+          const fragment = doc.createDocumentFragment();
+          if (before) fragment.appendChild(doc.createTextNode(before));
+          fragment.appendChild(span);
+          if (after) fragment.appendChild(doc.createTextNode(after));
+          parent.replaceChild(fragment, node);
+        }
+      }
+
+      return true;
+    },
+    []
+  );
+
   // Main function: highlight text with positional disambiguation
   const highlightTextInDocument = useCallback((
     doc: Document,
@@ -412,25 +482,88 @@ export function ContentRenderer({
     return container.innerHTML;
   }, [content.title, content.body, isMounted, highlights, focusedHighlightId, currentSelection, highlightTextInDocument]);
 
+  const karaokePresentation = useMemo(() => {
+    if (!isMounted || !isKaraokeMode || !processedBody) {
+      return {
+        html: processedBody,
+        segments: [] as ReaderSegment[],
+      };
+    }
+
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(`<div>${processedBody}</div>`, "text/html");
+    const container = doc.body.firstElementChild;
+
+    if (!container) {
+      return {
+        html: processedBody,
+        segments: [] as ReaderSegment[],
+      };
+    }
+
+    const { textNodes, fullText } = collectTextNodes(doc, container);
+    const segments = buildReaderSegments(fullText, content.language);
+
+    for (let index = segments.length - 1; index >= 0; index -= 1) {
+      wrapReaderSegmentRange(
+        doc,
+        textNodes,
+        segments[index],
+        segments[index].id === activeReaderSegmentId
+      );
+    }
+
+    return {
+      html: container.innerHTML,
+      segments,
+    };
+  }, [
+    activeReaderSegmentId,
+    collectTextNodes,
+    content.language,
+    isKaraokeMode,
+    isMounted,
+    processedBody,
+    wrapReaderSegmentRange,
+  ]);
+
+  const renderedBody = isKaraokeMode ? karaokePresentation.html : processedBody;
+
+  useEffect(() => {
+    onReaderSegmentsChange?.(isKaraokeMode ? karaokePresentation.segments : []);
+  }, [isKaraokeMode, karaokePresentation.segments, onReaderSegmentsChange]);
+
   // Handle highlight clicks via event delegation
   useEffect(() => {
-    if (!contentRef.current || !onHighlightClick) return;
+    if (!contentRef.current) return;
 
     const contentElement = contentRef.current;
     const handleClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      if (target.tagName === "MARK" && target.dataset.highlightId) {
+      const highlightTarget = target.closest("mark[data-highlight-id]") as HTMLElement | null;
+      if (highlightTarget?.dataset.highlightId && onHighlightClick) {
         e.stopPropagation();
-        const highlight = highlights.find((h) => h.id === target.dataset.highlightId);
+        const highlight = highlights.find((h) => h.id === highlightTarget.dataset.highlightId);
         if (highlight) {
           onHighlightClick(highlight);
+        }
+        return;
+      }
+
+      const segmentTarget = target.closest("[data-reader-segment-id]") as HTMLElement | null;
+      if (segmentTarget?.dataset.readerSegmentId && onReaderSegmentSelect) {
+        const segment = karaokePresentation.segments.find(
+          (candidate) => candidate.id === segmentTarget.dataset.readerSegmentId
+        );
+        if (segment) {
+          onReaderSegmentSelect(segment);
         }
       }
     };
 
     contentElement.addEventListener("click", handleClick);
     return () => contentElement.removeEventListener("click", handleClick);
-  }, [highlights, onHighlightClick]);
+  }, [highlights, karaokePresentation.segments, onHighlightClick, onReaderSegmentSelect]);
 
   // Handle focused highlight - scroll into view
   useEffect(() => {
@@ -446,6 +579,21 @@ export function ContentRenderer({
 
     return () => clearTimeout(timeoutId);
   }, [focusedHighlightId]);
+
+  useEffect(() => {
+    if (!isKaraokeMode || !activeReaderSegmentId || !contentRef.current) return;
+
+    const timeoutId = window.setTimeout(() => {
+      const segment = contentRef.current?.querySelector(
+        `[data-reader-segment-id="${activeReaderSegmentId}"]`
+      );
+      if (segment instanceof HTMLElement) {
+        segment.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }, 80);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [activeReaderSegmentId, isKaraokeMode]);
 
   // Render based on type
   if (isPDF && content.source_url) {
@@ -535,8 +683,13 @@ export function ContentRenderer({
             }
           }
         }}
-        dangerouslySetInnerHTML={{ __html: processedBody }}
-        className="space-y-4 text-lg leading-relaxed [&_h1]:text-3xl [&_h1]:font-bold [&_h1]:leading-tight [&_h1]:mb-4 [&_h2]:text-2xl [&_h2]:font-semibold [&_h2]:mt-8 [&_h2]:mb-4 [&_h3]:text-xl [&_h3]:font-semibold [&_h3]:mt-6 [&_h3]:mb-3 [&_p]:mb-4 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:list-decimal [&_ol]:pl-6 [&_li]:mb-2 [&_blockquote]:border-l-4 [&_blockquote]:border-muted [&_blockquote]:pl-4 [&_blockquote]:italic"
+        dangerouslySetInnerHTML={{ __html: renderedBody }}
+        className={
+          "space-y-4 text-lg leading-relaxed [&_h1]:mb-4 [&_h1]:text-3xl [&_h1]:font-bold [&_h1]:leading-tight [&_h2]:mt-8 [&_h2]:mb-4 [&_h2]:text-2xl [&_h2]:font-semibold [&_h3]:mt-6 [&_h3]:mb-3 [&_h3]:text-xl [&_h3]:font-semibold [&_li]:mb-2 [&_blockquote]:border-l-4 [&_blockquote]:border-muted [&_blockquote]:pl-4 [&_blockquote]:italic [&_ol]:list-decimal [&_ol]:pl-6 [&_p]:mb-4 [&_ul]:list-disc [&_ul]:pl-6" +
+          (isKaraokeMode
+            ? " [&_.reader-segment]:mx-px [&_.reader-segment]:inline-decoration-clone [&_.reader-segment]:box-decoration-clone"
+            : "")
+        }
       />
     </div>
   );

@@ -10,6 +10,7 @@ const PROTECTED_ROUTES = [
   "/profile",
   "/home",
   "/social",
+  "/study-chat",
 ];
 
 // Routes only accessible when NOT authenticated

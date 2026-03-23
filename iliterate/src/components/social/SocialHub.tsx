@@ -1,37 +1,35 @@
 "use client";
 
-import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import {
-  AtSign,
-  BellDot,
+  Download,
+  FileImage,
+  FileText,
+  Languages,
   Loader2,
   MessageCircle,
   Search,
-  Sparkles,
   UserRoundPlus,
-  Users,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { useIsMobile } from "@/hooks/use-mobile";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { MessageComposer } from "@/components/social/MessageComposer";
+import {
+  MessageComposer,
+  type MessageComposerSubmitPayload,
+} from "@/components/social/MessageComposer";
 import { SocialProfileGate } from "@/components/social/SocialProfileGate";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import type {
   DirectConversation,
   DirectMessage,
+  DirectMessageAttachment,
+  DirectMessageAttachmentType,
   FriendshipWithProfile,
   PublicProfile,
   RelationshipState,
@@ -60,12 +58,86 @@ interface ConversationDetailsPayload {
   messages?: DirectMessage[];
 }
 
+interface ViewerLanguages {
+  nativeLanguage: string;
+  targetLanguage: string;
+}
+
+interface UploadAttachmentPayload {
+  uploadId: string;
+  attachmentType: DirectMessageAttachmentType;
+  fileName: string | null;
+  mimeType: string | null;
+  extractedText: string | null;
+  detectedLanguage: string | null;
+}
+
+interface TranslationState {
+  loading: boolean;
+  text: string | null;
+  sourceLanguage: string | null;
+  error: string | null;
+}
+
+interface AttachmentUrlState {
+  loading: boolean;
+  url: string | null;
+  error: string | null;
+}
+
+const MAX_TRANSLATION_CHARS = 4000;
+
 const relationshipLabel: Record<RelationshipState, string> = {
   none: "New",
   incoming: "Incoming",
   outgoing: "Pending",
   friends: "Friends",
 };
+
+function inferAttachmentType(file: File): DirectMessageAttachmentType | null {
+  const mimeType = file.type.toLowerCase();
+  const name = file.name.toLowerCase();
+
+  if (mimeType.startsWith("image/")) {
+    return "image";
+  }
+
+  if (mimeType === "application/pdf" || name.endsWith(".pdf")) {
+    return "pdf";
+  }
+
+  if (
+    mimeType ===
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+    name.endsWith(".docx")
+  ) {
+    return "docx";
+  }
+
+  return null;
+}
+
+function attachmentLabel(type: DirectMessageAttachmentType) {
+  switch (type) {
+    case "image":
+      return "Image";
+    case "pdf":
+      return "PDF";
+    case "docx":
+      return "Document";
+  }
+}
+
+function attachmentIcon(type: DirectMessageAttachmentType) {
+  switch (type) {
+    case "image":
+      return FileImage;
+    case "pdf":
+      return FileText;
+    case "docx":
+      return FileText;
+  }
+}
 
 function normalizeFriendshipItems(items: unknown[]): FriendshipWithProfile[] {
   return items.flatMap((item) => {
@@ -239,6 +311,7 @@ export function SocialHub() {
   const [searchResults, setSearchResults] = useState<SocialSearchResult[]>([]);
 
   const [publicProfile, setPublicProfile] = useState<PublicProfile | null>(null);
+  const [viewerLanguages, setViewerLanguages] = useState<ViewerLanguages | null>(null);
   const [incomingRequests, setIncomingRequests] = useState<FriendshipWithProfile[]>([]);
   const [outgoingRequests, setOutgoingRequests] = useState<FriendshipWithProfile[]>([]);
   const [friends, setFriends] = useState<FriendshipWithProfile[]>([]);
@@ -247,16 +320,15 @@ export function SocialHub() {
   const [messages, setMessages] = useState<DirectMessage[]>([]);
   const [activeTab, setActiveTab] = useState("requests");
   const [isSendingMessage, setIsSendingMessage] = useState(false);
+  const [messageTranslations, setMessageTranslations] = useState<Record<string, TranslationState>>({});
+  const [attachmentTranslations, setAttachmentTranslations] = useState<Record<string, TranslationState>>({});
+  const [attachmentUrls, setAttachmentUrls] = useState<Record<string, AttachmentUrlState>>({});
+  const [expandedAttachmentIds, setExpandedAttachmentIds] = useState<Record<string, boolean>>({});
 
   const profileLookup = useMemo(() => {
     const entries = friends.map(({ profile }) => [profile.id, profile] as const);
     return Object.fromEntries(entries);
   }, [friends]);
-
-  const unreadCount = useMemo(
-    () => conversations.reduce((total, conversation) => total + (conversation.unread_count ?? 0), 0),
-    [conversations]
-  );
 
   const pendingCount = incomingRequests.length + outgoingRequests.length;
 
@@ -277,6 +349,23 @@ export function SocialHub() {
 
     const payload = await response.json();
     setPublicProfile((payload.public_profile ?? payload.publicProfile ?? payload) as PublicProfile);
+  };
+
+  const loadViewerLanguages = async () => {
+    const response = await fetch("/api/profile");
+    if (!response.ok) {
+      throw new Error("Failed to load profile languages");
+    }
+
+    const payload = (await response.json()) as {
+      native_language?: string;
+      target_language?: string;
+    };
+
+    setViewerLanguages({
+      nativeLanguage: payload.native_language ?? "en",
+      targetLanguage: payload.target_language ?? "en",
+    });
   };
 
   const loadFriendships = async () => {
@@ -332,7 +421,7 @@ export function SocialHub() {
     }
   };
 
-  const loadMessages = async (conversationId: string) => {
+  const loadMessages = useCallback(async (conversationId: string) => {
     const response = await fetch(`/api/social/conversations/${conversationId}/messages`);
     if (!response.ok) {
       throw new Error("Failed to load messages");
@@ -366,7 +455,118 @@ export function SocialHub() {
 
     setMessages(payload.messages ?? []);
     setTimeout(scrollToBottom, 0);
-  };
+  }, [activeConversation?.friend, profileLookup, publicProfile?.id]);
+
+  const ensureAttachmentUrl = useCallback(async (attachmentId: string) => {
+    const existing = attachmentUrls[attachmentId];
+    if (existing?.url) {
+      return existing.url;
+    }
+
+    setAttachmentUrls((current) => ({
+      ...current,
+      [attachmentId]: {
+        loading: true,
+        url: current[attachmentId]?.url ?? null,
+        error: null,
+      },
+    }));
+
+    try {
+      const response = await fetch(`/api/social/attachments/${attachmentId}`);
+      const payload = (await response.json().catch(() => null)) as {
+        url?: string;
+        error?: string;
+      } | null;
+
+      if (!response.ok || !payload?.url) {
+        throw new Error(payload?.error || "Failed to load attachment");
+      }
+
+      setAttachmentUrls((current) => ({
+        ...current,
+        [attachmentId]: {
+          loading: false,
+          url: payload.url ?? null,
+          error: null,
+        },
+      }));
+
+      return payload.url;
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to load attachment";
+      setAttachmentUrls((current) => ({
+        ...current,
+        [attachmentId]: {
+          loading: false,
+          url: null,
+          error: message,
+        },
+      }));
+      throw error;
+    }
+  }, [attachmentUrls]);
+
+  const detectLanguage = useCallback(async (text: string) => {
+    const response = await fetch("/api/content/detect", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    });
+
+    const payload = (await response.json().catch(() => null)) as {
+      language?: string;
+      error?: string;
+    } | null;
+
+    if (!response.ok || !payload?.language) {
+      throw new Error(payload?.error || "Failed to detect language");
+    }
+
+    return payload.language;
+  }, []);
+
+  const translateSnippet = useCallback(async (
+    text: string,
+    detectedLanguage: string | null | undefined
+  ) => {
+    if (!viewerLanguages) {
+      throw new Error("Profile languages are not available yet");
+    }
+
+    const trimmed = text.trim().slice(0, MAX_TRANSLATION_CHARS);
+    if (!trimmed) {
+      throw new Error("No text available to translate");
+    }
+
+    const sourceLang =
+      detectedLanguage?.trim() || (await detectLanguage(trimmed.slice(0, 1500)));
+
+    const response = await fetch("/api/translate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        text: trimmed,
+        sourceLang,
+        targetLang: viewerLanguages.nativeLanguage,
+      }),
+    });
+
+    const payload = (await response.json().catch(() => null)) as {
+      translation?: string;
+      error?: string;
+    } | null;
+
+    if (!response.ok || !payload?.translation) {
+      throw new Error(payload?.error || "Failed to translate content");
+    }
+
+    return {
+      text: payload.translation,
+      sourceLanguage: sourceLang,
+    };
+  }, [detectLanguage, viewerLanguages]);
 
   const refreshLists = async () => {
     await loadFriendships();
@@ -378,8 +578,7 @@ export function SocialHub() {
   const bootSocialHub = useEffectEvent(async () => {
     try {
       setIsLoading(true);
-      await loadPublicProfile();
-      await loadFriendships();
+      await Promise.all([loadPublicProfile(), loadViewerLanguages(), loadFriendships()]);
     } finally {
       setIsLoading(false);
     }
@@ -419,6 +618,20 @@ export function SocialHub() {
 
     setTimeout(scrollToBottom, 0);
   }, [messages, activeConversation?.id]);
+
+  useEffect(() => {
+    const imageAttachments = messages.flatMap((message) =>
+      (message.attachments ?? []).filter(
+        (attachment) => attachment.attachment_type === "image"
+      )
+    );
+
+    imageAttachments.forEach((attachment) => {
+      if (!attachmentUrls[attachment.id]?.url && !attachmentUrls[attachment.id]?.loading) {
+        void ensureAttachmentUrl(attachment.id).catch(() => null);
+      }
+    });
+  }, [attachmentUrls, ensureAttachmentUrl, messages]);
 
   useEffect(() => {
     const query = searchQuery.trim();
@@ -467,13 +680,8 @@ export function SocialHub() {
           table: "direct_messages",
           filter: `conversation_id=eq.${activeConversation.id}`,
         },
-        (payload) => {
-          const nextMessage = payload.new as DirectMessage;
-          setMessages((current) => (
-            current.some((message) => message.id === nextMessage.id)
-              ? current
-              : [...current, nextMessage]
-          ));
+        () => {
+          void loadMessages(activeConversation.id).catch(() => null);
           void refreshConversationList().catch(() => null);
         }
       )
@@ -482,7 +690,7 @@ export function SocialHub() {
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [activeConversation?.id, supabase]);
+  }, [activeConversation?.id, loadMessages, supabase]);
 
   const markConversationRead = async (conversationId: string) => {
     const response = await fetch(`/api/social/conversations/${conversationId}/read`, {
@@ -598,19 +806,100 @@ export function SocialHub() {
     await refreshLists();
   };
 
-  const handleSendMessage = async (body: string) => {
+  const handleSendMessage = async ({ body, files }: MessageComposerSubmitPayload) => {
     if (!activeConversation) {
       return;
     }
 
     setIsSendingMessage(true);
     try {
+      const attachments: UploadAttachmentPayload[] = [];
+
+      for (const file of files) {
+        const attachmentType = inferAttachmentType(file);
+        if (!attachmentType) {
+          continue;
+        }
+
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("scope", "dm_attachment");
+        if (attachmentType !== "image") {
+          formData.append("extractText", "true");
+        }
+
+        const uploadResponse = await fetch("/api/uploads", {
+          method: "POST",
+          body: formData,
+        });
+        const uploadPayload = (await uploadResponse.json().catch(() => null)) as
+          | {
+              id?: string;
+              upload?: {
+                id?: string;
+                original_filename?: string | null;
+                mime_type?: string | null;
+                extracted_text?: string | null;
+                language_detected?: string | null;
+              };
+              original_filename?: string | null;
+              originalFilename?: string | null;
+              mime_type?: string | null;
+              mimeType?: string | null;
+              extracted_text?: string | null;
+              extractedText?: string | null;
+              language_detected?: string | null;
+              languageDetected?: string | null;
+              error?: string;
+            }
+          | null;
+
+        if (!uploadResponse.ok) {
+          throw new Error(uploadPayload?.error || `Failed to upload ${file.name}`);
+        }
+
+        const uploadId =
+          uploadPayload?.id ||
+          uploadPayload?.upload?.id ||
+          null;
+
+        if (!uploadId) {
+          throw new Error(`Upload response for ${file.name} did not include an id`);
+        }
+
+        attachments.push({
+          uploadId,
+          attachmentType,
+          fileName:
+            uploadPayload?.original_filename ??
+            uploadPayload?.originalFilename ??
+            uploadPayload?.upload?.original_filename ??
+            file.name,
+          mimeType:
+            uploadPayload?.mime_type ??
+            uploadPayload?.mimeType ??
+            uploadPayload?.upload?.mime_type ??
+            file.type ??
+            null,
+          extractedText:
+            uploadPayload?.extracted_text ??
+            uploadPayload?.extractedText ??
+            uploadPayload?.upload?.extracted_text ??
+            null,
+          detectedLanguage:
+            uploadPayload?.language_detected ??
+            uploadPayload?.languageDetected ??
+            uploadPayload?.upload?.language_detected ??
+            null,
+        });
+      }
+
       const response = await fetch(`/api/social/conversations/${activeConversation.id}/messages`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ body }),
+        body: JSON.stringify({ body, attachments }),
       });
 
       const payload = await response.json().catch(() => null);
@@ -629,6 +918,85 @@ export function SocialHub() {
       setTimeout(scrollToBottom, 0);
     } finally {
       setIsSendingMessage(false);
+    }
+  };
+
+  const handleTranslateMessage = async (message: DirectMessage) => {
+    setMessageTranslations((current) => ({
+      ...current,
+      [message.id]: {
+        loading: true,
+        text: current[message.id]?.text ?? null,
+        sourceLanguage: current[message.id]?.sourceLanguage ?? null,
+        error: null,
+      },
+    }));
+
+    try {
+      const translated = await translateSnippet(message.body, null);
+      setMessageTranslations((current) => ({
+        ...current,
+        [message.id]: {
+          loading: false,
+          text: translated.text,
+          sourceLanguage: translated.sourceLanguage,
+          error: null,
+        },
+      }));
+    } catch (error) {
+      const messageText =
+        error instanceof Error ? error.message : "Failed to translate message";
+      setMessageTranslations((current) => ({
+        ...current,
+        [message.id]: {
+          loading: false,
+          text: null,
+          sourceLanguage: null,
+          error: messageText,
+        },
+      }));
+      toast.error(messageText);
+    }
+  };
+
+  const handleTranslateAttachment = async (attachment: DirectMessageAttachment) => {
+    setAttachmentTranslations((current) => ({
+      ...current,
+      [attachment.id]: {
+        loading: true,
+        text: current[attachment.id]?.text ?? null,
+        sourceLanguage: current[attachment.id]?.sourceLanguage ?? null,
+        error: null,
+      },
+    }));
+
+    try {
+      const translated = await translateSnippet(
+        attachment.extracted_text ?? "",
+        attachment.detected_language
+      );
+      setAttachmentTranslations((current) => ({
+        ...current,
+        [attachment.id]: {
+          loading: false,
+          text: translated.text,
+          sourceLanguage: translated.sourceLanguage,
+          error: null,
+        },
+      }));
+    } catch (error) {
+      const messageText =
+        error instanceof Error ? error.message : "Failed to translate attachment";
+      setAttachmentTranslations((current) => ({
+        ...current,
+        [attachment.id]: {
+          loading: false,
+          text: null,
+          sourceLanguage: null,
+          error: messageText,
+        },
+      }));
+      toast.error(messageText);
     }
   };
 
@@ -673,6 +1041,22 @@ export function SocialHub() {
     let hash = 0;
     for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) | 0;
     return avatarColors[Math.abs(hash) % avatarColors.length];
+  };
+
+  const toggleAttachmentExpanded = (attachmentId: string) => {
+    setExpandedAttachmentIds((current) => ({
+      ...current,
+      [attachmentId]: !current[attachmentId],
+    }));
+  };
+
+  const openAttachment = async (attachment: DirectMessageAttachment) => {
+    try {
+      const url = await ensureAttachmentUrl(attachment.id);
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to open attachment");
+    }
   };
 
   const leftColumn = (
@@ -958,6 +1342,8 @@ export function SocialHub() {
             {messages.length ? (
               messages.map((message) => {
                 const isOwnMessage = message.sender_id === publicProfile.id;
+                const hasText = message.body.trim().length > 0;
+                const messageTranslation = messageTranslations[message.id];
 
                 return (
                   <div
@@ -966,16 +1352,176 @@ export function SocialHub() {
                       "flex flex-col",
                       isOwnMessage ? "items-end" : "items-start"
                     )}
-                  >
-                    <div
-                      className={cn(
-                        "max-w-[70%] px-4 py-2.5 text-sm",
-                        isOwnMessage
-                          ? "rounded-lg rounded-br-sm bg-primary text-primary-foreground"
-                          : "rounded-lg rounded-bl-sm border bg-card text-foreground"
-                      )}
                     >
-                      <p className="whitespace-pre-wrap leading-relaxed">{message.body}</p>
+                    <div className="flex max-w-[78%] flex-col gap-2">
+                      {hasText ? (
+                        <div
+                          className={cn(
+                            "px-4 py-2.5 text-sm",
+                            isOwnMessage
+                              ? "rounded-lg rounded-br-sm bg-primary text-primary-foreground"
+                              : "rounded-lg rounded-bl-sm border bg-card text-foreground"
+                          )}
+                        >
+                          <p className="whitespace-pre-wrap leading-relaxed">{message.body}</p>
+                          <div className="mt-2 flex items-center gap-2">
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant={isOwnMessage ? "secondary" : "outline"}
+                              className="h-7 text-[11px]"
+                              onClick={() => void handleTranslateMessage(message)}
+                              disabled={messageTranslation?.loading}
+                            >
+                              {messageTranslation?.loading ? (
+                                <Loader2 className="size-3 animate-spin" />
+                              ) : (
+                                <Languages className="size-3" />
+                              )}
+                              Translate
+                            </Button>
+                          </div>
+                          {messageTranslation?.text ? (
+                            <div
+                              className={cn(
+                                "mt-3 rounded-md px-3 py-2 text-xs",
+                                isOwnMessage
+                                  ? "bg-white/15 text-primary-foreground/90"
+                                  : "bg-muted text-foreground"
+                              )}
+                            >
+                              <p className="font-medium">
+                                Translation
+                                {messageTranslation.sourceLanguage
+                                  ? ` (${messageTranslation.sourceLanguage})`
+                                  : ""}
+                              </p>
+                              <p className="mt-1 whitespace-pre-wrap">
+                                {messageTranslation.text}
+                              </p>
+                            </div>
+                          ) : null}
+                        </div>
+                      ) : null}
+
+                      {(message.attachments ?? []).map((attachment) => {
+                        const AttachmentIcon = attachmentIcon(attachment.attachment_type);
+                        const imageUrl = attachmentUrls[attachment.id]?.url;
+                        const imageLoading = attachmentUrls[attachment.id]?.loading;
+                        const attachmentTranslation = attachmentTranslations[attachment.id];
+                        const isExpanded = expandedAttachmentIds[attachment.id];
+
+                        return (
+                          <div
+                            key={attachment.id}
+                            className={cn(
+                              "rounded-2xl border px-3 py-3 shadow-sm",
+                              isOwnMessage
+                                ? "border-primary/20 bg-primary/5"
+                                : "bg-card"
+                            )}
+                          >
+                            {attachment.attachment_type === "image" ? (
+                              <div className="overflow-hidden rounded-xl border bg-muted">
+                                {imageUrl ? (
+                                  <img
+                                    src={imageUrl}
+                                    alt={attachment.file_name ?? "Shared image"}
+                                    className="max-h-64 w-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="flex h-40 items-center justify-center text-muted-foreground">
+                                    {imageLoading ? (
+                                      <Loader2 className="size-5 animate-spin" />
+                                    ) : (
+                                      <FileImage className="size-5" />
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            ) : null}
+
+                            <div className="mt-3 flex items-start gap-3">
+                              <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                                <AttachmentIcon className="size-4" />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-sm font-medium">
+                                  {attachment.file_name ?? attachmentLabel(attachment.attachment_type)}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {attachmentLabel(attachment.attachment_type)}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="mt-3 flex flex-wrap items-center gap-2">
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                className="h-7 text-[11px]"
+                                onClick={() => void openAttachment(attachment)}
+                              >
+                                <Download className="size-3" />
+                                Open
+                              </Button>
+                              {attachment.extracted_text ? (
+                                <>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-7 text-[11px]"
+                                    onClick={() => toggleAttachmentExpanded(attachment.id)}
+                                  >
+                                    {isExpanded ? "Hide text" : "Show text"}
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-7 text-[11px]"
+                                    onClick={() => void handleTranslateAttachment(attachment)}
+                                    disabled={attachmentTranslation?.loading}
+                                  >
+                                    {attachmentTranslation?.loading ? (
+                                      <Loader2 className="size-3 animate-spin" />
+                                    ) : (
+                                      <Languages className="size-3" />
+                                    )}
+                                    Translate text
+                                  </Button>
+                                </>
+                              ) : null}
+                            </div>
+
+                            {isExpanded && attachment.extracted_text ? (
+                              <div className="mt-3 rounded-md bg-muted px-3 py-2 text-xs text-foreground">
+                                <p className="font-medium">Extracted text</p>
+                                <p className="mt-1 whitespace-pre-wrap">
+                                  {attachment.extracted_text.slice(0, MAX_TRANSLATION_CHARS)}
+                                  {attachment.extracted_text.length > MAX_TRANSLATION_CHARS ? "..." : ""}
+                                </p>
+                              </div>
+                            ) : null}
+
+                            {attachmentTranslation?.text ? (
+                              <div className="mt-3 rounded-md bg-muted px-3 py-2 text-xs text-foreground">
+                                <p className="font-medium">
+                                  Translation
+                                  {attachmentTranslation.sourceLanguage
+                                    ? ` (${attachmentTranslation.sourceLanguage})`
+                                    : ""}
+                                </p>
+                                <p className="mt-1 whitespace-pre-wrap">
+                                  {attachmentTranslation.text}
+                                </p>
+                              </div>
+                            ) : null}
+                          </div>
+                        );
+                      })}
                     </div>
                     <p className="mt-1 text-[10px] text-muted-foreground">
                       {formatTimestamp(message.created_at)}
@@ -998,9 +1544,9 @@ export function SocialHub() {
             <MessageComposer
               disabled={!activeConversation}
               isSending={isSendingMessage}
-              onSend={async (body) => {
+              onSend={async (payload) => {
                 try {
-                  await handleSendMessage(body);
+                  await handleSendMessage(payload);
                 } catch (error) {
                   toast.error(error instanceof Error ? error.message : "Failed to send message");
                 }

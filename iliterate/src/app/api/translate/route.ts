@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { translateWithContext } from "@/lib/google-ai";
+import { detectContentMetadata, translateWithContext } from "@/lib/google-ai";
 import { translateRequestSchema, validateRequestBody } from "@/lib/validations";
 
 export async function POST(request: NextRequest) {
@@ -28,11 +28,16 @@ export async function POST(request: NextRequest) {
     }
 
     const { text, sourceLang, targetLang, contextBefore, contextAfter, contentId, lessonId } = body;
+    const resolvedSourceLang =
+      sourceLang === "auto"
+        ? (await detectContentMetadata(text.slice(0, 1500)).catch(() => null))?.language ??
+          "auto"
+        : sourceLang;
 
     // Get translation from Gemini
     const translation = await translateWithContext({
       text,
-      sourceLang,
+      sourceLang: resolvedSourceLang,
       targetLang,
       contextBefore,
       contextAfter,
@@ -48,7 +53,7 @@ export async function POST(request: NextRequest) {
           lesson_id: lessonId || null,
           source_text: text,
           translated_text: translation.translation,
-          source_lang: sourceLang,
+          source_lang: resolvedSourceLang,
           target_lang: targetLang,
           transliteration: translation.transliteration,
         });

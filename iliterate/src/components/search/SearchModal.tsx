@@ -13,6 +13,7 @@ import {
   Users,
   ClipboardCheck,
   TrendingUp,
+  Sparkles,
   X,
 } from "lucide-react";
 import { useSearch } from "./SearchContext";
@@ -55,6 +56,7 @@ const PAGE_SHORTCUTS = [
   { title: "Flashcards", subtitle: "Review your vocabulary cards", href: "/flashcards", icon: Layers },
   { title: "Quizzes", subtitle: "Test your comprehension", href: "/quizzes", icon: ClipboardCheck },
   { title: "Lesson Plan", subtitle: "Start or continue a lesson", href: "/lesson-plan", icon: GraduationCap },
+  { title: "Study Chat", subtitle: "Ask grounded questions about uploaded materials", href: "/study-chat", icon: Sparkles },
   { title: "Social", subtitle: "Friends and messages", href: "/social", icon: Users },
   { title: "Leaderboard", subtitle: "See how you rank", href: "/leaderboard", icon: Trophy },
   { title: "Progress", subtitle: "View your learning stats", href: "/progress", icon: TrendingUp },
