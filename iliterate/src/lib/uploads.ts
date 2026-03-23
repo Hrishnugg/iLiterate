@@ -1,6 +1,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import mammoth from "mammoth";
-import { PDFParse } from "pdf-parse";
+
+import { extractTextFromPdfBuffer } from "@/lib/pdf";
 
 export type UploadScope = "content_import" | "study_chat" | "dm_attachment";
 export type UploadStatus = "uploaded" | "processed" | "failed";
@@ -12,6 +13,13 @@ export const SUPPORTED_UPLOAD_MIME_TYPES = new Set([
   "image/jpeg",
   "image/png",
   "image/webp",
+]);
+const MIME_TYPE_ALIASES = new Map<string, string>([
+  ["application/x-pdf", "application/pdf"],
+  ["application/acrobat", "application/pdf"],
+  ["applications/vnd.pdf", "application/pdf"],
+  ["text/pdf", "application/pdf"],
+  ["application/octet-stream", "application/octet-stream"],
 ]);
 
 export interface ExtractedUploadPayload {
@@ -39,13 +47,7 @@ function sanitizeFilename(filename: string) {
 }
 
 async function extractPdfText(buffer: Buffer) {
-  const parser = new PDFParse({ data: buffer });
-  try {
-    const result = await parser.getText();
-    return result.text.trim();
-  } finally {
-    await parser.destroy();
-  }
+  return extractTextFromPdfBuffer(buffer);
 }
 
 async function extractDocxText(buffer: Buffer) {
@@ -122,6 +124,40 @@ export async function extractUploadPayload(input: {
 export function buildStoragePath(scope: UploadScope, userId: string, filename: string) {
   const safeName = sanitizeFilename(filename || "upload");
   return `${scope}/${userId}/${Date.now()}-${safeName}`;
+}
+
+export function resolveUploadMimeType(
+  mimeType: string | null | undefined,
+  filename: string
+): string | null {
+  const normalizedMimeType = mimeType?.trim().toLowerCase() ?? "";
+  if (SUPPORTED_UPLOAD_MIME_TYPES.has(normalizedMimeType)) {
+    return normalizedMimeType;
+  }
+
+  const aliasMimeType = MIME_TYPE_ALIASES.get(normalizedMimeType);
+  if (aliasMimeType && aliasMimeType !== "application/octet-stream") {
+    return aliasMimeType;
+  }
+
+  const lowerName = filename.toLowerCase();
+  if (lowerName.endsWith(".pdf")) {
+    return "application/pdf";
+  }
+  if (lowerName.endsWith(".docx")) {
+    return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+  }
+  if (lowerName.endsWith(".jpg") || lowerName.endsWith(".jpeg")) {
+    return "image/jpeg";
+  }
+  if (lowerName.endsWith(".png")) {
+    return "image/png";
+  }
+  if (lowerName.endsWith(".webp")) {
+    return "image/webp";
+  }
+
+  return null;
 }
 
 export function inferAttachmentType(mimeType: string, filename: string) {

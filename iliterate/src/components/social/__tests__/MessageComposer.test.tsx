@@ -62,4 +62,40 @@ describe("MessageComposer", () => {
       files: [imageFile],
     });
   });
+
+  it("accepts pdf attachments even when the browser reports an empty mime type", async () => {
+    const user = userEvent.setup();
+    const onSend = vi.fn().mockResolvedValue(undefined);
+
+    render(<MessageComposer onSend={onSend} />);
+
+    const fileInput = screen.getByLabelText(/attach/i, { selector: "input" });
+    const pdfFile = new File(["pdf"], "lesson.PDF", { type: "" });
+
+    await user.upload(fileInput, pdfFile);
+    await user.click(screen.getByRole("button", { name: /send/i }));
+
+    expect(onSend).toHaveBeenCalledWith({
+      body: "",
+      files: [pdfFile],
+    });
+  });
+
+  it("preserves the draft when send fails", async () => {
+    const user = userEvent.setup();
+    const onSend = vi.fn().mockRejectedValue(new Error("upload failed"));
+
+    render(<MessageComposer onSend={onSend} />);
+
+    const textarea = screen.getByPlaceholderText(/write a message/i);
+    const fileInput = screen.getByLabelText(/attach/i, { selector: "input" });
+    const pdfFile = new File(["pdf"], "lesson.pdf", { type: "application/pdf" });
+
+    await user.type(textarea, "please review");
+    await user.upload(fileInput, pdfFile);
+    await user.click(screen.getByRole("button", { name: /send/i }));
+
+    expect(textarea).toHaveValue("please review");
+    expect(screen.getByText("lesson.pdf")).toBeInTheDocument();
+  });
 });

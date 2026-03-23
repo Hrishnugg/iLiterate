@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import {
-  Download,
   FileImage,
   FileText,
   Languages,
@@ -13,6 +12,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+import { AttachmentPreviewDialog } from "@/components/social/AttachmentPreviewDialog";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
@@ -82,6 +82,23 @@ interface TranslationState {
 interface AttachmentUrlState {
   loading: boolean;
   url: string | null;
+  error: string | null;
+}
+
+interface AttachmentPreviewPayload {
+  id: string;
+  attachmentType: DirectMessageAttachmentType;
+  fileName: string | null;
+  mimeType: string | null;
+  url: string | null;
+  previewHtml: string | null;
+  previewText: string | null;
+  detectedLanguage: string | null;
+}
+
+interface AttachmentPreviewState {
+  loading: boolean;
+  payload: AttachmentPreviewPayload | null;
   error: string | null;
 }
 
@@ -324,6 +341,8 @@ export function SocialHub() {
   const [attachmentTranslations, setAttachmentTranslations] = useState<Record<string, TranslationState>>({});
   const [attachmentUrls, setAttachmentUrls] = useState<Record<string, AttachmentUrlState>>({});
   const [expandedAttachmentIds, setExpandedAttachmentIds] = useState<Record<string, boolean>>({});
+  const [attachmentPreviews, setAttachmentPreviews] = useState<Record<string, AttachmentPreviewState>>({});
+  const [previewAttachment, setPreviewAttachment] = useState<DirectMessageAttachment | null>(null);
 
   const profileLookup = useMemo(() => {
     const entries = friends.map(({ profile }) => [profile.id, profile] as const);
@@ -1050,6 +1069,114 @@ export function SocialHub() {
     }));
   };
 
+  const loadAttachmentPreview = async (attachment: DirectMessageAttachment) => {
+    const existing = attachmentPreviews[attachment.id];
+    if (existing?.loading || existing?.payload) {
+      return;
+    }
+
+    setAttachmentPreviews((current) => ({
+      ...current,
+      [attachment.id]: {
+        loading: true,
+        payload: current[attachment.id]?.payload ?? null,
+        error: null,
+      },
+    }));
+
+    try {
+      if (attachment.attachment_type === "docx") {
+        const response = await fetch(`/api/social/attachments/${attachment.id}/preview`);
+        const payload = (await response.json().catch(() => null)) as
+          | {
+              id?: string;
+              attachmentType?: DirectMessageAttachmentType;
+              fileName?: string | null;
+              mimeType?: string | null;
+              url?: string | null;
+              previewHtml?: string | null;
+              previewText?: string | null;
+              detectedLanguage?: string | null;
+              error?: string;
+            }
+          | null;
+
+        if (!response.ok) {
+          throw new Error(payload?.error || "Failed to load attachment preview");
+        }
+
+        if (payload?.url) {
+          setAttachmentUrls((current) => ({
+            ...current,
+            [attachment.id]: {
+              loading: false,
+              url: payload.url ?? null,
+              error: null,
+            },
+          }));
+        }
+
+        setAttachmentPreviews((current) => ({
+          ...current,
+          [attachment.id]: {
+            loading: false,
+            error: null,
+            payload: {
+              id: payload?.id ?? attachment.id,
+              attachmentType: payload?.attachmentType ?? attachment.attachment_type,
+              fileName: payload?.fileName ?? attachment.file_name ?? null,
+              mimeType: payload?.mimeType ?? attachment.mime_type ?? null,
+              url: payload?.url ?? null,
+              previewHtml: payload?.previewHtml ?? null,
+              previewText: payload?.previewText ?? attachment.extracted_text ?? null,
+              detectedLanguage:
+                payload?.detectedLanguage ?? attachment.detected_language ?? null,
+            },
+          },
+        }));
+        return;
+      }
+
+      const url =
+        attachmentUrls[attachment.id]?.url ??
+        (await ensureAttachmentUrl(attachment.id));
+
+      setAttachmentPreviews((current) => ({
+        ...current,
+        [attachment.id]: {
+          loading: false,
+          error: null,
+          payload: {
+            id: attachment.id,
+            attachmentType: attachment.attachment_type,
+            fileName: attachment.file_name ?? null,
+            mimeType: attachment.mime_type ?? null,
+            url,
+            previewHtml: null,
+            previewText: attachment.extracted_text ?? null,
+            detectedLanguage: attachment.detected_language ?? null,
+          },
+        },
+      }));
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to load attachment preview";
+      setAttachmentPreviews((current) => ({
+        ...current,
+        [attachment.id]: {
+          loading: false,
+          payload: current[attachment.id]?.payload ?? null,
+          error: message,
+        },
+      }));
+    }
+  };
+
+  const handlePreviewAttachment = (attachment: DirectMessageAttachment) => {
+    setPreviewAttachment(attachment);
+    void loadAttachmentPreview(attachment);
+  };
+
   const openAttachment = async (attachment: DirectMessageAttachment) => {
     try {
       const url = await ensureAttachmentUrl(attachment.id);
@@ -1429,7 +1556,11 @@ export function SocialHub() {
                             )}
                           >
                             {attachment.attachment_type === "image" ? (
-                              <div className="overflow-hidden rounded-xl border bg-muted">
+                              <button
+                                type="button"
+                                className="block w-full overflow-hidden rounded-xl border bg-muted text-left transition-transform hover:scale-[1.01]"
+                                onClick={() => handlePreviewAttachment(attachment)}
+                              >
                                 {imageUrl ? (
                                   <img
                                     src={imageUrl}
@@ -1445,10 +1576,14 @@ export function SocialHub() {
                                     )}
                                   </div>
                                 )}
-                              </div>
+                              </button>
                             ) : null}
 
-                            <div className="mt-3 flex items-start gap-3">
+                            <button
+                              type="button"
+                              className="mt-3 flex w-full items-start gap-3 rounded-xl px-1 py-1 text-left transition-colors hover:bg-muted/40"
+                              onClick={() => handlePreviewAttachment(attachment)}
+                            >
                               <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
                                 <AttachmentIcon className="size-4" />
                               </div>
@@ -1460,7 +1595,7 @@ export function SocialHub() {
                                   {attachmentLabel(attachment.attachment_type)}
                                 </p>
                               </div>
-                            </div>
+                            </button>
 
                             <div className="mt-3 flex flex-wrap items-center gap-2">
                               <Button
@@ -1468,10 +1603,9 @@ export function SocialHub() {
                                 size="sm"
                                 variant="outline"
                                 className="h-7 text-[11px]"
-                                onClick={() => void openAttachment(attachment)}
+                                onClick={() => handlePreviewAttachment(attachment)}
                               >
-                                <Download className="size-3" />
-                                Open
+                                Preview
                               </Button>
                               {attachment.extracted_text ? (
                                 <>
@@ -1556,6 +1690,7 @@ export function SocialHub() {
                   await handleSendMessage(payload);
                 } catch (error) {
                   toast.error(error instanceof Error ? error.message : "Failed to send message");
+                  throw error;
                 }
               }}
             />
@@ -1577,6 +1712,10 @@ export function SocialHub() {
     </div>
   );
 
+  const activePreviewState = previewAttachment
+    ? attachmentPreviews[previewAttachment.id]
+    : null;
+
   return (
     <div className={cn(
       "flex flex-col",
@@ -1597,6 +1736,39 @@ export function SocialHub() {
           </>
         )}
       </div>
+      <AttachmentPreviewDialog
+        attachment={previewAttachment}
+        open={Boolean(previewAttachment)}
+        loading={Boolean(activePreviewState?.loading)}
+        error={
+          activePreviewState?.error ??
+          (previewAttachment
+            ? attachmentUrls[previewAttachment.id]?.error ?? null
+            : null)
+        }
+        url={
+          activePreviewState?.payload?.url ??
+          (previewAttachment
+            ? attachmentUrls[previewAttachment.id]?.url ?? null
+            : null)
+        }
+        previewHtml={activePreviewState?.payload?.previewHtml ?? null}
+        previewText={
+          activePreviewState?.payload?.previewText ??
+          previewAttachment?.extracted_text ??
+          null
+        }
+        onOpenChange={(open) => {
+          if (!open) {
+            setPreviewAttachment(null);
+          }
+        }}
+        onOpenFile={() => {
+          if (previewAttachment) {
+            void openAttachment(previewAttachment);
+          }
+        }}
+      />
     </div>
   );
 }

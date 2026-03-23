@@ -110,11 +110,15 @@ export function MessageComposer({
       return;
     }
 
-    await onSend({
-      body: trimmed,
-      files: attachments.map((attachment) => attachment.file),
-    });
-    clearDraft();
+    try {
+      await onSend({
+        body: trimmed,
+        files: attachments.map((attachment) => attachment.file),
+      });
+      clearDraft();
+    } catch {
+      // Preserve the draft so the parent can surface the error and the user can retry.
+    }
   };
 
   const addFiles = (files: FileList | null) => {
@@ -238,7 +242,7 @@ export function MessageComposer({
               ref={fileInputRef}
               type="file"
               aria-label="Attach files"
-              accept="image/*,application/pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              accept="image/*,.pdf,application/pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
               className="hidden"
               multiple
               onChange={(event) => addFiles(event.target.files)}

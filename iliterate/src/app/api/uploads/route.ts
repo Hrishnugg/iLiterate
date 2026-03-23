@@ -10,6 +10,7 @@ import {
   buildStoragePath,
   extractUploadPayload,
   inferUploadKind,
+  resolveUploadMimeType,
   type UploadScope,
 } from "@/lib/uploads";
 
@@ -39,7 +40,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "file is required" }, { status: 400 });
     }
 
-    if (!file.type || !SUPPORTED_UPLOAD_MIME_TYPES.has(file.type)) {
+    const resolvedMimeType = resolveUploadMimeType(file.type, file.name);
+    if (!resolvedMimeType || !SUPPORTED_UPLOAD_MIME_TYPES.has(resolvedMimeType)) {
       return NextResponse.json(
         { error: "Unsupported file type" },
         { status: 400 }
@@ -68,7 +70,7 @@ export async function POST(request: Request) {
     const buffer = Buffer.from(await file.arrayBuffer());
     const admin = createAdminClient();
     const storagePath = buildStoragePath(scope, user.id, file.name);
-    const mimeType = file.type || "application/octet-stream";
+    const mimeType = resolvedMimeType;
     const uploadKind = inferUploadKind(mimeType, file.name);
 
     const { error: storageError } = await admin.storage

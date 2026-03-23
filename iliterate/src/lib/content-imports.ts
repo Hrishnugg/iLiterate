@@ -1,10 +1,10 @@
 import { load } from "cheerio";
-import { PDFParse } from "pdf-parse";
 
 import {
   detectContentMetadata,
   extractTextFromImage,
 } from "@/lib/google-ai";
+import { extractTextFromPdfBuffer } from "@/lib/pdf";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { UPLOADS_BUCKET, inferUploadKind } from "@/lib/uploads";
 import type { CEFRLevel, ContentType, UserUpload } from "@/types/database";
@@ -152,13 +152,8 @@ export async function downloadUploadBuffer(storagePath: string): Promise<Buffer>
 }
 
 async function extractPdfText(buffer: Buffer): Promise<string> {
-  const parser = new PDFParse({ data: buffer });
-  try {
-    const parsed = await parser.getText();
-    return normalizeWhitespace(parsed.text);
-  } finally {
-    await parser.destroy();
-  }
+  const text = await extractTextFromPdfBuffer(buffer);
+  return normalizeWhitespace(text);
 }
 
 function pickReadableRoot(html: string) {
