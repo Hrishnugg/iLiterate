@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import dynamic from "next/dynamic";
 import DOMPurify from "dompurify";
-import { ExternalLink, FileImage, FileText, Loader2 } from "lucide-react";
+import { Download, ExternalLink, FileImage, FileText, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -13,6 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
 import type { DirectMessageAttachment } from "@/types/database";
 
 const PDFRenderer = dynamic(
@@ -37,6 +38,7 @@ interface AttachmentPreviewDialogProps {
   previewText?: string | null;
   onOpenChange: (open: boolean) => void;
   onOpenFile?: () => void;
+  onDownloadFile?: () => void;
 }
 
 function attachmentLabel(type: DirectMessageAttachment["attachment_type"]) {
@@ -60,6 +62,7 @@ export function AttachmentPreviewDialog({
   previewText,
   onOpenChange,
   onOpenFile,
+  onDownloadFile,
 }: AttachmentPreviewDialogProps) {
   const sanitizedDocHtml = useMemo(() => {
     if (!previewHtml) {
@@ -125,22 +128,39 @@ export function AttachmentPreviewDialog({
                         : " preview"}
                   </DialogDescription>
                 </div>
-                {url ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="shrink-0"
-                    onClick={onOpenFile}
-                  >
-                    <ExternalLink className="size-3.5" />
-                    Open file
-                  </Button>
-                ) : null}
+                <div className="flex shrink-0 items-center gap-2">
+                  {onDownloadFile ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={onDownloadFile}
+                    >
+                      <Download className="size-3.5" />
+                      Download
+                    </Button>
+                  ) : null}
+                  {onOpenFile ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={onOpenFile}
+                    >
+                      <ExternalLink className="size-3.5" />
+                      Open file
+                    </Button>
+                  ) : null}
+                </div>
               </div>
             </DialogHeader>
 
-            <div className="min-h-0 flex-1 bg-muted/20">
+            <div
+              className={cn(
+                "min-h-0 flex-1",
+                attachment.attachment_type === "pdf" ? "bg-background" : "bg-muted/20"
+              )}
+            >
               {loading ? (
                 <div className="flex h-full min-h-[18rem] items-center justify-center">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -173,11 +193,12 @@ export function AttachmentPreviewDialog({
                   )}
                 </div>
               ) : attachment.attachment_type === "pdf" ? (
-                <div className="h-full overflow-y-auto p-4">
+                <div className="h-full min-h-0">
                   {url ? (
                     <PDFRenderer
                       url={url}
                       contentId={`dm-attachment-${attachment.id}`}
+                      integratedToolbar
                     />
                   ) : (
                     <div className="flex h-full min-h-[18rem] items-center justify-center rounded-2xl border bg-background shadow-sm">

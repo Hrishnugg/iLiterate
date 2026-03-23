@@ -83,6 +83,7 @@ interface AttachmentUrlState {
   loading: boolean;
   url: string | null;
   error: string | null;
+  fetchedAt?: number | null;
 }
 
 interface AttachmentPreviewPayload {
@@ -476,9 +477,17 @@ export function SocialHub() {
     setTimeout(scrollToBottom, 0);
   }, [activeConversation?.friend, profileLookup, publicProfile?.id]);
 
-  const ensureAttachmentUrl = useCallback(async (attachmentId: string) => {
+  const ensureAttachmentUrl = useCallback(async (
+    attachmentId: string,
+    options?: { forceRefresh?: boolean }
+  ) => {
     const existing = attachmentUrls[attachmentId];
-    if (existing?.url) {
+    const isFresh =
+      typeof existing?.fetchedAt === "number"
+        ? Date.now() - existing.fetchedAt < 4 * 60 * 1000
+        : false;
+
+    if (existing?.url && isFresh && !options?.forceRefresh) {
       return existing.url;
     }
 
@@ -488,6 +497,7 @@ export function SocialHub() {
         loading: true,
         url: current[attachmentId]?.url ?? null,
         error: null,
+        fetchedAt: current[attachmentId]?.fetchedAt ?? null,
       },
     }));
 
@@ -508,6 +518,7 @@ export function SocialHub() {
           loading: false,
           url: payload.url ?? null,
           error: null,
+          fetchedAt: Date.now(),
         },
       }));
 
@@ -521,6 +532,7 @@ export function SocialHub() {
           loading: false,
           url: null,
           error: message,
+          fetchedAt: null,
         },
       }));
       throw error;
@@ -1112,6 +1124,7 @@ export function SocialHub() {
               loading: false,
               url: payload.url ?? null,
               error: null,
+              fetchedAt: Date.now(),
             },
           }));
         }
@@ -1179,10 +1192,39 @@ export function SocialHub() {
 
   const openAttachment = async (attachment: DirectMessageAttachment) => {
     try {
-      const url = await ensureAttachmentUrl(attachment.id);
+      const url = await ensureAttachmentUrl(attachment.id, {
+        forceRefresh: true,
+      });
       window.open(url, "_blank", "noopener,noreferrer");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to open attachment");
+    }
+  };
+
+  const downloadAttachment = async (attachment: DirectMessageAttachment) => {
+    try {
+      const url = await ensureAttachmentUrl(attachment.id, {
+        forceRefresh: true,
+      });
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error("Failed to download attachment");
+      }
+
+      const blob = await response.blob();
+      const objectUrl = window.URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = objectUrl;
+      anchor.download = attachment.file_name ?? `attachment-${attachment.id}`;
+      anchor.style.display = "none";
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      window.URL.revokeObjectURL(objectUrl);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to download attachment"
+      );
     }
   };
 
@@ -1766,6 +1808,11 @@ export function SocialHub() {
         onOpenFile={() => {
           if (previewAttachment) {
             void openAttachment(previewAttachment);
+          }
+        }}
+        onDownloadFile={() => {
+          if (previewAttachment) {
+            void downloadAttachment(previewAttachment);
           }
         }}
       />

@@ -13,8 +13,9 @@ if (typeof window !== "undefined") {
 
 interface PDFRendererProps {
   url: string;
-  contentId: string;
+  contentId?: string;
   onSelection?: (selection: TextSelection | null) => void;
+  integratedToolbar?: boolean;
 }
 
 interface PDFPage {
@@ -29,24 +30,55 @@ interface PDFPage {
   }>;
 }
 
-export function PDFRenderer({ url, contentId, onSelection }: PDFRendererProps) {
+export function PDFRenderer({
+  url,
+  contentId: _contentId,
+  onSelection,
+  integratedToolbar = false,
+}: PDFRendererProps) {
+  void _contentId;
   const containerRef = useRef<HTMLDivElement>(null);
+  const toolbarRef = useRef<HTMLDivElement>(null);
   const canvasRefs = useRef<Map<number, HTMLCanvasElement>>(new Map());
+  const pageRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+  const renderTasks = useRef<Map<number, pdfjsLib.RenderTask>>(new Map());
+  const renderedScales = useRef<Map<number, number>>(new Map());
   const [pdf, setPdf] = useState<pdfjsLib.PDFDocumentProxy | null>(null);
   const [numPages, setNumPages] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [scale, setScale] = useState(1.5);
   const [loading, setLoading] = useState(true);
+  const [isInitialRenderLoading, setIsInitialRenderLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pages, setPages] = useState<PDFPage[]>([]);
 
+  const getToolbarOffset = useCallback(() => {
+    const toolbarHeight = toolbarRef.current?.offsetHeight ?? 0;
+    return toolbarHeight + 24;
+  }, []);
+
   // Load PDF
   useEffect(() => {
+    let isCancelled = false;
+    let loadedPdf: pdfjsLib.PDFDocumentProxy | null = null;
+    const renderTaskRegistry = renderTasks.current;
+    const renderedScaleRegistry = renderedScales.current;
+
     const loadPDF = async () => {
       try {
         setLoading(true);
+        setError(null);
+        setCurrentPage(1);
+        setPages([]);
+        setIsInitialRenderLoading(true);
         const loadingTask = pdfjsLib.getDocument(url);
         const pdfDoc = await loadingTask.promise;
+        if (isCancelled) {
+          await pdfDoc.destroy();
+          return;
+        }
+
+        loadedPdf = pdfDoc;
         setPdf(pdfDoc);
         setNumPages(pdfDoc.numPages);
 
@@ -72,16 +104,33 @@ export function PDFRenderer({ url, contentId, onSelection }: PDFRendererProps) {
             textItems,
           });
         }
+        if (isCancelled) {
+          await pdfDoc.destroy();
+          return;
+        }
         setPages(extractedPages);
         setLoading(false);
       } catch (err) {
+        if (isCancelled) {
+          return;
+        }
         console.error("PDF load error:", err);
         setError("Failed to load PDF");
         setLoading(false);
       }
     };
 
-    loadPDF();
+    void loadPDF();
+
+    return () => {
+      isCancelled = true;
+      renderTaskRegistry.forEach((task) => task.cancel());
+      renderTaskRegistry.clear();
+      renderedScaleRegistry.clear();
+      if (loadedPdf) {
+        void loadedPdf.destroy();
+      }
+    };
   }, [url]);
 
   // Render a page
@@ -92,6 +141,16 @@ export function PDFRenderer({ url, contentId, onSelection }: PDFRendererProps) {
       const canvas = canvasRefs.current.get(pageNumber);
       if (!canvas) return;
 
+      const existingTask = renderTasks.current.get(pageNumber);
+      if (existingTask) {
+        existingTask.cancel();
+        renderTasks.current.delete(pageNumber);
+      }
+
+      if (renderedScales.current.get(pageNumber) === scale) {
+        return;
+      }
+
       const page = await pdf.getPage(pageNumber);
       const viewport = page.getViewport({ scale });
 
@@ -101,28 +160,110 @@ export function PDFRenderer({ url, contentId, onSelection }: PDFRendererProps) {
       const context = canvas.getContext("2d");
       if (!context) return;
 
-      await page.render({
+      const renderTask = page.render({
         canvasContext: context,
         viewport,
         canvas,
-      }).promise;
+      });
+      renderTasks.current.set(pageNumber, renderTask);
+
+      try {
+        await renderTask.promise;
+        renderedScales.current.set(pageNumber, scale);
+      } catch (error) {
+        const isCancelledError =
+          error instanceof Error && error.name === "RenderingCancelledException";
+        if (!isCancelledError) {
+          throw error;
+        }
+      } finally {
+        if (renderTasks.current.get(pageNumber) === renderTask) {
+          renderTasks.current.delete(pageNumber);
+        }
+      }
     },
     [pdf, scale]
   );
 
   // Render visible pages
   useEffect(() => {
-    if (!pdf) return;
+    if (!pdf || loading) return;
+    const renderTaskRegistry = renderTasks.current;
+    let isCancelled = false;
 
     // Render current page and adjacent pages
     const pagesToRender = [currentPage];
     if (currentPage > 1) pagesToRender.push(currentPage - 1);
     if (currentPage < numPages) pagesToRender.push(currentPage + 1);
 
-    pagesToRender.forEach((pageNum) => {
-      renderPage(pageNum);
+    const frameId = requestAnimationFrame(() => {
+      void Promise.all(pagesToRender.map((pageNum) => renderPage(pageNum))).then(() => {
+        if (!isCancelled) {
+          setIsInitialRenderLoading(false);
+        }
+      });
     });
-  }, [pdf, currentPage, numPages, renderPage]);
+
+    return () => {
+      isCancelled = true;
+      cancelAnimationFrame(frameId);
+      pagesToRender.forEach((pageNum) => {
+        renderTaskRegistry.get(pageNum)?.cancel();
+      });
+    };
+  }, [pdf, loading, currentPage, numPages, renderPage]);
+
+  const scrollToPage = useCallback((pageNumber: number) => {
+    const pageElement = pageRefs.current.get(pageNumber);
+    const container = containerRef.current;
+    if (!pageElement || !container) {
+      return;
+    }
+
+    const toolbarOffset = getToolbarOffset();
+    container.scrollTo({
+      top: Math.max(0, pageElement.offsetTop - toolbarOffset),
+      behavior: "auto",
+    });
+  }, [getToolbarOffset]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || loading || isInitialRenderLoading) {
+      return;
+    }
+
+    const updateCurrentPageFromScroll = () => {
+      const toolbarOffset = getToolbarOffset();
+      const threshold = container.scrollTop + toolbarOffset;
+
+      let nextPage = 1;
+
+      for (let pageNumber = 1; pageNumber <= numPages; pageNumber += 1) {
+        const pageElement = pageRefs.current.get(pageNumber);
+        if (!pageElement) {
+          continue;
+        }
+
+        if (pageElement.offsetTop <= threshold) {
+          nextPage = pageNumber;
+        } else {
+          break;
+        }
+      }
+
+      setCurrentPage((current) => (current === nextPage ? current : nextPage));
+    };
+
+    updateCurrentPageFromScroll();
+    container.addEventListener("scroll", updateCurrentPageFromScroll, {
+      passive: true,
+    });
+
+    return () => {
+      container.removeEventListener("scroll", updateCurrentPageFromScroll);
+    };
+  }, [getToolbarOffset, isInitialRenderLoading, loading, numPages]);
 
   // Handle text selection in PDF
   const handleMouseUp = useCallback(() => {
@@ -140,8 +281,6 @@ export function PDFRenderer({ url, contentId, onSelection }: PDFRendererProps) {
 
     // Get selection position
     const range = selection.getRangeAt(0);
-    const rect = range.getBoundingClientRect();
-
     // Calculate approximate offsets based on current page text
     const currentPageData = pages[currentPage - 1];
     if (currentPageData) {
@@ -164,7 +303,7 @@ export function PDFRenderer({ url, contentId, onSelection }: PDFRendererProps) {
 
   if (loading) {
     return (
-      <div className="flex h-96 items-center justify-center">
+      <div className="flex h-full min-h-[18rem] items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     );
@@ -172,7 +311,7 @@ export function PDFRenderer({ url, contentId, onSelection }: PDFRendererProps) {
 
   if (error) {
     return (
-      <div className="flex h-96 flex-col items-center justify-center gap-4">
+      <div className="flex h-full min-h-[18rem] flex-col items-center justify-center gap-4">
         <p className="text-destructive">{error}</p>
         <Button onClick={() => window.location.reload()}>Retry</Button>
       </div>
@@ -182,16 +321,24 @@ export function PDFRenderer({ url, contentId, onSelection }: PDFRendererProps) {
   return (
     <div
       ref={containerRef}
-      className="relative flex flex-col items-center gap-4"
+      className="relative flex h-full min-h-0 flex-col overflow-y-auto bg-background"
       onMouseUp={handleMouseUp}
     >
       {/* Page navigation */}
-      <div className="sticky top-0 z-10 flex w-full items-center justify-center gap-4 bg-background/95 p-4 backdrop-blur">
+      <div
+        ref={toolbarRef}
+        className={`sticky top-0 z-10 flex w-full items-center justify-center gap-4 border-b bg-background px-6 py-4 ${
+          integratedToolbar ? "" : "backdrop-blur"
+        }`}
+      >
         <Button
           variant="outline"
           size="sm"
-          onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-          disabled={currentPage === 1}
+          onClick={() => {
+            const nextPage = Math.max(1, currentPage - 1);
+            scrollToPage(nextPage);
+          }}
+          disabled={currentPage === 1 || isInitialRenderLoading}
         >
           <ChevronLeft className="h-4 w-4" />
         </Button>
@@ -201,8 +348,11 @@ export function PDFRenderer({ url, contentId, onSelection }: PDFRendererProps) {
         <Button
           variant="outline"
           size="sm"
-          onClick={() => setCurrentPage((p) => Math.min(numPages, p + 1))}
-          disabled={currentPage === numPages}
+          onClick={() => {
+            const nextPage = Math.min(numPages, currentPage + 1);
+            scrollToPage(nextPage);
+          }}
+          disabled={currentPage === numPages || isInitialRenderLoading}
         >
           <ChevronRight className="h-4 w-4" />
         </Button>
@@ -226,21 +376,41 @@ export function PDFRenderer({ url, contentId, onSelection }: PDFRendererProps) {
         </div>
       </div>
 
+      {isInitialRenderLoading ? (
+        <div className="pointer-events-none absolute inset-x-0 top-[73px] bottom-0 z-10 flex items-center justify-center bg-background/72 backdrop-blur-[1px]">
+          <div className="flex items-center gap-2 rounded-full border bg-background px-4 py-2 text-sm text-muted-foreground shadow-sm">
+            <Loader2 className="size-4 animate-spin" />
+            Rendering pages...
+          </div>
+        </div>
+      ) : null}
+
       {/* Page canvases */}
-      <div className="space-y-8 pb-8">
+      <div className="flex flex-col items-center gap-8 bg-muted/20 px-6 py-6">
         {Array.from({ length: numPages }, (_, i) => i + 1).map((pageNum) => (
           <div
             key={pageNum}
-            className={`relative shadow-lg ${
+            ref={(el) => {
+              if (el) {
+                pageRefs.current.set(pageNum, el);
+              } else {
+                pageRefs.current.delete(pageNum);
+              }
+            }}
+            className={`relative mx-auto w-fit shadow-lg ${
               pageNum === currentPage ? "ring-2 ring-primary" : ""
             }`}
             id={`page-${pageNum}`}
           >
             <canvas
               ref={(el) => {
-                if (el) canvasRefs.current.set(pageNum, el);
+                if (el) {
+                  canvasRefs.current.set(pageNum, el);
+                } else {
+                  canvasRefs.current.delete(pageNum);
+                }
               }}
-              className="max-w-full"
+              className="max-w-full bg-white"
             />
             <div className="absolute bottom-2 right-2 rounded bg-black/50 px-2 py-1 text-xs text-white">
               {pageNum}
