@@ -10,7 +10,8 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:reader": "vitest run src/components/reader/__tests__"
+    "test:reader": "vitest run src/components/reader/__tests__",
+    "process:uploads": "node scripts/process-upload-worker.js"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

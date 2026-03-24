@@ -2,3 +2,7 @@ fastapi
 uvicorn
 lindera-python-cjk
 wordfreq[cjk]
+requests
+ebooklib
+pdfminer.six
+langdetect

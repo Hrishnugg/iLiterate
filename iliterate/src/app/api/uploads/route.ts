@@ -23,6 +23,7 @@ const MAX_UPLOAD_BYTES = 15 * 1024 * 1024;
 export async function POST(request: Request) {
   try {
     const supabase = await createClient();
+
     const {
       data: { user },
       error: authError,
