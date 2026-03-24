@@ -29,6 +29,12 @@ export type ContentType =
 export type UploadScope = "content_import" | "study_chat" | "dm_attachment";
 export type UploadStatus = "uploaded" | "processed" | "failed";
 export type UploadKind = "image" | "pdf" | "docx" | "unknown";
+export type KaraokePlaybackProvider =
+  | "tts"
+  | "soundcloud"
+  | "apple_music"
+  | "spotify";
+export type KaraokeTrackPlaybackMode = "embedded" | "link_out";
 
 export type QuizType = "comprehension" | "vocabulary" | "grammar";
 
@@ -88,6 +94,68 @@ export interface Content {
   source_upload_id: string | null;
   is_generated: boolean;
   created_at: string;
+}
+
+export interface LyricCue {
+  startMs: number;
+  endMs: number;
+  startOffset: number;
+  endOffset: number;
+  text: string;
+}
+
+export interface KaraokeTrackLink {
+  provider: KaraokePlaybackProvider;
+  providerTrackId: string;
+  url: string;
+  title: string;
+  artist: string;
+  artworkUrl?: string;
+  durationMs?: number;
+  karaokeCapable: boolean;
+  playbackMode: KaraokeTrackPlaybackMode;
+}
+
+export interface MusicProviderConnection {
+  id: string;
+  user_id: string;
+  provider: Exclude<KaraokePlaybackProvider, "tts">;
+  token_type: string | null;
+  expires_at: string | null;
+  external_user_id: string | null;
+  scopes: string[] | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ContentProviderTrack {
+  id: string;
+  user_id: string;
+  content_id: string;
+  provider: Exclude<KaraokePlaybackProvider, "tts">;
+  provider_track_id: string;
+  url: string;
+  title: string;
+  artist: string;
+  artwork_url: string | null;
+  duration_ms: number | null;
+  karaoke_capable: boolean;
+  playback_mode: KaraokeTrackPlaybackMode;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface KaraokeTimeline {
+  id: string;
+  user_id: string;
+  content_id: string;
+  provider: KaraokePlaybackProvider;
+  cues: LyricCue[];
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface ReadingProgress {

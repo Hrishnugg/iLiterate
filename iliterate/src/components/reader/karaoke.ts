@@ -1,14 +1,11 @@
 "use client";
 
+import { KaraokePlaybackProvider, LyricCue } from "@/types/database";
+
 export type ReaderMode = "default" | "rsvp" | "karaoke";
 
-export interface ReaderSegment {
+export interface ReaderSegment extends LyricCue {
   id: string;
-  text: string;
-  startOffset: number;
-  endOffset: number;
-  startMs?: number;
-  endMs?: number;
 }
 
 const SENTENCE_ENDINGS = new Set([".", "!", "?", "…", "。", "！", "？"]);
@@ -90,6 +87,75 @@ export function estimateSegmentDurationMs(
   const punctuationBonus = /[.!?。！？]/.test(text) ? 500 : 0;
 
   return Math.max(1500, Math.min(8000, pacedMs + punctuationBonus + 500));
+}
+
+export function buildReaderSegmentsFromCues(cues: LyricCue[]): ReaderSegment[] {
+  return [...cues]
+    .sort((left, right) => {
+      if (left.startMs !== right.startMs) {
+        return left.startMs - right.startMs;
+      }
+
+      if (left.startOffset !== right.startOffset) {
+        return left.startOffset - right.startOffset;
+      }
+
+      return left.endOffset - right.endOffset;
+    })
+    .map((cue) => ({
+      id: `${cue.startOffset}-${cue.endOffset}-${cue.startMs}`,
+      text: cue.text,
+      startOffset: cue.startOffset,
+      endOffset: cue.endOffset,
+      startMs: cue.startMs,
+      endMs: cue.endMs,
+    }));
+}
+
+export function serializeReaderSegmentsToCues(segments: ReaderSegment[]): LyricCue[] {
+  return segments.map((segment) => ({
+    startMs: segment.startMs,
+    endMs: segment.endMs,
+    startOffset: segment.startOffset,
+    endOffset: segment.endOffset,
+    text: segment.text,
+  }));
+}
+
+export function findActiveReaderSegmentIndex(
+  segments: ReaderSegment[],
+  currentPositionMs: number
+): number {
+  if (segments.length === 0) {
+    return 0;
+  }
+
+  const directMatch = segments.findIndex(
+    (segment) => currentPositionMs >= segment.startMs && currentPositionMs < segment.endMs
+  );
+
+  if (directMatch >= 0) {
+    return directMatch;
+  }
+
+  if (currentPositionMs < segments[0].startMs) {
+    return 0;
+  }
+
+  return segments.reduce((bestIndex, segment, index) => {
+    const bestDistance = Math.abs(segments[bestIndex].startMs - currentPositionMs);
+    const nextDistance = Math.abs(segment.startMs - currentPositionMs);
+    return nextDistance < bestDistance ? index : bestIndex;
+  }, 0);
+}
+
+export function getDefaultPlaybackProvider(
+  linkedProviders: KaraokePlaybackProvider[]
+): KaraokePlaybackProvider {
+  if (linkedProviders.includes("soundcloud")) return "soundcloud";
+  if (linkedProviders.includes("apple_music")) return "apple_music";
+  if (linkedProviders.includes("spotify")) return "spotify";
+  return "tts";
 }
 
 function pushRange(

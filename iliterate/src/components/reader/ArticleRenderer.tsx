@@ -3,7 +3,15 @@
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { AnimatePresence } from "motion/react";
 import { ArrowDown } from "lucide-react";
-import { Highlight, TranslationLookup, Content } from "@/types/database";
+import {
+  Content,
+  Highlight,
+  KaraokePlaybackProvider,
+  KaraokeTimeline,
+  KaraokeTrackLink,
+  LyricCue,
+  TranslationLookup,
+} from "@/types/database";
 import { TextSelection } from "./TextHighlighter";
 import { TranslatePopover } from "./TranslatePopover";
 import { ReaderLayout } from "./ReaderLayout";
@@ -17,7 +25,14 @@ import { AudioPlayer } from "./AudioPlayer";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { BookmarkButton } from "@/components/BookmarkButton";
-import { countReadingUnits, ReaderMode, ReaderSegment } from "./karaoke";
+import {
+  buildReaderSegmentsFromCues,
+  countReadingUnits,
+  getDefaultPlaybackProvider,
+  ReaderMode,
+  ReaderSegment,
+} from "./karaoke";
+import { ProviderStatus } from "@/lib/karaoke/providers";
 
 interface TOCItem {
   id: string;
@@ -44,13 +59,33 @@ export function ArticleRenderer({ content, isLesson = false }: ArticleRendererPr
   const [rsvpWordIndex, setRsvpWordIndex] = useState(0);
   const [rsvpTotalWords, setRsvpTotalWords] = useState(0);
   const [rsvpWpm, setRsvpWpm] = useState(250);
-  const [karaokeSegments, setKaraokeSegments] = useState<ReaderSegment[]>([]);
+  const [generatedKaraokeSegments, setGeneratedKaraokeSegments] = useState<ReaderSegment[]>([]);
   const [karaokeSegmentIndex, setKaraokeSegmentIndex] = useState(0);
+  const [activeKaraokeProvider, setActiveKaraokeProvider] =
+    useState<KaraokePlaybackProvider>("tts");
+  const [providerStatuses, setProviderStatuses] = useState<ProviderStatus[]>([]);
+  const [linkedTracks, setLinkedTracks] = useState<KaraokeTrackLink[]>([]);
+  const [karaokeTimelines, setKaraokeTimelines] = useState<
+    Partial<Record<KaraokePlaybackProvider, LyricCue[]>>
+  >({});
   const rsvpSeekFnRef = useRef<((percentage: number) => void) | null>(null);
   const contentContainerRef = useRef<HTMLDivElement>(null);
   const normalizeTerm = useCallback((term: string) => term.trim().toLowerCase(), []);
   const isRSVPMode = readerMode === "rsvp";
   const isKaraokeMode = readerMode === "karaoke";
+  const activeTimelineCues = useMemo(
+    () =>
+      karaokeTimelines[activeKaraokeProvider] ??
+      (activeKaraokeProvider !== "tts" ? karaokeTimelines.tts : undefined),
+    [activeKaraokeProvider, karaokeTimelines]
+  );
+  const karaokeSegments = useMemo(
+    () =>
+      activeTimelineCues && activeTimelineCues.length > 0
+        ? buildReaderSegmentsFromCues(activeTimelineCues)
+        : generatedKaraokeSegments,
+    [activeTimelineCues, generatedKaraokeSegments]
+  );
 
   // Reading progress tracking
   const {
@@ -216,6 +251,61 @@ export function ArticleRenderer({ content, isLesson = false }: ArticleRendererPr
     }
   }, [normalizeTerm]);
 
+  const loadKaraokeProviders = useCallback(async () => {
+    if (!isArticleLikeContent || isLesson) return;
+
+    try {
+      const response = await fetch("/api/karaoke/providers");
+      if (!response.ok) return;
+
+      const payload = (await response.json()) as {
+        providers?: ProviderStatus[];
+      };
+
+      if (Array.isArray(payload.providers)) {
+        setProviderStatuses(payload.providers);
+      }
+    } catch (error) {
+      console.error("Failed to load karaoke providers:", error);
+    }
+  }, [isArticleLikeContent, isLesson]);
+
+  const loadKaraokeContentState = useCallback(async () => {
+    if (!isArticleLikeContent || isLesson) return;
+
+    try {
+      const [trackResponse, timelineResponse] = await Promise.all([
+        fetch(`/api/karaoke/content/${content.id}`),
+        fetch(`/api/karaoke/content/${content.id}/timeline`),
+      ]);
+
+      if (trackResponse.ok) {
+        const payload = (await trackResponse.json()) as {
+          tracks?: KaraokeTrackLink[];
+        };
+        setLinkedTracks(Array.isArray(payload.tracks) ? payload.tracks : []);
+      }
+
+      if (timelineResponse.ok) {
+        const payload = (await timelineResponse.json()) as {
+          timelines?: KaraokeTimeline[];
+        };
+
+        if (Array.isArray(payload.timelines)) {
+          const nextTimelines: Partial<Record<KaraokePlaybackProvider, LyricCue[]>> = {};
+          for (const timeline of payload.timelines) {
+            nextTimelines[timeline.provider] = timeline.cues;
+          }
+          setKaraokeTimelines(nextTimelines);
+        } else {
+          setKaraokeTimelines({});
+        }
+      }
+    } catch (error) {
+      console.error("Failed to load karaoke content state:", error);
+    }
+  }, [content.id, isArticleLikeContent, isLesson]);
+
   // Generate TOC from content headings (for HTML content) - memoized
   const generateTOC = useCallback(() => {
     if (typeof window === "undefined") return;
@@ -244,13 +334,29 @@ export function ArticleRenderer({ content, isLesson = false }: ArticleRendererPr
     loadLookups();
     loadFlashcardTerms();
     generateTOC();
-  }, [loadHighlights, loadLookups, loadFlashcardTerms, generateTOC]);
+    loadKaraokeProviders();
+    loadKaraokeContentState();
+  }, [
+    generateTOC,
+    loadFlashcardTerms,
+    loadHighlights,
+    loadKaraokeContentState,
+    loadKaraokeProviders,
+    loadLookups,
+  ]);
 
   useEffect(() => {
     if (!isArticleLikeContent && isKaraokeMode) {
       setReaderMode("default");
     }
   }, [isArticleLikeContent, isKaraokeMode]);
+
+  useEffect(() => {
+    const linkedProviders = linkedTracks.map((track) => track.provider);
+    if (activeKaraokeProvider !== "tts" && !linkedProviders.includes(activeKaraokeProvider)) {
+      setActiveKaraokeProvider(getDefaultPlaybackProvider(linkedProviders));
+    }
+  }, [activeKaraokeProvider, linkedTracks]);
 
   useEffect(() => {
     if (karaokeSegments.length === 0) {
@@ -584,8 +690,11 @@ export function ArticleRenderer({ content, isLesson = false }: ArticleRendererPr
   }, [isKaraokeMode, karaokeSegments.length]);
 
   const activeKaraokeSegment = karaokeSegments[karaokeSegmentIndex] ?? null;
+  const hasStoredTimelineForActiveProvider = Boolean(
+    activeTimelineCues && activeTimelineCues.length > 0
+  );
   const handleKaraokeSegmentsChange = useCallback((segments: ReaderSegment[]) => {
-    setKaraokeSegments((current) => {
+    setGeneratedKaraokeSegments((current) => {
       if (
         current.length === segments.length &&
         current.every((segment, index) => {
@@ -621,10 +730,18 @@ export function ArticleRenderer({ content, isLesson = false }: ArticleRendererPr
         modePanel={
           isKaraokeMode ? (
             <KaraokeReader
+              contentId={isLesson ? null : content.id}
               segments={karaokeSegments}
               activeSegmentIndex={karaokeSegmentIndex}
               language={content.language}
+              activeProvider={activeKaraokeProvider}
+              providerStatuses={isLesson ? [] : providerStatuses}
+              linkedTracks={isLesson ? [] : linkedTracks}
+              hasStoredTimeline={hasStoredTimelineForActiveProvider}
               onActiveSegmentIndexChange={setKaraokeSegmentIndex}
+              onActiveProviderChange={setActiveKaraokeProvider}
+              onRefreshProviders={loadKaraokeProviders}
+              onRefreshContentState={loadKaraokeContentState}
             />
           ) : null
         }
@@ -693,6 +810,7 @@ export function ArticleRenderer({ content, isLesson = false }: ArticleRendererPr
             focusedHighlightId={focusedHighlightId}
             currentSelection={selection}
             readerMode={readerMode}
+            readerSegments={karaokeSegments}
             activeReaderSegmentId={activeKaraokeSegment?.id ?? null}
             onSelection={handleSelection}
             onTocUpdate={handleEpubTocUpdate}

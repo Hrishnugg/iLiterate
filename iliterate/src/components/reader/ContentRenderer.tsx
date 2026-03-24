@@ -24,6 +24,7 @@ interface ContentRendererProps {
   focusedHighlightId?: string | null;
   currentSelection?: TextSelection | null;
   readerMode?: ReaderMode;
+  readerSegments?: ReaderSegment[];
   activeReaderSegmentId?: string | null;
   onSelection?: (selection: TextSelection | null) => void;
   onTocUpdate?: (toc: Array<{ label: string; href: string }>) => void;
@@ -38,6 +39,7 @@ export function ContentRenderer({
   focusedHighlightId,
   currentSelection,
   readerMode = "default",
+  readerSegments = [],
   activeReaderSegmentId,
   onSelection,
   onTocUpdate,
@@ -502,7 +504,10 @@ export function ContentRenderer({
     }
 
     const { textNodes, fullText } = collectTextNodes(doc, container);
-    const segments = buildReaderSegments(fullText, content.language);
+    const segments =
+      readerSegments.length > 0
+        ? readerSegments
+        : buildReaderSegments(fullText, content.language);
 
     for (let index = segments.length - 1; index >= 0; index -= 1) {
       wrapReaderSegmentRange(
@@ -524,6 +529,7 @@ export function ContentRenderer({
     isKaraokeMode,
     isMounted,
     processedBody,
+    readerSegments,
     wrapReaderSegmentRange,
   ]);
 

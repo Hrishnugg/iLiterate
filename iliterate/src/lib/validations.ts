@@ -2,6 +2,12 @@ import { z } from "zod";
 
 // Common UUID validation
 export const uuidSchema = z.string().uuid("Invalid ID format");
+export const karaokeProviderSchema = z.enum([
+  "tts",
+  "soundcloud",
+  "apple_music",
+  "spotify",
+]);
 
 // Supported languages for translation (common language codes)
 export const SUPPORTED_LANGUAGES = [
@@ -56,6 +62,35 @@ export const ttsRequestSchema = z.object({
 export const ttsWordRequestSchema = z.object({
   text: z.string().min(1, "Text is required").max(500, "Text too long"),
   language: languageSchema,
+});
+
+export const lyricCueSchema = z.object({
+  startMs: z.number().min(0),
+  endMs: z.number().min(0),
+  startOffset: z.number().min(0),
+  endOffset: z.number().min(0),
+  text: z.string().min(1).max(5000),
+}).refine((cue) => cue.endMs >= cue.startMs, {
+  message: "endMs must be greater than or equal to startMs",
+  path: ["endMs"],
+}).refine((cue) => cue.endOffset >= cue.startOffset, {
+  message: "endOffset must be greater than or equal to startOffset",
+  path: ["endOffset"],
+});
+
+export const karaokeTrackLinkRequestSchema = z.object({
+  url: z.string().url("A valid track URL is required"),
+});
+
+export const karaokeTimelineRequestSchema = z.object({
+  provider: karaokeProviderSchema,
+  cues: z.array(lyricCueSchema).max(2000, "Too many lyric cues"),
+  metadata: z.record(z.string(), z.unknown()).optional(),
+});
+
+export const appleMusicConnectSchema = z.object({
+  musicUserToken: z.string().min(1, "musicUserToken is required"),
+  storefrontId: z.string().min(2).max(10).optional(),
 });
 
 // Highlight request validation

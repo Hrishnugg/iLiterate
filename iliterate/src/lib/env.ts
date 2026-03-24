@@ -14,11 +14,33 @@ function getRequiredEnvVar(name: string): string {
   return value;
 }
 
+function getOptionalEnvVar(name: string): string | null {
+  const value = process.env[name];
+  if (!value) {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
 // Lazy environment configuration - validates on first access
 let _env: {
   supabase: {
     url: string;
     anonKey: string;
+  };
+  appUrl: string | null;
+  karaoke: {
+    encryptionKey: string | null;
+    appleMusic: {
+      developerToken: string | null;
+      storefront: string | null;
+    };
+    spotify: {
+      clientId: string | null;
+      clientSecret: string | null;
+    };
   };
 } | null = null;
 
@@ -29,6 +51,18 @@ export function getEnv() {
         url: getRequiredEnvVar("NEXT_PUBLIC_SUPABASE_URL"),
         anonKey: getRequiredEnvVar("NEXT_PUBLIC_SUPABASE_ANON_KEY"),
       },
+      appUrl: getOptionalEnvVar("NEXT_PUBLIC_APP_URL"),
+      karaoke: {
+        encryptionKey: getOptionalEnvVar("MUSIC_TOKEN_ENCRYPTION_KEY"),
+        appleMusic: {
+          developerToken: getOptionalEnvVar("APPLE_MUSIC_DEVELOPER_TOKEN"),
+          storefront: getOptionalEnvVar("NEXT_PUBLIC_APPLE_MUSIC_STOREFRONT"),
+        },
+        spotify: {
+          clientId: getOptionalEnvVar("SPOTIFY_CLIENT_ID"),
+          clientSecret: getOptionalEnvVar("SPOTIFY_CLIENT_SECRET"),
+        },
+      },
     };
   }
   return _env;
@@ -38,6 +72,12 @@ export function getEnv() {
 export const env = {
   get supabase() {
     return getEnv().supabase;
+  },
+  get appUrl() {
+    return getEnv().appUrl;
+  },
+  get karaoke() {
+    return getEnv().karaoke;
   },
 };
 

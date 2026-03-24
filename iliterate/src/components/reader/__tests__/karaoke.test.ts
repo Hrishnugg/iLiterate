@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildReaderSegmentsFromCues,
   buildReaderSegments,
   estimateSegmentDurationMs,
+  findActiveReaderSegmentIndex,
 } from "../karaoke";
 
 describe("buildReaderSegments", () => {
@@ -53,5 +55,57 @@ describe("estimateSegmentDurationMs", () => {
 
     expect(duration).toBeGreaterThanOrEqual(1500);
     expect(duration).toBeLessThanOrEqual(8000);
+  });
+});
+
+describe("buildReaderSegmentsFromCues", () => {
+  it("creates stable reader segments from stored cues", () => {
+    const segments = buildReaderSegmentsFromCues([
+      {
+        text: "Second line",
+        startOffset: 12,
+        endOffset: 23,
+        startMs: 1000,
+        endMs: 2000,
+      },
+      {
+        text: "First line",
+        startOffset: 0,
+        endOffset: 10,
+        startMs: 0,
+        endMs: 1000,
+      },
+    ]);
+
+    expect(segments.map((segment) => segment.text)).toEqual([
+      "First line",
+      "Second line",
+    ]);
+    expect(segments[0].id).toBe("0-10-0");
+  });
+});
+
+describe("findActiveReaderSegmentIndex", () => {
+  it("finds the active segment from playback time", () => {
+    const segments = buildReaderSegmentsFromCues([
+      {
+        text: "One",
+        startOffset: 0,
+        endOffset: 3,
+        startMs: 0,
+        endMs: 1000,
+      },
+      {
+        text: "Two",
+        startOffset: 4,
+        endOffset: 7,
+        startMs: 1000,
+        endMs: 2200,
+      },
+    ]);
+
+    expect(findActiveReaderSegmentIndex(segments, 250)).toBe(0);
+    expect(findActiveReaderSegmentIndex(segments, 1500)).toBe(1);
+    expect(findActiveReaderSegmentIndex(segments, 2800)).toBe(1);
   });
 });
