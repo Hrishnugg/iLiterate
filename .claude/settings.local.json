@@ -29,8 +29,10 @@
       "Bash(grep:*)",
       "Bash(find /Users/efang/Desktop/coding/CSDS393Project/iliterate/src/app -type f -name *flashcard* -o -name *review*)",
       "Bash(xargs ls:*)",
-      "Bash(ls -la /Users/efang/Desktop/coding/CSDS393Project/iliterate/*.config.*)"
+      "Bash(ls -la /Users/efang/Desktop/coding/CSDS393Project/iliterate/*.config.*)",
+      "Skill(claude-hud:setup)",
+      "Bash(git pull:*)"
     ]
   },
-  "disableAllHooks": true
+  "disableAllHooks": false
 }

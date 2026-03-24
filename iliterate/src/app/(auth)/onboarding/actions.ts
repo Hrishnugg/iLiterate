@@ -61,20 +61,6 @@ export async function completeOnboarding(
     return { error: "Please select your preferred speech style." };
   }
 
-  // Save username to public_profiles
-  const { error: usernameError } = await supabase.from("public_profiles").upsert({
-    id: user.id,
-    username,
-    display_name: username,
-  });
-
-  if (usernameError) {
-    if (usernameError.code === "23505") {
-      return { error: "That username is already taken. Please choose another." };
-    }
-    return { error: usernameError.message };
-  }
-
   const { error } = await supabase.from("profiles").upsert({
     id: user.id,
     target_language: targetLanguage,
@@ -88,7 +74,21 @@ export async function completeOnboarding(
   });
 
   if (error) {
-    return { error: error.message };
+    return { error: "Failed to save your profile. Please try again." };
+  }
+
+  // Save username to public_profiles (must come after profiles upsert due to FK constraint)
+  const { error: usernameError } = await supabase.from("public_profiles").upsert({
+    id: user.id,
+    username,
+    display_name: username,
+  });
+
+  if (usernameError) {
+    if (usernameError.code === "23505") {
+      return { error: "That username is already taken. Please choose another." };
+    }
+    return { error: "Failed to save your username. Please try again." };
   }
 
   // Create or update user_skill_levels based on self-assessment
