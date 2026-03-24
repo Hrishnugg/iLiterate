@@ -1,51 +1,46 @@
-import { existsSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { PDFParse } from "pdf-parse";
+/**
+ * Extract plain text from a PDF buffer using pdfjs-dist (already a project
+ * dependency).  This replaces the previous pdf-parse class-based approach
+ * whose worker path resolution was fragile in some environments.
+ */
+export async function extractTextFromPdfBuffer(buffer: Buffer): Promise<string> {
+  // Dynamic import avoids Next.js build-time bundling issues.
+  const pdfjsLib = await import("pdfjs-dist");
 
-let configuredWorkerUrl: string | null = null;
+  // Point the worker at the copy already present in node_modules.
+  const workerPath = path.join(
+    process.cwd(),
+    "node_modules",
+    "pdfjs-dist",
+    "build",
+    "pdf.worker.min.mjs"
+  );
+  pdfjsLib.GlobalWorkerOptions.workerSrc = pathToFileURL(workerPath).href;
 
-function resolvePdfWorkerUrl(): string {
-  if (configuredWorkerUrl) {
-    return configuredWorkerUrl;
+  const doc = await pdfjsLib
+    .getDocument({
+      data: new Uint8Array(buffer),
+      useWorkerFetch: false,
+      isEvalSupported: false,
+      useSystemFonts: true,
+    })
+    .promise;
+
+  const pageTexts: string[] = [];
+  for (let i = 1; i <= doc.numPages; i++) {
+    const page = await doc.getPage(i);
+    const content = await page.getTextContent();
+    const text = content.items
+      .map((item: unknown) => ((item as { str?: string }).str ?? ""))
+      .join(" ")
+      .trim();
+    if (text) pageTexts.push(text);
+    page.cleanup();
   }
 
-  const packageRoots = [
-    path.join(process.cwd(), "node_modules", "pdf-parse"),
-    path.resolve(process.cwd(), "..", "node_modules", "pdf-parse"),
-  ];
-  const workerCandidates = [
-    "dist/pdf-parse/cjs/pdf.worker.mjs",
-    "dist/pdf-parse/esm/pdf.worker.mjs",
-    "dist/worker/pdf.worker.mjs",
-  ];
-
-  for (const packageRoot of packageRoots) {
-    for (const relativePath of workerCandidates) {
-      const absolutePath = path.join(packageRoot, relativePath);
-      if (existsSync(absolutePath)) {
-        configuredWorkerUrl = pathToFileURL(absolutePath).toString();
-        return configuredWorkerUrl;
-      }
-    }
-  }
-
-  throw new Error("Unable to locate pdf-parse worker module");
-}
-
-function ensurePdfWorkerConfigured() {
-  PDFParse.setWorker(resolvePdfWorkerUrl());
-}
-
-export async function extractTextFromPdfBuffer(buffer: Buffer) {
-  ensurePdfWorkerConfigured();
-
-  const parser = new PDFParse({ data: buffer });
-  try {
-    const result = await parser.getText();
-    return result.text.trim();
-  } finally {
-    await parser.destroy();
-  }
+  await doc.destroy();
+  return pageTexts.join("\n\n");
 }
