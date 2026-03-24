@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { Moon, Sun, Monitor } from "lucide-react";
-import { useTheme } from "next-themes";
+import { useTheme } from "@/components/theme-provider";
 
 import {
   DropdownMenu,
@@ -18,7 +18,11 @@ export function ThemeToggle() {
 
   // Avoid hydration mismatch
   React.useEffect(() => {
-    setMounted(true);
+    const frame = window.requestAnimationFrame(() => {
+      setMounted(true);
+    });
+
+    return () => window.cancelAnimationFrame(frame);
   }, []);
 
   const getIcon = () => {

@@ -1,6 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
 import { LibraryContent } from "./LibraryContent";
-import UploadBookDialog from "@/components/reader/UploadBookDialog";
 
 export default async function LibraryPage() {
   const supabase = await createClient();
@@ -20,25 +19,5 @@ export default async function LibraryPage() {
     targetLanguage = profile?.target_language ?? null;
   }
 
-  return (
-    <div className="space-y-6">
-      <div>
-        <div className="flex items-start justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">Library</h1>
-            <p className="text-muted-foreground mt-2">Browse content in your target language.</p>
-          </div>
-          <div>
-            <UploadBookDialog onUploaded={() => {
-              // simple reload to show newly uploaded content
-              // navigate by reloading current route on the client is left to consumer
-              // page is server-rendered so user can refresh to see uploads
-            }} />
-          </div>
-        </div>
-      </div>
-
-      <LibraryContent contents={contents || []} targetLanguage={targetLanguage} />
-    </div>
-  );
+  return <LibraryContent contents={contents || []} targetLanguage={targetLanguage} />;
 }

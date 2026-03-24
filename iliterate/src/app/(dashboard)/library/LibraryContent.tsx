@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Content } from "@/types/database";
 import { ImportContentDialog } from "@/components/library/ImportContentDialog";
+import UploadBookDialog from "@/components/reader/UploadBookDialog";
 
 interface BookmarkWithMetadata {
   id: string;
@@ -207,9 +208,14 @@ export function LibraryContent({ contents, targetLanguage }: LibraryContentProps
           <SidebarTrigger className="-ml-1 size-7 text-muted-foreground md:hidden" />
         </div>
         <div className="flex-1 overflow-y-auto px-8 pb-10">
-          <div className="mb-6 pt-2">
-            <h1 className="text-2xl font-bold">Library</h1>
-            <p className="mt-1 text-sm text-muted-foreground">Browse content by language.</p>
+          <div className="mb-6 flex flex-col gap-4 pt-2 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h1 className="text-2xl font-bold">Library</h1>
+              <p className="mt-1 text-sm text-muted-foreground">Browse content by language.</p>
+            </div>
+            <div className="shrink-0">
+              <UploadBookDialog />
+            </div>
           </div>
 
           {/* Tab pills with sliding indicator */}

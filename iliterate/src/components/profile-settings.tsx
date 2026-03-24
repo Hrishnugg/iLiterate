@@ -4,11 +4,11 @@ import { useState, useMemo } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { User } from "@supabase/supabase-js";
-import { useTheme } from "next-themes";
 import { AtSign, Sun, Moon, Monitor, TriangleAlert } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { useTheme } from "@/components/theme-provider";
 import {
   Card,
   CardContent,
