@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { User } from "@supabase/supabase-js";
@@ -104,11 +104,12 @@ interface ProfileSettingsProps {
   socialProfile: SocialProfile | null;
 }
 
-const USERNAME_PATTERN = /^[a-z0-9_]{3,24}$/;
 
 export function ProfileSettings({ user, profile, socialProfile }: ProfileSettingsProps) {
   const router = useRouter();
   const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -120,7 +121,6 @@ export function ProfileSettings({ user, profile, socialProfile }: ProfileSetting
       user.user_metadata?.full_name ||
       user.email?.split("@")[0] ||
       "",
-    username: socialProfile?.username || "",
     targetLanguage: profile?.target_language || "",
     nativeLanguage: profile?.native_language || "",
     ageGroup: profile?.age_group || "",
@@ -132,7 +132,6 @@ export function ProfileSettings({ user, profile, socialProfile }: ProfileSetting
   }), [profile, socialProfile, user.email, user.user_metadata]);
 
   const [displayName, setDisplayName] = useState(initialValues.displayName);
-  const [username, setUsername] = useState(initialValues.username);
   const [targetLanguage, setTargetLanguage] = useState(initialValues.targetLanguage);
   const [nativeLanguage, setNativeLanguage] = useState(initialValues.nativeLanguage);
   const [ageGroup, setAgeGroup] = useState(initialValues.ageGroup);
@@ -150,7 +149,6 @@ export function ProfileSettings({ user, profile, socialProfile }: ProfileSetting
 
     return (
       displayName !== initialValues.displayName ||
-      username !== initialValues.username ||
       targetLanguage !== initialValues.targetLanguage ||
       nativeLanguage !== initialValues.nativeLanguage ||
       ageGroup !== initialValues.ageGroup ||
@@ -160,7 +158,7 @@ export function ProfileSettings({ user, profile, socialProfile }: ProfileSetting
       leaderboardAnonymous !== initialValues.leaderboardAnonymous ||
       motivationsChanged
     );
-  }, [displayName, username, targetLanguage, nativeLanguage, ageGroup, educationLevel, yearsLearning, speechFormality, leaderboardAnonymous, motivations, initialValues]);
+  }, [displayName, targetLanguage, nativeLanguage, ageGroup, educationLevel, yearsLearning, speechFormality, leaderboardAnonymous, motivations, initialValues]);
 
   const handleMotivationChange = (id: string, checked: boolean) => {
     setMotivations((prev) =>
@@ -176,15 +174,9 @@ export function ProfileSettings({ user, profile, socialProfile }: ProfileSetting
     try {
       const supabase = createClient();
       const trimmedDisplayName = displayName.trim();
-      const normalizedUsername = username.trim().toLowerCase();
 
       if (!trimmedDisplayName) {
         setError("Display name is required.");
-        return;
-      }
-
-      if (!USERNAME_PATTERN.test(normalizedUsername)) {
-        setError("Username must be 3-24 characters and use only lowercase letters, numbers, or underscores.");
         return;
       }
 
@@ -195,7 +187,6 @@ export function ProfileSettings({ user, profile, socialProfile }: ProfileSetting
         },
         body: JSON.stringify({
           displayName: trimmedDisplayName,
-          username: normalizedUsername,
           leaderboardAnonymous,
         }),
       });
@@ -304,14 +295,13 @@ export function ProfileSettings({ user, profile, socialProfile }: ProfileSetting
             <div className="relative">
               <AtSign className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
               <Input
-                value={username}
-                onChange={(event) => setUsername(event.target.value.replace(/\s+/g, "").toLowerCase())}
+                value={socialProfile?.username || ""}
                 className="pl-9"
-                disabled={isLoading}
+                disabled
               />
             </div>
             <FieldDescription>
-              Lowercase letters, numbers, and underscores only.
+              Shown on the leaderboard. Usernames cannot be changed after account creation.
             </FieldDescription>
           </Field>
           <Field>
@@ -319,18 +309,6 @@ export function ProfileSettings({ user, profile, socialProfile }: ProfileSetting
             <Input value={user.email || ""} disabled />
             <FieldDescription>
               Your email address cannot be changed.
-            </FieldDescription>
-          </Field>
-          <Field>
-            <FieldLabel>Display name</FieldLabel>
-            <Input
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-              placeholder="Choose a display name"
-              maxLength={30}
-            />
-            <FieldDescription>
-              Shown on the leaderboard. Leave blank to appear as &quot;Anonymous&quot;.
             </FieldDescription>
           </Field>
           <Field>
@@ -544,7 +522,7 @@ export function ProfileSettings({ user, profile, socialProfile }: ProfileSetting
               <button
                 onClick={() => setTheme("light")}
                 className={`flex flex-col items-center gap-2 rounded-lg border-2 p-4 transition-all hover:bg-accent ${
-                  theme === "light"
+                  mounted && theme === "light"
                     ? "border-primary bg-accent"
                     : "border-border"
                 }`}
@@ -555,7 +533,7 @@ export function ProfileSettings({ user, profile, socialProfile }: ProfileSetting
               <button
                 onClick={() => setTheme("dark")}
                 className={`flex flex-col items-center gap-2 rounded-lg border-2 p-4 transition-all hover:bg-accent ${
-                  theme === "dark"
+                  mounted && theme === "dark"
                     ? "border-primary bg-accent"
                     : "border-border"
                 }`}
@@ -566,7 +544,7 @@ export function ProfileSettings({ user, profile, socialProfile }: ProfileSetting
               <button
                 onClick={() => setTheme("system")}
                 className={`flex flex-col items-center gap-2 rounded-lg border-2 p-4 transition-all hover:bg-accent ${
-                  theme === "system"
+                  mounted && theme === "system"
                     ? "border-primary bg-accent"
                     : "border-border"
                 }`}

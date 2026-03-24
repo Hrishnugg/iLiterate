@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Claude Code Settings
+
+- Do not add co-authored-by or any Claude attribution to git commits.
+
 ## Project Overview
 
 iLiterate is a language learning platform combining reading comprehension with spaced repetition flashcards. The main application is in the `iliterate/` directory.

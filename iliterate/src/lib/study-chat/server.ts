@@ -549,6 +549,34 @@ async function generateAssistantReply(input: {
   return truncateMessageBody(text || "I couldn't produce a response for that request.");
 }
 
+async function generateSessionTitle(input: {
+  prompt: string;
+  uploads: Array<Pick<UserUpload, "title" | "original_filename">>;
+}): Promise<string> {
+  const uploadHint =
+    input.uploads.length > 0
+      ? `Uploaded material: ${input.uploads.map((u) => u.title || u.original_filename || "untitled").join(", ")}.`
+      : "";
+
+  const prompt = [
+    "Generate a very short title (3–5 words, 28 characters max) for a study chat session based on the user's first message.",
+    "Rules:",
+    "- Output ONLY the title text, no quotes, no punctuation at the end.",
+    "- Be specific to the topic, not generic (avoid 'Study Chat' or 'New Session').",
+    "- Sentence case only.",
+    "- Absolutely no more than 28 characters.",
+    uploadHint,
+    "",
+    `User's first message: ${input.prompt}`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const result = await getGeminiModel().generateContent(prompt);
+  const title = result.response.text().trim().replace(/^["']|["']$/g, "").slice(0, 28);
+  return title || DEFAULT_SESSION_TITLE;
+}
+
 export async function createStudyChatReply(params: {
   supabase: DbClient;
   userId: string;
@@ -629,11 +657,28 @@ export async function createStudyChatReply(params: {
     throw assistantError;
   }
 
-  const title = deriveTitle({
-    currentTitle: threadWithUserMessage.session.title,
-    message: params.body,
-    uploads: threadWithUserMessage.uploads,
-  });
+  const isFirstMessage = threadBefore.messages.length === 0;
+  let title: string;
+  if (isFirstMessage) {
+    try {
+      title = await generateSessionTitle({
+        prompt: params.body,
+        uploads: threadWithUserMessage.uploads,
+      });
+    } catch {
+      title = deriveTitle({
+        currentTitle: threadWithUserMessage.session.title,
+        message: params.body,
+        uploads: threadWithUserMessage.uploads,
+      });
+    }
+  } else {
+    title = deriveTitle({
+      currentTitle: threadWithUserMessage.session.title,
+      message: params.body,
+      uploads: threadWithUserMessage.uploads,
+    });
+  }
 
   const { error: sessionUpdateError } = await params.supabase
     .from("study_chat_sessions")
@@ -658,4 +703,46 @@ export async function createStudyChatReply(params: {
 
 export function summarizeUploadForBadge(upload: StudyChatAttachedUpload) {
   return upload.title || upload.original_filename || "Untitled upload";
+}
+
+export async function renameStudyChatSession(
+  supabase: DbClient,
+  userId: string,
+  sessionId: string,
+  title: string
+): Promise<StudyChatSession> {
+  const trimmed = title.trim().slice(0, MAX_SESSION_TITLE_LENGTH);
+  if (!trimmed) {
+    throw new Error("Title cannot be empty");
+  }
+
+  const { data: row, error } = await supabase
+    .from("study_chat_sessions")
+    .update({ title: trimmed })
+    .eq("id", sessionId)
+    .eq("user_id", userId)
+    .select("*")
+    .single();
+
+  if (error || !row) {
+    throw error ?? new Error("Session not found");
+  }
+
+  return normalizeSessionRow(row as Record<string, unknown>);
+}
+
+export async function deleteStudyChatSession(
+  supabase: DbClient,
+  userId: string,
+  sessionId: string
+): Promise<void> {
+  const { error } = await supabase
+    .from("study_chat_sessions")
+    .delete()
+    .eq("id", sessionId)
+    .eq("user_id", userId);
+
+  if (error) {
+    throw error;
+  }
 }
