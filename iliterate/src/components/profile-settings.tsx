@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { User } from "@supabase/supabase-js";
-import { AtSign, Sun, Moon, Monitor, TriangleAlert } from "lucide-react";
+import { AtSign, Sun, Moon, Monitor, TriangleAlert, ChevronsUpDown, Check } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -38,8 +38,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { cn } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { createClient } from "@/lib/supabase/client";
+import { useRefreshLocale } from "@/lib/i18n/I18nProvider";
 
 const LANGUAGES = [
   "Arabic",
@@ -84,6 +95,7 @@ interface Profile {
   learning_motivation: string[] | null;
   proficiency_level: string | null;
   speech_formality: string | null;
+  ui_language: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -108,11 +120,10 @@ interface ProfileSettingsProps {
 export function ProfileSettings({ user, profile, socialProfile }: ProfileSettingsProps) {
   const router = useRouter();
   const { theme, setTheme } = useTheme();
+  const refreshLocale = useRefreshLocale();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
 
   // Store initial values to track changes
   const initialValues = useMemo(() => ({
@@ -129,6 +140,7 @@ export function ProfileSettings({ user, profile, socialProfile }: ProfileSetting
     speechFormality: profile?.speech_formality || "standard",
     motivations: profile?.learning_motivation || [],
     leaderboardAnonymous: socialProfile?.leaderboard_anonymous ?? false,
+    uiLanguage: profile?.ui_language || "native",
   }), [profile, socialProfile, user.email, user.user_metadata]);
 
   const [displayName, setDisplayName] = useState(initialValues.displayName);
@@ -140,6 +152,9 @@ export function ProfileSettings({ user, profile, socialProfile }: ProfileSetting
   const [speechFormality, setSpeechFormality] = useState(initialValues.speechFormality);
   const [motivations, setMotivations] = useState<string[]>(initialValues.motivations);
   const [leaderboardAnonymous, setLeaderboardAnonymous] = useState(initialValues.leaderboardAnonymous);
+  const [uiLanguage, setUiLanguage] = useState(initialValues.uiLanguage);
+  const [targetLangOpen, setTargetLangOpen] = useState(false);
+  const [nativeLangOpen, setNativeLangOpen] = useState(false);
 
   // Check if any values have changed
   const hasChanges = useMemo(() => {
@@ -156,9 +171,10 @@ export function ProfileSettings({ user, profile, socialProfile }: ProfileSetting
       yearsLearning !== initialValues.yearsLearning ||
       speechFormality !== initialValues.speechFormality ||
       leaderboardAnonymous !== initialValues.leaderboardAnonymous ||
+      uiLanguage !== initialValues.uiLanguage ||
       motivationsChanged
     );
-  }, [displayName, targetLanguage, nativeLanguage, ageGroup, educationLevel, yearsLearning, speechFormality, leaderboardAnonymous, motivations, initialValues]);
+  }, [displayName, targetLanguage, nativeLanguage, ageGroup, educationLevel, yearsLearning, speechFormality, leaderboardAnonymous, uiLanguage, motivations, initialValues]);
 
   const handleMotivationChange = (id: string, checked: boolean) => {
     setMotivations((prev) =>
@@ -167,8 +183,6 @@ export function ProfileSettings({ user, profile, socialProfile }: ProfileSetting
   };
 
   const handleSave = async () => {
-    setError(null);
-    setSuccess(false);
     setIsLoading(true);
 
     try {
@@ -176,9 +190,10 @@ export function ProfileSettings({ user, profile, socialProfile }: ProfileSetting
       const trimmedDisplayName = displayName.trim();
 
       if (!trimmedDisplayName) {
-        setError("Display name is required.");
+        toast.error("Display name is required.");
         return;
       }
+
 
       const socialResponse = await fetch("/api/social/public-profile", {
         method: "PUT",
@@ -193,7 +208,7 @@ export function ProfileSettings({ user, profile, socialProfile }: ProfileSetting
 
       const socialPayload = await socialResponse.json().catch(() => null);
       if (!socialResponse.ok) {
-        setError(socialPayload?.error || "Failed to save social profile");
+        toast.error(socialPayload?.error || "Failed to save social profile");
         return;
       }
 
@@ -204,7 +219,7 @@ export function ProfileSettings({ user, profile, socialProfile }: ProfileSetting
       });
 
       if (authUpdateError) {
-        setError(authUpdateError.message);
+        toast.error(authUpdateError.message);
         return;
       }
 
@@ -219,21 +234,22 @@ export function ProfileSettings({ user, profile, socialProfile }: ProfileSetting
           years_learning: parseInt(yearsLearning, 10),
           speech_formality: speechFormality,
           learning_motivation: motivations,
+          ui_language: uiLanguage,
           updated_at: new Date().toISOString(),
         })
         .eq("id", user.id);
 
       if (updateError) {
-        setError(updateError.message);
+        toast.error(updateError.message);
         return;
       }
 
-      setSuccess(true);
       toast.success("Profile updated");
       router.refresh();
+      await refreshLocale();
     } catch (err) {
       console.error("Update error:", err);
-      setError(err instanceof Error ? err.message : "An unexpected error occurred");
+      toast.error(err instanceof Error ? err.message : "An unexpected error occurred");
     } finally {
       setIsLoading(false);
     }
@@ -330,55 +346,91 @@ export function ProfileSettings({ user, profile, socialProfile }: ProfileSetting
         </CardHeader>
         <CardContent>
           <FieldGroup>
-            {error && (
-              <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-                {error}
-              </div>
-            )}
-            {success && (
-              <div className="rounded-md bg-green-500/10 p-3 text-sm text-green-600">
-                Settings saved successfully!
-              </div>
-            )}
             <Field>
               <FieldLabel>Target language</FieldLabel>
-              <Select
-                value={targetLanguage}
-                onValueChange={setTargetLanguage}
-                disabled={isLoading}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a language" />
-                </SelectTrigger>
-                <SelectContent>
-                  {LANGUAGES.map((lang) => (
-                    <SelectItem key={lang} value={lang.toLowerCase()}>
-                      {lang}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Popover open={targetLangOpen} onOpenChange={setTargetLangOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={targetLangOpen}
+                    disabled={isLoading}
+                    className="w-full justify-between font-normal cursor-pointer"
+                  >
+                    {targetLanguage
+                      ? LANGUAGES.find((l) => l.toLowerCase() === targetLanguage) ?? targetLanguage
+                      : "Select a language"}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
+                  <Command>
+                    <CommandInput placeholder="Search languages..." />
+                    <CommandList>
+                      <CommandEmpty>No language found.</CommandEmpty>
+                      <CommandGroup>
+                        {LANGUAGES.map((lang) => (
+                          <CommandItem
+                            key={lang}
+                            value={lang}
+                            onSelect={() => {
+                              setTargetLanguage(lang.toLowerCase());
+                              setTargetLangOpen(false);
+                            }}
+                          >
+                            <Check className={cn("mr-2 h-4 w-4", targetLanguage === lang.toLowerCase() ? "opacity-100" : "opacity-0")} />
+                            {lang}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
               <FieldDescription>The language you want to learn</FieldDescription>
             </Field>
 
             <Field>
               <FieldLabel>Native language</FieldLabel>
-              <Select
-                value={nativeLanguage}
-                onValueChange={setNativeLanguage}
-                disabled={isLoading}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select your native language" />
-                </SelectTrigger>
-                <SelectContent>
-                  {LANGUAGES.map((lang) => (
-                    <SelectItem key={lang} value={lang.toLowerCase()}>
-                      {lang}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Popover open={nativeLangOpen} onOpenChange={setNativeLangOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={nativeLangOpen}
+                    disabled={isLoading}
+                    className="w-full justify-between font-normal cursor-pointer"
+                  >
+                    {nativeLanguage
+                      ? LANGUAGES.find((l) => l.toLowerCase() === nativeLanguage) ?? nativeLanguage
+                      : "Select your native language"}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
+                  <Command>
+                    <CommandInput placeholder="Search languages..." />
+                    <CommandList>
+                      <CommandEmpty>No language found.</CommandEmpty>
+                      <CommandGroup>
+                        {LANGUAGES.map((lang) => (
+                          <CommandItem
+                            key={lang}
+                            value={lang}
+                            onSelect={() => {
+                              setNativeLanguage(lang.toLowerCase());
+                              setNativeLangOpen(false);
+                            }}
+                          >
+                            <Check className={cn("mr-2 h-4 w-4", nativeLanguage === lang.toLowerCase() ? "opacity-100" : "opacity-0")} />
+                            {lang}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </Field>
 
             <Field className="grid grid-cols-2 gap-4">
@@ -457,13 +509,44 @@ export function ProfileSettings({ user, profile, socialProfile }: ProfileSetting
             </Field>
 
             <Field>
+              <FieldLabel>Interface language</FieldLabel>
+              <FieldDescription>
+                Controls whether the app UI appears in your native or target language.
+              </FieldDescription>
+              <div className="grid grid-cols-2 gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setUiLanguage("native")}
+                  disabled={isLoading}
+                  className={`flex flex-col items-center gap-1 rounded-lg border-2 p-4 transition-all hover:bg-accent cursor-pointer ${
+                    uiLanguage === "native" ? "border-primary bg-accent" : "border-border"
+                  }`}
+                >
+                  <span className="text-sm font-medium">Native language</span>
+                  <span className="text-xs text-muted-foreground">Use your native language</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUiLanguage("target")}
+                  disabled={isLoading}
+                  className={`flex flex-col items-center gap-1 rounded-lg border-2 p-4 transition-all hover:bg-accent cursor-pointer ${
+                    uiLanguage === "target" ? "border-primary bg-accent" : "border-border"
+                  }`}
+                >
+                  <span className="text-sm font-medium">Target language</span>
+                  <span className="text-xs text-muted-foreground">Immerse in the language you&apos;re learning</span>
+                </button>
+              </div>
+            </Field>
+
+            <Field>
               <FieldLabel>Learning motivations</FieldLabel>
               <FieldDescription>Select all that apply.</FieldDescription>
               <div className="grid grid-cols-2 gap-3 pt-1">
                 {MOTIVATIONS.map((motivation) => (
                   <label
                     key={motivation.id}
-                    className="flex items-center gap-2 text-sm"
+                    className="flex items-center gap-2 text-sm cursor-pointer"
                   >
                     <Checkbox
                       checked={motivations.includes(motivation.id)}

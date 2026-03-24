@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { motion } from "motion/react";
+import { motion, AnimatePresence } from "motion/react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   Loader2,
   ArrowRight,
+  Check,
+  Shuffle,
   Globe,
   UtensilsCrossed,
   Home,
@@ -186,7 +188,7 @@ export default function LessonPlanPage() {
       {/* Page header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Lesson Plan</h1>
+          <h1 className="text-2xl font-bold">Lessons</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Personalized reading lessons tailored to your level
           </p>
@@ -234,13 +236,43 @@ export default function LessonPlanPage() {
         <div className="flex items-center justify-between">
           <div className="flex items-baseline gap-2">
             <span className="text-base font-semibold">Start a New Lesson</span>
-            <span className="text-xs text-muted-foreground">
-              Select up to 3 topics
-              {selectedTopics.length > 0 && ` · ${selectedTopics.length} selected`}
-            </span>
+            {selectedTopics.length === 0 ? (
+              <span className="text-xs text-muted-foreground">Select up to 3 topics</span>
+            ) : (
+              <span className="text-xs text-primary/70">{selectedTopics.length}/3 selected</span>
+            )}
           </div>
-          {/* Length segmented control */}
-          <div className="inline-flex rounded-lg bg-muted p-[3px]">
+          <div className="flex items-center gap-2">
+            {/* Clear + Shuffle buttons */}
+            <div className="flex items-center gap-1">
+              <AnimatePresence>
+                {selectedTopics.length > 0 && (
+                  <motion.button
+                    initial={{ opacity: 0, x: 8, width: 0 }}
+                    animate={{ opacity: 1, x: 0, width: "auto" }}
+                    exit={{ opacity: 0, x: 8, width: 0 }}
+                    transition={{ type: "spring", bounce: 0.2, duration: 0.3 }}
+                    onClick={() => setSelectedTopics([])}
+                    className="inline-flex items-center gap-1.5 overflow-hidden rounded-md border border-border/60 bg-card px-2.5 py-1 text-xs font-medium text-muted-foreground hover:border-primary/30 hover:bg-primary/5 hover:text-foreground transition-colors cursor-pointer whitespace-nowrap"
+                  >
+                    Clear
+                  </motion.button>
+                )}
+              </AnimatePresence>
+              <button
+                onClick={() => {
+                  const shuffled = [...TOPICS].sort(() => Math.random() - 0.5);
+                  const count = Math.floor(Math.random() * 3) + 1;
+                  setSelectedTopics(shuffled.slice(0, count).map((t) => t.id));
+                }}
+                className="inline-flex items-center gap-1.5 rounded-md border border-border/60 bg-card px-2.5 py-1 text-xs font-medium text-muted-foreground hover:border-primary/30 hover:bg-primary/5 hover:text-foreground transition-colors cursor-pointer"
+              >
+                <Shuffle className="size-3" />
+                Shuffle
+              </button>
+            </div>
+            {/* Length segmented control */}
+            <div className="inline-flex rounded-lg bg-muted p-[3px]">
             {LENGTH_OPTIONS.map((opt) => (
               <button
                 key={opt.id}
@@ -260,17 +292,21 @@ export default function LessonPlanPage() {
                 <span className="relative z-10">{opt.label}</span>
               </button>
             ))}
+            </div>
           </div>
         </div>
 
-        {/* Visual topic grid */}
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(130px,1fr))] gap-3">
-          {TOPICS.map((topic) => {
+        {/* Topic chips */}
+        <div className="flex flex-wrap gap-2">
+          {TOPICS.map((topic, i) => {
             const isSelected = selectedTopics.includes(topic.id);
             const isDisabled = !isSelected && selectedTopics.length >= 3;
             return (
-              <button
+              <motion.button
                 key={topic.id}
+                initial={{ opacity: 0, scale: 0.88 }}
+                animate={{ opacity: isDisabled ? 0.3 : 1, scale: 1 }}
+                transition={{ delay: i * 0.025, duration: 0.2 }}
                 onClick={() => {
                   if (isSelected) {
                     setSelectedTopics(selectedTopics.filter((t) => t !== topic.id));
@@ -280,25 +316,29 @@ export default function LessonPlanPage() {
                 }}
                 disabled={isDisabled}
                 className={cn(
-                  "flex flex-col justify-between rounded-lg border p-4 text-left transition-colors",
+                  "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-colors duration-150",
                   isSelected
-                    ? "cursor-pointer border-primary bg-primary text-primary-foreground"
+                    ? "cursor-pointer border-primary/60 bg-primary/15 text-primary"
                     : isDisabled
-                    ? "cursor-not-allowed bg-card opacity-40"
-                    : "cursor-pointer bg-card hover:bg-accent/50"
+                    ? "cursor-not-allowed border-border/30 bg-card/50 text-muted-foreground/50"
+                    : "cursor-pointer border-border/60 bg-card text-muted-foreground hover:border-primary/30 hover:bg-primary/5 hover:text-foreground"
                 )}
-                style={{ height: 90 }}
               >
-                <topic.Icon
-                  className={cn(
-                    "size-5",
-                    isSelected
-                      ? "text-primary-foreground"
-                      : "text-muted-foreground"
-                  )}
-                />
-                <span className="text-sm font-medium">{topic.name}</span>
-              </button>
+                <motion.span
+                  key={isSelected ? "check" : "icon"}
+                  initial={{ rotateY: 90 }}
+                  animate={{ rotateY: 0 }}
+                  transition={{ duration: 0.2, ease: "easeOut" }}
+                  className="shrink-0"
+                  style={{ transformStyle: "preserve-3d" }}
+                >
+                  {isSelected
+                    ? <Check className="size-3.5 text-primary" />
+                    : <topic.Icon className="size-3.5" />
+                  }
+                </motion.span>
+                <span>{topic.name}</span>
+              </motion.button>
             );
           })}
         </div>
@@ -339,7 +379,7 @@ export default function LessonPlanPage() {
                 <button
                   key={lesson.id}
                   onClick={() => router.push(`/lesson-plan/${lesson.id}`)}
-                  className="flex w-[220px] shrink-0 flex-col gap-2.5 rounded-lg border bg-card p-4 text-left transition-colors hover:bg-accent/50"
+                  className="flex w-[220px] shrink-0 cursor-pointer flex-col gap-2.5 rounded-lg border bg-card p-4 text-left transition-colors hover:bg-accent/50 hover:border-primary/40"
                 >
                   <div className="flex items-center justify-between">
                     <span

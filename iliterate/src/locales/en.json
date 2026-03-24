@@ -3,7 +3,7 @@
     "learn": "Learn",
     "practice": "Practice",
     "community": "Community",
-    "lessonPlan": "Lesson Plan",
+    "lessonPlan": "Lessons",
     "library": "Library",
     "flashcards": "Flashcards",
     "quizzes": "Quizzes",
@@ -82,6 +82,6 @@
     "title": "Social"
   },
   "lessonPlan": {
-    "title": "Lesson Plan"
+    "title": "Lessons"
   }
 }

@@ -97,9 +97,9 @@ function FilterSection({
             <button
               key={opt}
               onClick={() => onToggle(opt)}
-              className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-all duration-150 ${
+              className={`cursor-pointer rounded-full border px-2.5 py-1 text-xs font-medium transition-all duration-150 ${
                 isSelected
-                  ? "border-primary bg-primary text-primary-foreground shadow-sm shadow-primary/20"
+                  ? "border-primary bg-primary text-primary-foreground shadow-sm shadow-primary/20 dark:bg-primary/15 dark:text-primary dark:border-primary/50 dark:shadow-none dark:backdrop-blur-sm"
                   : "border-border/40 text-muted-foreground hover:border-primary/40 hover:text-foreground"
               }`}
             >
@@ -225,13 +225,13 @@ export function LibraryContent({ contents, targetLanguage }: LibraryContentProps
                 key={tab}
                 onClick={() => setActiveTab(tab)}
                 className={`relative px-3 py-1 text-sm font-medium transition-colors duration-150 ${
-                  activeTab === tab ? "text-primary" : "text-muted-foreground hover:text-foreground"
+                  activeTab === tab ? "text-primary-foreground dark:text-primary" : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 {activeTab === tab && (
                   <motion.div
                     layoutId="tab-pill"
-                    className="absolute inset-0 rounded-md bg-primary/20 shadow-sm"
+                    className="absolute inset-0 rounded-md bg-primary dark:bg-primary/20 shadow-sm"
                     transition={{ type: "spring", bounce: 0.2, duration: 0.35 }}
                   />
                 )}
@@ -275,7 +275,7 @@ export function LibraryContent({ contents, targetLanguage }: LibraryContentProps
         {activeTab === "browse" ? (
           <>
             <div className="mb-5 flex items-center justify-between">
-              <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50">
+              <p className="text-sm font-semibold text-foreground">
                 Filters
               </p>
               <button
@@ -284,7 +284,7 @@ export function LibraryContent({ contents, targetLanguage }: LibraryContentProps
                   setSelectedDifficulties([]);
                   setSelectedTypes([]);
                 }}
-                className={`flex items-center gap-1 rounded-full border border-border/40 px-2 py-0.5 text-[10px] text-muted-foreground transition-colors hover:border-destructive/50 hover:text-destructive ${
+                className={`cursor-pointer flex items-center gap-1 rounded-full border border-border/40 px-2 py-0.5 text-[10px] text-muted-foreground transition-colors hover:border-destructive/50 hover:text-destructive ${
                   hasActiveFilters && !savedOnly ? "visible" : "invisible pointer-events-none"
                 }`}
               >
@@ -296,14 +296,14 @@ export function LibraryContent({ contents, targetLanguage }: LibraryContentProps
             <div className="space-y-5">
               <button
                 onClick={handleSavedToggle}
-                className={`flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-all duration-150 ${
+                className={`cursor-pointer inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-all duration-150 ${
                   savedOnly
-                    ? "border-primary/40 bg-primary/10 text-primary"
-                    : "border-border/30 text-muted-foreground hover:border-border/60 hover:text-foreground"
+                    ? "border-primary bg-primary text-primary-foreground shadow-sm shadow-primary/20"
+                    : "border-border/40 text-muted-foreground hover:border-primary/40 hover:text-foreground"
                 }`}
               >
-                <Bookmark className={`h-3.5 w-3.5 transition-all ${savedOnly ? "fill-primary" : ""}`} />
-                Saved items
+                <Bookmark className={`h-3 w-3 transition-all ${savedOnly ? "fill-primary-foreground" : ""}`} />
+                Saved
               </button>
 
               <div className={`space-y-5 transition-opacity duration-150 ${savedOnly ? "pointer-events-none opacity-30" : ""}`}>
@@ -333,7 +333,7 @@ export function LibraryContent({ contents, targetLanguage }: LibraryContentProps
         ) : (
           <>
             <div className="mb-5 flex items-center justify-between">
-              <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50">
+              <p className="text-sm font-semibold text-foreground">
                 Filters
               </p>
               <button
@@ -341,7 +341,7 @@ export function LibraryContent({ contents, targetLanguage }: LibraryContentProps
                   setMyContentSelectedLanguages([]);
                   setMyContentSelectedDifficulties([]);
                 }}
-                className={`flex items-center gap-1 rounded-full border border-border/40 px-2 py-0.5 text-[10px] text-muted-foreground transition-colors hover:border-destructive/50 hover:text-destructive ${
+                className={`cursor-pointer flex items-center gap-1 rounded-full border border-border/40 px-2 py-0.5 text-[10px] text-muted-foreground transition-colors hover:border-destructive/50 hover:text-destructive ${
                   myContentHasActiveFilters ? "visible" : "invisible pointer-events-none"
                 }`}
               >

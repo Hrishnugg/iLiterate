@@ -2,7 +2,7 @@
 
 import { useActionState, useState, useRef, startTransition } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Check } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Check, ChevronsUpDown, Baby, User, UserCheck, type LucideIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -13,13 +13,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { completeOnboarding } from "@/app/(auth)/onboarding/actions";
 
 // ── Data ──────────────────────────────────────────────────────────────────────
@@ -41,9 +43,9 @@ const LANGUAGES = [
 ];
 
 const AGE_GROUPS = [
-  { value: "child", label: "Child", description: "Under 13", emoji: "🧒" },
-  { value: "teen", label: "Teen", description: "13–17", emoji: "🧑" },
-  { value: "adult", label: "Adult", description: "18+", emoji: "🙋" },
+  { value: "child", label: "Child", description: "Under 13", icon: Baby },
+  { value: "teen", label: "Teen", description: "13–17", icon: User },
+  { value: "adult", label: "Adult", description: "18+", icon: UserCheck },
 ];
 
 const EDUCATION_LEVELS = [
@@ -300,6 +302,7 @@ function OptionTile({
   label,
   description,
   emoji,
+  icon: Icon,
   className,
 }: {
   selected: boolean;
@@ -307,6 +310,7 @@ function OptionTile({
   label: string;
   description?: string;
   emoji?: string;
+  icon?: LucideIcon;
   className?: string;
 }) {
   return (
@@ -322,7 +326,10 @@ function OptionTile({
         className
       )}
     >
-      {emoji && (
+      {Icon && (
+        <Icon className={cn("size-5", selected ? "text-primary" : "text-muted-foreground")} aria-hidden />
+      )}
+      {!Icon && emoji && (
         <span className="text-xl leading-none" aria-hidden>
           {emoji}
         </span>
@@ -380,6 +387,8 @@ export function OnboardingForm({
   const [direction, setDirection] = useState(1);
   const [failedFields, setFailedFields] = useState<string[]>([]);
   const [flashKey, setFlashKey] = useState(0);
+  const [targetOpen, setTargetOpen] = useState(false);
+  const [nativeOpen, setNativeOpen] = useState(false);
 
   const [form, setForm] = useState<FormState>({
     username: "",
@@ -485,25 +494,50 @@ export function OnboardingForm({
                 I want to learn
               </label>
               <div key={failedFields.includes("targetLanguage") ? `tl-${flashKey}` : "tl"} className={cn(failedFields.includes("targetLanguage") && "field-flash")}>
-                <Select
-                  value={form.targetLanguage}
-                  onValueChange={(v) => update("targetLanguage", v)}
-                >
-                  <SelectTrigger id="target-language" className={cn("h-11", failedFields.includes("targetLanguage") && "border-destructive")}>
-                    <SelectValue placeholder="Select a language…" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {LANGUAGES.map((lang) => (
-                      <SelectItem
-                        key={lang}
-                        value={lang.toLowerCase()}
-                        disabled={lang.toLowerCase() === form.nativeLanguage}
-                      >
-                        {lang}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Popover open={targetOpen} onOpenChange={setTargetOpen}>
+                  <PopoverTrigger asChild>
+                    <button
+                      id="target-language"
+                      role="combobox"
+                      aria-expanded={targetOpen}
+                      className={cn(
+                        "flex h-11 w-full items-center justify-between rounded-md border bg-transparent px-3 py-2 text-sm shadow-sm transition-colors hover:bg-accent focus:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+                        failedFields.includes("targetLanguage") ? "border-destructive" : "border-input",
+                        !form.targetLanguage && "text-muted-foreground"
+                      )}
+                    >
+                      {form.targetLanguage
+                        ? LANGUAGES.find((l) => l.toLowerCase() === form.targetLanguage)
+                        : "Select a language…"}
+                      <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                    <Command>
+                      <CommandInput placeholder="Search language…" />
+                      <CommandList>
+                        <CommandEmpty>No language found.</CommandEmpty>
+                        <CommandGroup>
+                          {LANGUAGES.map((lang) => (
+                            <CommandItem
+                              key={lang}
+                              value={lang}
+                              disabled={lang.toLowerCase() === form.nativeLanguage}
+                              onSelect={() => {
+                                update("targetLanguage", lang.toLowerCase());
+                                setTargetOpen(false);
+                                (document.activeElement as HTMLElement)?.blur();
+                              }}
+                            >
+                              <Check className={cn("mr-2 size-4", form.targetLanguage === lang.toLowerCase() ? "opacity-100" : "opacity-0")} />
+                              {lang}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
             </div>
             <div className="flex flex-col gap-1.5">
@@ -511,25 +545,50 @@ export function OnboardingForm({
                 My native language is
               </label>
               <div key={failedFields.includes("nativeLanguage") ? `nl-${flashKey}` : "nl"} className={cn(failedFields.includes("nativeLanguage") && "field-flash")}>
-                <Select
-                  value={form.nativeLanguage}
-                  onValueChange={(v) => update("nativeLanguage", v)}
-                >
-                  <SelectTrigger id="native-language" className={cn("h-11", failedFields.includes("nativeLanguage") && "border-destructive")}>
-                    <SelectValue placeholder="Select your native language…" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {LANGUAGES.map((lang) => (
-                      <SelectItem
-                        key={lang}
-                        value={lang.toLowerCase()}
-                        disabled={lang.toLowerCase() === form.targetLanguage}
-                      >
-                        {lang}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Popover open={nativeOpen} onOpenChange={setNativeOpen}>
+                  <PopoverTrigger asChild>
+                    <button
+                      id="native-language"
+                      role="combobox"
+                      aria-expanded={nativeOpen}
+                      className={cn(
+                        "flex h-11 w-full items-center justify-between rounded-md border bg-transparent px-3 py-2 text-sm shadow-sm transition-colors hover:bg-accent focus:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+                        failedFields.includes("nativeLanguage") ? "border-destructive" : "border-input",
+                        !form.nativeLanguage && "text-muted-foreground"
+                      )}
+                    >
+                      {form.nativeLanguage
+                        ? LANGUAGES.find((l) => l.toLowerCase() === form.nativeLanguage)
+                        : "Select your native language…"}
+                      <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                    <Command>
+                      <CommandInput placeholder="Search language…" />
+                      <CommandList>
+                        <CommandEmpty>No language found.</CommandEmpty>
+                        <CommandGroup>
+                          {LANGUAGES.map((lang) => (
+                            <CommandItem
+                              key={lang}
+                              value={lang}
+                              disabled={lang.toLowerCase() === form.targetLanguage}
+                              onSelect={() => {
+                                update("nativeLanguage", lang.toLowerCase());
+                                setNativeOpen(false);
+                                (document.activeElement as HTMLElement)?.blur();
+                              }}
+                            >
+                              <Check className={cn("mr-2 size-4", form.nativeLanguage === lang.toLowerCase() ? "opacity-100" : "opacity-0")} />
+                              {lang}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
             </div>
           </div>
@@ -549,7 +608,7 @@ export function OnboardingForm({
                     onClick={() => update("ageGroup", a.value)}
                     label={a.label}
                     description={a.description}
-                    emoji={a.emoji}
+                    icon={a.icon}
                   />
                 ))}
               </div>
