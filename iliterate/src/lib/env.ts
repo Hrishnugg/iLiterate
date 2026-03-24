@@ -33,6 +33,10 @@ let _env: {
   appUrl: string | null;
   karaoke: {
     encryptionKey: string | null;
+    lyrics: {
+      serviceUrl: string | null;
+      serviceApiKey: string | null;
+    };
     appleMusic: {
       developerToken: string | null;
       storefront: string | null;
@@ -54,6 +58,10 @@ export function getEnv() {
       appUrl: getOptionalEnvVar("NEXT_PUBLIC_APP_URL"),
       karaoke: {
         encryptionKey: getOptionalEnvVar("MUSIC_TOKEN_ENCRYPTION_KEY"),
+        lyrics: {
+          serviceUrl: getOptionalEnvVar("KARAOKE_LYRICS_SERVICE_URL"),
+          serviceApiKey: getOptionalEnvVar("KARAOKE_LYRICS_SERVICE_API_KEY"),
+        },
         appleMusic: {
           developerToken: getOptionalEnvVar("APPLE_MUSIC_DEVELOPER_TOKEN"),
           storefront: getOptionalEnvVar("NEXT_PUBLIC_APPLE_MUSIC_STOREFRONT"),

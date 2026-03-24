@@ -8,6 +8,18 @@ export const karaokeProviderSchema = z.enum([
   "apple_music",
   "spotify",
 ]);
+export const karaokeMusicProviderSchema = z.enum([
+  "soundcloud",
+  "apple_music",
+  "spotify",
+]);
+export const karaokeItemStatusSchema = z.enum([
+  "fetching_lyrics",
+  "needs_lyrics",
+  "needs_timing",
+  "ready",
+  "error",
+]);
 
 // Supported languages for translation (common language codes)
 export const SUPPORTED_LANGUAGES = [
@@ -78,12 +90,47 @@ export const lyricCueSchema = z.object({
   path: ["endOffset"],
 });
 
+export const karaokeLyricsLineSchema = z.object({
+  id: z.string().min(1).max(100),
+  text: z.string().min(1).max(5000),
+});
+
+export const karaokeTrackSchema = z.object({
+  provider: karaokeMusicProviderSchema,
+  providerTrackId: z.string().min(1).max(500),
+  url: z.string().url("A valid track URL is required"),
+  title: z.string().min(1).max(500),
+  artist: z.string().min(1).max(500),
+  artworkUrl: z.string().url().nullable().optional(),
+  durationMs: z.number().int().min(0).nullable().optional(),
+  karaokeCapable: z.boolean(),
+  playbackMode: z.enum(["embedded", "link_out"]),
+});
+
 export const karaokeTrackLinkRequestSchema = z.object({
   url: z.string().url("A valid track URL is required"),
 });
 
+export const karaokeItemCreateSchema = z.object({
+  url: z.string().url("A valid track URL is required").optional(),
+  track: karaokeTrackSchema.optional(),
+}).refine((value) => value.url || value.track, {
+  message: "Either a track URL or a normalized track payload is required",
+});
+
+export const karaokeLyricsUpdateSchema = z.object({
+  text: z.string().max(100_000, "Lyrics are too long"),
+  source: z.string().min(1).max(50).optional(),
+});
+
 export const karaokeTimelineRequestSchema = z.object({
   provider: karaokeProviderSchema,
+  cues: z.array(lyricCueSchema).max(2000, "Too many lyric cues"),
+  metadata: z.record(z.string(), z.unknown()).optional(),
+});
+
+export const karaokeItemTimelineRequestSchema = z.object({
+  provider: karaokeMusicProviderSchema,
   cues: z.array(lyricCueSchema).max(2000, "Too many lyric cues"),
   metadata: z.record(z.string(), z.unknown()).optional(),
 });

@@ -12,7 +12,7 @@ import { SearchProvider } from "@/components/search/SearchContext";
 import { SearchModal } from "@/components/search/SearchModal";
 import { I18nProvider } from "@/lib/i18n/I18nProvider";
 
-type LayoutMode = "chrome" | "immersive" | "split" | "library";
+type LayoutMode = "chrome" | "immersive" | "split" | "library" | "karaoke";
 
 function deriveLayoutMode(pathname: string | null): LayoutMode {
   if (!pathname) return "chrome";
@@ -35,6 +35,11 @@ function deriveLayoutMode(pathname: string | null): LayoutMode {
   // Library: full-height layout with right filter panel
   if (pathname === "/library") {
     return "library";
+  }
+
+  // Karaoke studio: dashboard shell, but full-height content canvas
+  if (pathname.startsWith("/karaoke/") && pathname.split("/").length > 2) {
+    return "karaoke";
   }
 
   return "chrome";
@@ -80,6 +85,22 @@ export default function DashboardLayout({
             <AppSidebar />
             <SidebarInset className="flex overflow-hidden">
               {children}
+            </SidebarInset>
+          </SidebarProvider>
+        </SearchProvider>
+      </I18nProvider>
+    );
+  }
+
+  if (layoutMode === "karaoke") {
+    return (
+      <I18nProvider>
+        <SearchProvider>
+          <SearchModal />
+          <SidebarProvider>
+            <AppSidebar />
+            <SidebarInset className="overflow-hidden">
+              <main className="h-screen overflow-hidden">{children}</main>
             </SidebarInset>
           </SidebarProvider>
         </SearchProvider>

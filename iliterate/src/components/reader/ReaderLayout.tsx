@@ -11,7 +11,6 @@ import {
   BookOpen,
   ChevronLeft,
   ChevronRight,
-  Captions,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -34,9 +33,6 @@ interface ReaderLayoutProps {
   hideLeftSidebar?: boolean;
   isRSVPMode?: boolean;
   onToggleRSVP?: () => void;
-  isKaraokeMode?: boolean;
-  isKaraokeAvailable?: boolean;
-  onToggleKaraoke?: () => void;
   modePanel?: React.ReactNode;
   requestRightOpen?: string | null;
 }
@@ -52,9 +48,6 @@ export function ReaderLayout({
   hideLeftSidebar = false,
   isRSVPMode = false,
   onToggleRSVP,
-  isKaraokeMode = false,
-  isKaraokeAvailable = false,
-  onToggleKaraoke,
   modePanel,
   requestRightOpen,
 }: ReaderLayoutProps) {
@@ -71,7 +64,7 @@ export function ReaderLayout({
   const [pageWidth, setPageWidth] = useState(0);
   const viewportRef = useRef<HTMLDivElement>(null);
   const contentPagesRef = useRef<HTMLDivElement>(null);
-  const isImmersiveMode = isRSVPMode || isKaraokeMode;
+  const isImmersiveMode = isRSVPMode;
   const openRightPanel = useEffectEvent(() => {
     setRightOpen(true);
   });
@@ -264,21 +257,6 @@ export function ReaderLayout({
                 title="RSVP Speed Reader"
               >
                 <Zap className="size-4" />
-              </Button>
-            )}
-
-            {isKaraokeAvailable && onToggleKaraoke && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={onToggleKaraoke}
-                className={cn(
-                  "size-8 text-primary-foreground hover:bg-white/20 hover:text-primary-foreground",
-                  isKaraokeMode && "bg-white/30"
-                )}
-                title="Karaoke Mode"
-              >
-                <Captions className="size-4" />
               </Button>
             )}
 

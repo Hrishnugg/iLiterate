@@ -16,6 +16,7 @@ import {
   Trophy,
   Search,
   BookOpen,
+  Music4,
 } from "lucide-react";
 
 import {
@@ -60,6 +61,7 @@ export function AppSidebar() {
     {
       label: t("nav.practice"),
       items: [
+        { title: "Karaoke", href: "/karaoke", icon: Music4 },
         { title: t("nav.flashcards"), href: "/flashcards", icon: Layers },
         { title: t("nav.quizzes"), href: "/quizzes", icon: ClipboardCheck },
       ],

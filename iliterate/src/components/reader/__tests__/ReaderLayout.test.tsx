@@ -63,36 +63,29 @@ describe("ReaderLayout", () => {
     });
   });
 
-  it("renders karaoke controls and hides audio while karaoke mode is active", () => {
+  it("renders the mode panel and hides audio while RSVP mode is active", () => {
     renderLayout({
       audioPlayer: <div>Audio Controls</div>,
-      isKaraokeAvailable: true,
-      isKaraokeMode: true,
-      onToggleKaraoke: vi.fn(),
+      isRSVPMode: true,
+      onToggleRSVP: vi.fn(),
       modePanel: <div>Guided Reader Panel</div>,
     });
 
-    expect(screen.getByTitle("Karaoke Mode")).toBeInTheDocument();
     expect(screen.getByText("Guided Reader Panel")).toBeInTheDocument();
     expect(screen.queryByTitle("Audio playback")).not.toBeInTheDocument();
   });
 
-  it("calls the reader mode toggles from the toolbar", async () => {
+  it("calls the RSVP toggle from the toolbar", async () => {
     const user = userEvent.setup();
     const onToggleRSVP = vi.fn();
-    const onToggleKaraoke = vi.fn();
 
     renderLayout({
       onToggleRSVP,
-      isKaraokeAvailable: true,
-      onToggleKaraoke,
     });
 
     await user.click(screen.getByTitle("RSVP Speed Reader"));
-    await user.click(screen.getByTitle("Karaoke Mode"));
 
     expect(onToggleRSVP).toHaveBeenCalledTimes(1);
-    expect(onToggleKaraoke).toHaveBeenCalledTimes(1);
   });
 
   it("removes the article wrapper in RSVP mode", () => {

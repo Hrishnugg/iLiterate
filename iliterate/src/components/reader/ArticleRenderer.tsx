@@ -6,10 +6,6 @@ import { ArrowDown } from "lucide-react";
 import {
   Content,
   Highlight,
-  KaraokePlaybackProvider,
-  KaraokeTimeline,
-  KaraokeTrackLink,
-  LyricCue,
   TranslationLookup,
 } from "@/types/database";
 import { TextSelection } from "./TextHighlighter";
@@ -19,20 +15,12 @@ import { TableOfContents } from "./TableOfContents";
 import { RightSidebar } from "./RightSidebar";
 import { ContentRenderer } from "./ContentRenderer";
 import { RSVPReader } from "./RSVPReader";
-import { KaraokeReader } from "./KaraokeReader";
 import { useReadingProgress } from "./useReadingProgress";
 import { AudioPlayer } from "./AudioPlayer";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { BookmarkButton } from "@/components/BookmarkButton";
-import {
-  buildReaderSegmentsFromCues,
-  countReadingUnits,
-  getDefaultPlaybackProvider,
-  ReaderMode,
-  ReaderSegment,
-} from "./karaoke";
-import { ProviderStatus } from "@/lib/karaoke/providers";
+import { ReaderMode } from "./karaoke";
 
 interface TOCItem {
   id: string;
@@ -59,33 +47,10 @@ export function ArticleRenderer({ content, isLesson = false }: ArticleRendererPr
   const [rsvpWordIndex, setRsvpWordIndex] = useState(0);
   const [rsvpTotalWords, setRsvpTotalWords] = useState(0);
   const [rsvpWpm, setRsvpWpm] = useState(250);
-  const [generatedKaraokeSegments, setGeneratedKaraokeSegments] = useState<ReaderSegment[]>([]);
-  const [karaokeSegmentIndex, setKaraokeSegmentIndex] = useState(0);
-  const [activeKaraokeProvider, setActiveKaraokeProvider] =
-    useState<KaraokePlaybackProvider>("tts");
-  const [providerStatuses, setProviderStatuses] = useState<ProviderStatus[]>([]);
-  const [linkedTracks, setLinkedTracks] = useState<KaraokeTrackLink[]>([]);
-  const [karaokeTimelines, setKaraokeTimelines] = useState<
-    Partial<Record<KaraokePlaybackProvider, LyricCue[]>>
-  >({});
   const rsvpSeekFnRef = useRef<((percentage: number) => void) | null>(null);
   const contentContainerRef = useRef<HTMLDivElement>(null);
   const normalizeTerm = useCallback((term: string) => term.trim().toLowerCase(), []);
   const isRSVPMode = readerMode === "rsvp";
-  const isKaraokeMode = readerMode === "karaoke";
-  const activeTimelineCues = useMemo(
-    () =>
-      karaokeTimelines[activeKaraokeProvider] ??
-      (activeKaraokeProvider !== "tts" ? karaokeTimelines.tts : undefined),
-    [activeKaraokeProvider, karaokeTimelines]
-  );
-  const karaokeSegments = useMemo(
-    () =>
-      activeTimelineCues && activeTimelineCues.length > 0
-        ? buildReaderSegmentsFromCues(activeTimelineCues)
-        : generatedKaraokeSegments,
-    [activeTimelineCues, generatedKaraokeSegments]
-  );
 
   // Reading progress tracking
   const {
@@ -114,91 +79,36 @@ export function ArticleRenderer({ content, isLesson = false }: ArticleRendererPr
       return `${minutes}m ${seconds}s`;
     }
 
-    if (isKaraokeMode && karaokeSegments.length > 0) {
-      const activeSegment = karaokeSegments[karaokeSegmentIndex];
-      const remainingMs =
-        (karaokeSegments.at(-1)?.endMs ?? 0) - (activeSegment?.startMs ?? 0);
-      const remainingSeconds = Math.max(0, Math.round(remainingMs / 1000));
-
-      if (remainingSeconds < 60) {
-        return `${remainingSeconds}s`;
-      }
-
-      const minutes = Math.floor(remainingSeconds / 60);
-      const seconds = remainingSeconds % 60;
-      return `${minutes}m ${seconds}s`;
-    }
-
     return getTimeRemaining(200); // Normal scroll-based time remaining at 200 WPM
-  }, [
-    getTimeRemaining,
-    isKaraokeMode,
-    isRSVPMode,
-    karaokeSegmentIndex,
-    karaokeSegments,
-    rsvpTotalWords,
-    rsvpWordIndex,
-    rsvpWpm,
-  ]);
+  }, [getTimeRemaining, isRSVPMode, rsvpTotalWords, rsvpWordIndex, rsvpWpm]);
 
   // Memoize plain text for RSVP mode
   const plainTextContent = useMemo(
     () => content.body.replace(/<[^>]*>/g, ""),
     [content.body]
   );
-  const isArticleLikeContent = useMemo(() => {
-    const sourceUrl = content.source_url?.toLowerCase() ?? "";
-    return (
-      content.content_type !== "pdf" &&
-      content.content_type !== "epub" &&
-      !sourceUrl.endsWith(".pdf") &&
-      !sourceUrl.endsWith(".epub")
-    );
-  }, [content.content_type, content.source_url]);
 
   // Calculate RSVP-based progress when in RSVP mode
   const displayProgress = useMemo(() => {
     if (isRSVPMode && rsvpTotalWords > 0) {
       return Math.round((rsvpWordIndex / rsvpTotalWords) * 100);
     }
-    if (isKaraokeMode && karaokeSegments.length > 0) {
-      const activeSegment = karaokeSegments[Math.min(karaokeSegmentIndex, karaokeSegments.length - 1)];
-      const totalLength = karaokeSegments.at(-1)?.endOffset ?? 0;
-      if (activeSegment && totalLength > 0) {
-        return Math.round((activeSegment.endOffset / totalLength) * 100);
-      }
-    }
     return progress;
-  }, [isKaraokeMode, isRSVPMode, karaokeSegmentIndex, karaokeSegments, progress, rsvpWordIndex, rsvpTotalWords]);
+  }, [isRSVPMode, progress, rsvpWordIndex, rsvpTotalWords]);
 
   const displayWordsRead = useMemo(() => {
     if (isRSVPMode) {
       return rsvpWordIndex;
     }
-    if (isKaraokeMode && karaokeSegments.length > 0) {
-      const units = karaokeSegments
-        .slice(0, Math.min(karaokeSegmentIndex + 1, karaokeSegments.length))
-        .reduce(
-          (total, segment) => total + countReadingUnits(segment.text, content.language),
-          0
-        );
-      return units;
-    }
     return wordsRead;
-  }, [content.language, isKaraokeMode, isRSVPMode, karaokeSegmentIndex, karaokeSegments, rsvpWordIndex, wordsRead]);
+  }, [isRSVPMode, rsvpWordIndex, wordsRead]);
 
   const displayTotalWords = useMemo(() => {
     if (isRSVPMode && rsvpTotalWords > 0) {
       return rsvpTotalWords;
     }
-    if (isKaraokeMode && karaokeSegments.length > 0) {
-      return karaokeSegments.reduce(
-        (total, segment) => total + countReadingUnits(segment.text, content.language),
-        0
-      );
-    }
     return content.word_count || 1000;
-  }, [content.language, content.word_count, isKaraokeMode, isRSVPMode, karaokeSegments, rsvpTotalWords]);
+  }, [content.word_count, isRSVPMode, rsvpTotalWords]);
 
   // Load highlights - memoized with content.id dependency
   const loadHighlights = useCallback(async () => {
@@ -251,61 +161,6 @@ export function ArticleRenderer({ content, isLesson = false }: ArticleRendererPr
     }
   }, [normalizeTerm]);
 
-  const loadKaraokeProviders = useCallback(async () => {
-    if (!isArticleLikeContent || isLesson) return;
-
-    try {
-      const response = await fetch("/api/karaoke/providers");
-      if (!response.ok) return;
-
-      const payload = (await response.json()) as {
-        providers?: ProviderStatus[];
-      };
-
-      if (Array.isArray(payload.providers)) {
-        setProviderStatuses(payload.providers);
-      }
-    } catch (error) {
-      console.error("Failed to load karaoke providers:", error);
-    }
-  }, [isArticleLikeContent, isLesson]);
-
-  const loadKaraokeContentState = useCallback(async () => {
-    if (!isArticleLikeContent || isLesson) return;
-
-    try {
-      const [trackResponse, timelineResponse] = await Promise.all([
-        fetch(`/api/karaoke/content/${content.id}`),
-        fetch(`/api/karaoke/content/${content.id}/timeline`),
-      ]);
-
-      if (trackResponse.ok) {
-        const payload = (await trackResponse.json()) as {
-          tracks?: KaraokeTrackLink[];
-        };
-        setLinkedTracks(Array.isArray(payload.tracks) ? payload.tracks : []);
-      }
-
-      if (timelineResponse.ok) {
-        const payload = (await timelineResponse.json()) as {
-          timelines?: KaraokeTimeline[];
-        };
-
-        if (Array.isArray(payload.timelines)) {
-          const nextTimelines: Partial<Record<KaraokePlaybackProvider, LyricCue[]>> = {};
-          for (const timeline of payload.timelines) {
-            nextTimelines[timeline.provider] = timeline.cues;
-          }
-          setKaraokeTimelines(nextTimelines);
-        } else {
-          setKaraokeTimelines({});
-        }
-      }
-    } catch (error) {
-      console.error("Failed to load karaoke content state:", error);
-    }
-  }, [content.id, isArticleLikeContent, isLesson]);
-
   // Generate TOC from content headings (for HTML content) - memoized
   const generateTOC = useCallback(() => {
     if (typeof window === "undefined") return;
@@ -334,40 +189,12 @@ export function ArticleRenderer({ content, isLesson = false }: ArticleRendererPr
     loadLookups();
     loadFlashcardTerms();
     generateTOC();
-    loadKaraokeProviders();
-    loadKaraokeContentState();
   }, [
     generateTOC,
     loadFlashcardTerms,
     loadHighlights,
-    loadKaraokeContentState,
-    loadKaraokeProviders,
     loadLookups,
   ]);
-
-  useEffect(() => {
-    if (!isArticleLikeContent && isKaraokeMode) {
-      setReaderMode("default");
-    }
-  }, [isArticleLikeContent, isKaraokeMode]);
-
-  useEffect(() => {
-    const linkedProviders = linkedTracks.map((track) => track.provider);
-    if (activeKaraokeProvider !== "tts" && !linkedProviders.includes(activeKaraokeProvider)) {
-      setActiveKaraokeProvider(getDefaultPlaybackProvider(linkedProviders));
-    }
-  }, [activeKaraokeProvider, linkedTracks]);
-
-  useEffect(() => {
-    if (karaokeSegments.length === 0) {
-      setKaraokeSegmentIndex(0);
-      return;
-    }
-
-    setKaraokeSegmentIndex((current) =>
-      Math.max(0, Math.min(current, karaokeSegments.length - 1))
-    );
-  }, [karaokeSegments]);
 
   // Handle text selection from any content type
   const handleSelection = useCallback((sel: TextSelection | null) => {
@@ -669,51 +496,11 @@ export function ArticleRenderer({ content, isLesson = false }: ArticleRendererPr
     setReaderMode((current) => (current === "rsvp" ? "default" : "rsvp"));
   }, []);
 
-  const toggleKaraoke = useCallback(() => {
-    if (!isArticleLikeContent) return;
-    setReaderMode((current) => (current === "karaoke" ? "default" : "karaoke"));
-  }, [isArticleLikeContent]);
-
   // Handle progress bar seek in RSVP mode
   const handleProgressSeek = useCallback((percentage: number) => {
-    if (isKaraokeMode && karaokeSegments.length > 0) {
-      const rawIndex = Math.round((percentage / 100) * (karaokeSegments.length - 1));
-      setKaraokeSegmentIndex(
-        Math.max(0, Math.min(karaokeSegments.length - 1, rawIndex))
-      );
-      return;
-    }
-
     if (rsvpSeekFnRef.current) {
       rsvpSeekFnRef.current(percentage);
     }
-  }, [isKaraokeMode, karaokeSegments.length]);
-
-  const activeKaraokeSegment = karaokeSegments[karaokeSegmentIndex] ?? null;
-  const hasStoredTimelineForActiveProvider = Boolean(
-    activeTimelineCues && activeTimelineCues.length > 0
-  );
-  const handleKaraokeSegmentsChange = useCallback((segments: ReaderSegment[]) => {
-    setGeneratedKaraokeSegments((current) => {
-      if (
-        current.length === segments.length &&
-        current.every((segment, index) => {
-          const nextSegment = segments[index];
-          return (
-            segment.id === nextSegment?.id &&
-            segment.startOffset === nextSegment.startOffset &&
-            segment.endOffset === nextSegment.endOffset &&
-            segment.text === nextSegment.text &&
-            segment.startMs === nextSegment.startMs &&
-            segment.endMs === nextSegment.endMs
-          );
-        })
-      ) {
-        return current;
-      }
-
-      return segments;
-    });
   }, []);
 
   return (
@@ -724,27 +511,6 @@ export function ArticleRenderer({ content, isLesson = false }: ArticleRendererPr
         hideLeftSidebar={tocItems.length === 0}
         isRSVPMode={isRSVPMode}
         onToggleRSVP={toggleRSVP}
-        isKaraokeMode={isKaraokeMode}
-        isKaraokeAvailable={isArticleLikeContent}
-        onToggleKaraoke={toggleKaraoke}
-        modePanel={
-          isKaraokeMode ? (
-            <KaraokeReader
-              contentId={isLesson ? null : content.id}
-              segments={karaokeSegments}
-              activeSegmentIndex={karaokeSegmentIndex}
-              language={content.language}
-              activeProvider={activeKaraokeProvider}
-              providerStatuses={isLesson ? [] : providerStatuses}
-              linkedTracks={isLesson ? [] : linkedTracks}
-              hasStoredTimeline={hasStoredTimelineForActiveProvider}
-              onActiveSegmentIndexChange={setKaraokeSegmentIndex}
-              onActiveProviderChange={setActiveKaraokeProvider}
-              onRefreshProviders={loadKaraokeProviders}
-              onRefreshContentState={loadKaraokeContentState}
-            />
-          ) : null
-        }
         requestRightOpen={focusedHighlightId}
         leftSidebar={
           <TableOfContents
@@ -762,7 +528,7 @@ export function ArticleRenderer({ content, isLesson = false }: ArticleRendererPr
             wordsRead={displayWordsRead}
             totalWords={displayTotalWords}
             timeRemaining={displayTimeRemaining}
-            isProgressInteractive={isRSVPMode || isKaraokeMode}
+            isProgressInteractive={isRSVPMode}
             onProgressSeek={handleProgressSeek}
             focusedHighlightId={focusedHighlightId}
             onHighlightClick={handleHighlightClick}
@@ -809,21 +575,9 @@ export function ArticleRenderer({ content, isLesson = false }: ArticleRendererPr
             highlights={highlights}
             focusedHighlightId={focusedHighlightId}
             currentSelection={selection}
-            readerMode={readerMode}
-            readerSegments={karaokeSegments}
-            activeReaderSegmentId={activeKaraokeSegment?.id ?? null}
             onSelection={handleSelection}
             onTocUpdate={handleEpubTocUpdate}
             onHighlightClick={handleHighlightClick}
-            onReaderSegmentsChange={handleKaraokeSegmentsChange}
-            onReaderSegmentSelect={(segment) => {
-              const nextIndex = karaokeSegments.findIndex(
-                (candidate) => candidate.id === segment.id
-              );
-              if (nextIndex >= 0) {
-                setKaraokeSegmentIndex(nextIndex);
-              }
-            }}
           />
         )}
       </ReaderLayout>

@@ -7,6 +7,7 @@ const SPOTIFY_SCOPES = [
   "streaming",
   "user-modify-playback-state",
   "user-read-playback-state",
+  "user-library-read",
   "user-read-email",
   "user-read-private",
 ].join(" ");

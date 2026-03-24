@@ -11,7 +11,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:reader": "vitest run src/components/reader/__tests__",
-    "process:uploads": "node scripts/process-upload-worker.js"
+    "process:uploads": "node scripts/process-upload-worker.js",
+    "process:karaoke-lyrics": "node scripts/process-karaoke-lyrics-worker.js",
+    "generate:apple-music-token": "node scripts/generate-apple-music-token.mjs"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

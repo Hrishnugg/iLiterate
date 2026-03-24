@@ -34,7 +34,19 @@ export type KaraokePlaybackProvider =
   | "soundcloud"
   | "apple_music"
   | "spotify";
+export type KaraokeMusicProvider = Exclude<KaraokePlaybackProvider, "tts">;
 export type KaraokeTrackPlaybackMode = "embedded" | "link_out";
+export type KaraokeItemStatus =
+  | "fetching_lyrics"
+  | "needs_lyrics"
+  | "needs_timing"
+  | "ready"
+  | "error";
+export type KaraokeLyricsJobStatus =
+  | "pending"
+  | "processing"
+  | "completed"
+  | "failed";
 
 export type QuizType = "comprehension" | "vocabulary" | "grammar";
 
@@ -104,6 +116,11 @@ export interface LyricCue {
   text: string;
 }
 
+export interface KaraokeLyricsLine {
+  id: string;
+  text: string;
+}
+
 export interface KaraokeTrackLink {
   provider: KaraokePlaybackProvider;
   providerTrackId: string;
@@ -119,7 +136,7 @@ export interface KaraokeTrackLink {
 export interface MusicProviderConnection {
   id: string;
   user_id: string;
-  provider: Exclude<KaraokePlaybackProvider, "tts">;
+  provider: KaraokeMusicProvider;
   token_type: string | null;
   expires_at: string | null;
   external_user_id: string | null;
@@ -133,7 +150,7 @@ export interface ContentProviderTrack {
   id: string;
   user_id: string;
   content_id: string;
-  provider: Exclude<KaraokePlaybackProvider, "tts">;
+  provider: KaraokeMusicProvider;
   provider_track_id: string;
   url: string;
   title: string;
@@ -156,6 +173,100 @@ export interface KaraokeTimeline {
   metadata: Record<string, unknown>;
   created_at: string;
   updated_at: string;
+}
+
+export interface KaraokeItem {
+  id: string;
+  user_id: string;
+  title: string;
+  artist: string;
+  status: KaraokeItemStatus;
+  primary_provider: KaraokeMusicProvider;
+  primary_track_id: string;
+  primary_track_url: string;
+  artwork_url: string | null;
+  duration_ms: number | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface KaraokeItemTrack {
+  id: string;
+  user_id: string;
+  karaoke_item_id: string;
+  provider: KaraokeMusicProvider;
+  provider_track_id: string;
+  url: string;
+  title: string;
+  artist: string;
+  artwork_url: string | null;
+  duration_ms: number | null;
+  karaoke_capable: boolean;
+  playback_mode: KaraokeTrackPlaybackMode;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface KaraokeLyrics {
+  id: string;
+  user_id: string;
+  karaoke_item_id: string;
+  source: string | null;
+  text: string;
+  lines: KaraokeLyricsLine[];
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface KaraokeItemTimeline {
+  id: string;
+  user_id: string;
+  karaoke_item_id: string;
+  provider: KaraokeMusicProvider;
+  cues: LyricCue[];
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface KaraokeLyricsJob {
+  id: string;
+  user_id: string;
+  karaoke_item_id: string;
+  provider: KaraokeMusicProvider;
+  status: KaraokeLyricsJobStatus;
+  attempts: number;
+  last_error: string | null;
+  metadata: Record<string, unknown>;
+  processed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface KaraokeItemSummary {
+  id: string;
+  title: string;
+  artist: string;
+  status: KaraokeItemStatus;
+  primaryProvider: KaraokeMusicProvider;
+  artworkUrl?: string;
+  durationMs?: number;
+  lineCount: number;
+  hasLyrics: boolean;
+  hasTimeline: boolean;
+  track: KaraokeTrackLink | null;
+  jobStatus?: KaraokeLyricsJobStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface KaraokeItemDetail extends KaraokeItemSummary {
+  metadata: Record<string, unknown>;
+  lyrics: KaraokeLyrics | null;
+  timeline: KaraokeItemTimeline | null;
 }
 
 export interface ReadingProgress {
