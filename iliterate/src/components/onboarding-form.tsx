@@ -142,7 +142,7 @@ const STEPS = [
   },
   {
     title: "Choose your username",
-    description: "",
+    description: "This cannot be changed later, so choose carefully.",
   },
 ];
 
