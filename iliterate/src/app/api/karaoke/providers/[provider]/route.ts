@@ -13,10 +13,6 @@ export async function DELETE(
       return NextResponse.json({ error: "Unsupported provider" }, { status: 400 });
     }
 
-    if (parsed.data === "soundcloud") {
-      return new NextResponse(null, { status: 204 });
-    }
-
     const supabase = await createClient();
     const {
       data: { user },

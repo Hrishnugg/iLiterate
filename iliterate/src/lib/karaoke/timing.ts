@@ -1,4 +1,7 @@
 import {
+  KaraokeItemLyricsStatus,
+  KaraokeItemTimingStatus,
+  KaraokeLegacyItemStatus,
   KaraokeLyricsLine,
   KaraokePlaybackProvider,
   LyricCue,
@@ -144,4 +147,43 @@ export function getKaraokeItemReadyStatus(
   }
 
   return hasTimeline ? "ready" : "needs_timing";
+}
+
+export function getKaraokeTimingStatus(
+  provider: Exclude<KaraokePlaybackProvider, "tts">,
+  hasTimeline: boolean
+): KaraokeItemTimingStatus {
+  if (provider === "spotify") {
+    return "not_applicable";
+  }
+
+  return hasTimeline ? "ready" : "draft";
+}
+
+export function getLegacyKaraokeStatus(args: {
+  provider: Exclude<KaraokePlaybackProvider, "tts">;
+  lyricsStatus: KaraokeItemLyricsStatus;
+  timingStatus: KaraokeItemTimingStatus;
+}): KaraokeLegacyItemStatus {
+  if (args.lyricsStatus === "error") {
+    return "error";
+  }
+
+  if (args.lyricsStatus === "queued" || args.lyricsStatus === "matching") {
+    return "fetching_lyrics";
+  }
+
+  if (args.lyricsStatus === "manual_fallback") {
+    return "needs_lyrics";
+  }
+
+  if (
+    args.provider !== "spotify" &&
+    args.timingStatus !== "ready" &&
+    args.timingStatus !== "not_applicable"
+  ) {
+    return "needs_timing";
+  }
+
+  return "ready";
 }

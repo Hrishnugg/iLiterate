@@ -249,14 +249,15 @@ export interface ProviderStatus {
 }
 
 export function getBaseProviderStatuses(config: {
+  soundcloudConfigured: boolean;
   appleMusicConfigured: boolean;
   spotifyConfigured: boolean;
 }): ProviderStatus[] {
   return [
     {
       provider: "soundcloud",
-      configured: true,
-      connected: true,
+      configured: config.soundcloudConfigured,
+      connected: false,
       displayName: "SoundCloud",
     },
     {

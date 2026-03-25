@@ -2,7 +2,10 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { loadKaraokeItemBundle } from "@/lib/karaoke/item-server";
 import { mapKaraokeItemTimelineRow } from "@/lib/karaoke/server";
-import { getKaraokeItemReadyStatus } from "@/lib/karaoke/timing";
+import {
+  getKaraokeTimingStatus,
+  getLegacyKaraokeStatus,
+} from "@/lib/karaoke/timing";
 import {
   karaokeItemTimelineRequestSchema,
   uuidSchema,
@@ -38,6 +41,8 @@ export async function GET(
     return NextResponse.json({
       timeline: bundle.timeline ? mapKaraokeItemTimelineRow(bundle.timeline) : null,
       status: bundle.item.status,
+      lyricsStatus: bundle.item.lyrics_status,
+      timingStatus: bundle.item.timing_status,
     });
   } catch (error) {
     console.error("Karaoke timeline GET error:", error);
@@ -117,10 +122,21 @@ export async function PUT(
       );
     }
 
-    const nextStatus = getKaraokeItemReadyStatus(body.provider, body.cues.length > 0);
+    const nextTimingStatus = getKaraokeTimingStatus(body.provider, body.cues.length > 0);
+    const nextLyricsStatus =
+      bundle.item.lyrics_status ||
+      (bundle.lyrics?.lines?.length ? "ready" : "manual_fallback");
+    const nextStatus = getLegacyKaraokeStatus({
+      provider: body.provider,
+      lyricsStatus: nextLyricsStatus,
+      timingStatus: nextTimingStatus,
+    });
     const { error: itemError } = await supabase
       .from("karaoke_items")
-      .update({ status: nextStatus })
+      .update({
+        status: nextStatus,
+        timing_status: nextTimingStatus,
+      })
       .eq("user_id", user.id)
       .eq("id", itemId);
 
@@ -134,6 +150,8 @@ export async function PUT(
     return NextResponse.json({
       timeline: mapKaraokeItemTimelineRow(timelineData as never),
       status: nextStatus,
+      lyricsStatus: nextLyricsStatus,
+      timingStatus: nextTimingStatus,
     });
   } catch (error) {
     console.error("Karaoke timeline PUT error:", error);
@@ -184,13 +202,22 @@ export async function DELETE(
       );
     }
 
-    const nextStatus = bundle.lyrics?.lines?.length
-      ? getKaraokeItemReadyStatus(bundle.item.primary_provider, false)
-      : "needs_lyrics";
+    const nextLyricsStatus =
+      bundle.item.lyrics_status ||
+      (bundle.lyrics?.lines?.length ? "ready" : "manual_fallback");
+    const nextTimingStatus = getKaraokeTimingStatus(bundle.item.primary_provider, false);
+    const nextStatus = getLegacyKaraokeStatus({
+      provider: bundle.item.primary_provider,
+      lyricsStatus: nextLyricsStatus,
+      timingStatus: nextTimingStatus,
+    });
 
     const { error: itemError } = await supabase
       .from("karaoke_items")
-      .update({ status: nextStatus })
+      .update({
+        status: nextStatus,
+        timing_status: nextTimingStatus,
+      })
       .eq("user_id", user.id)
       .eq("id", itemId);
 

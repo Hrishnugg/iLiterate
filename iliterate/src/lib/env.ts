@@ -41,6 +41,10 @@ let _env: {
       developerToken: string | null;
       storefront: string | null;
     };
+    soundcloud: {
+      clientId: string | null;
+      clientSecret: string | null;
+    };
     spotify: {
       clientId: string | null;
       clientSecret: string | null;
@@ -65,6 +69,10 @@ export function getEnv() {
         appleMusic: {
           developerToken: getOptionalEnvVar("APPLE_MUSIC_DEVELOPER_TOKEN"),
           storefront: getOptionalEnvVar("NEXT_PUBLIC_APPLE_MUSIC_STOREFRONT"),
+        },
+        soundcloud: {
+          clientId: getOptionalEnvVar("SOUNDCLOUD_CLIENT_ID"),
+          clientSecret: getOptionalEnvVar("SOUNDCLOUD_CLIENT_SECRET"),
         },
         spotify: {
           clientId: getOptionalEnvVar("SPOTIFY_CLIENT_ID"),

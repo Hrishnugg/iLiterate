@@ -5,7 +5,7 @@ import {
   getKaraokeErrorMessage,
   isMissingKaraokeSchemaError,
 } from "@/lib/karaoke/errors";
-import { loadKaraokeItemSummaries } from "@/lib/karaoke/item-server";
+import { loadKaraokeSetlists } from "@/lib/karaoke/item-server";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function KaraokePage() {
@@ -18,11 +18,11 @@ export default async function KaraokePage() {
     redirect("/login");
   }
 
-  let items = null;
+  let setlists = null;
   let errorMessage: string | null = null;
 
   try {
-    items = await loadKaraokeItemSummaries(supabase, user.id);
+    setlists = await loadKaraokeSetlists(supabase, user.id);
   } catch (error) {
     errorMessage = isMissingKaraokeSchemaError(error)
       ? "The dedicated karaoke tables are not available in this environment yet."
@@ -33,5 +33,5 @@ export default async function KaraokePage() {
     return <KaraokeSetupNotice message={errorMessage} />;
   }
 
-  return <KaraokeCollectionClient initialItems={items ?? []} />;
+  return <KaraokeCollectionClient initialSetlists={setlists ?? []} />;
 }

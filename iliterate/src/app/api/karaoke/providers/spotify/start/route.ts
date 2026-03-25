@@ -8,6 +8,9 @@ const SPOTIFY_SCOPES = [
   "user-modify-playback-state",
   "user-read-playback-state",
   "user-library-read",
+  "user-read-recently-played",
+  "playlist-read-private",
+  "playlist-read-collaborative",
   "user-read-email",
   "user-read-private",
 ].join(" ");
@@ -33,6 +36,7 @@ export async function GET(request: NextRequest) {
 
     const returnTo = request.nextUrl.searchParams.get("returnTo") || "/home";
     const state = randomUUID();
+    const secureCookie = (env.appUrl ?? request.nextUrl.origin).startsWith("https://");
     const redirectUri = new URL(
       "/api/karaoke/providers/spotify/callback",
       env.appUrl ?? request.nextUrl.origin
@@ -50,14 +54,14 @@ export async function GET(request: NextRequest) {
     response.cookies.set("karaoke_spotify_state", state, {
       httpOnly: true,
       sameSite: "lax",
-      secure: true,
+      secure: secureCookie,
       path: "/",
       maxAge: 60 * 10,
     });
     response.cookies.set("karaoke_spotify_return_to", returnTo, {
       httpOnly: true,
       sameSite: "lax",
-      secure: true,
+      secure: secureCookie,
       path: "/",
       maxAge: 60 * 10,
     });

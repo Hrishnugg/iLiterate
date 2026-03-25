@@ -1,12 +1,11 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { normalizeKaraokeTrackUrl } from "@/lib/karaoke/providers";
 import {
-  createKaraokeItemFromTrack,
-  loadKaraokeItemSummaries,
+  createKaraokeSetlist,
+  loadKaraokeSetlists,
 } from "@/lib/karaoke/item-server";
 import {
-  karaokeItemCreateSchema,
+  karaokeSetlistCreateSchema,
   validateRequestBody,
 } from "@/lib/validations";
 
@@ -22,12 +21,12 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const items = await loadKaraokeItemSummaries(supabase, user.id);
-    return NextResponse.json({ items });
+    const setlists = await loadKaraokeSetlists(supabase, user.id);
+    return NextResponse.json({ setlists });
   } catch (error) {
-    console.error("Karaoke items GET error:", error);
+    console.error("Karaoke setlists GET error:", error);
     return NextResponse.json(
-      { error: "Failed to load karaoke items" },
+      { error: "Failed to load karaoke setlists" },
       { status: 500 }
     );
   }
@@ -47,7 +46,7 @@ export async function POST(request: Request) {
 
     const { data: body, error: validationError } = await validateRequestBody(
       request,
-      karaokeItemCreateSchema
+      karaokeSetlistCreateSchema
     );
 
     if (validationError || !body) {
@@ -57,33 +56,11 @@ export async function POST(request: Request) {
       );
     }
 
-    const normalizedTrack = body.track
-      ? {
-          ...body.track,
-          artworkUrl: body.track.artworkUrl ?? undefined,
-          durationMs: body.track.durationMs ?? undefined,
-        }
-      : await normalizeKaraokeTrackUrl(body.url as string);
-
-    if (normalizedTrack.provider === "tts") {
-      return NextResponse.json(
-        { error: "A music provider track is required" },
-        { status: 400 }
-      );
-    }
-
-    const item = await createKaraokeItemFromTrack(
-      supabase,
-      user.id,
-      normalizedTrack,
-      {
-        setlistId: body.setlistId ?? null,
-      }
-    );
-    return NextResponse.json({ item }, { status: 201 });
+    const setlist = await createKaraokeSetlist(supabase, user.id, body.name);
+    return NextResponse.json({ setlist }, { status: 201 });
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Failed to create karaoke item";
+      error instanceof Error ? error.message : "Failed to create karaoke setlist";
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }

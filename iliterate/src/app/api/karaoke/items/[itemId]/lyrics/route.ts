@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { loadKaraokeItemBundle } from "@/lib/karaoke/item-server";
-import { getKaraokeItemReadyStatus, splitLyricsTextToLines } from "@/lib/karaoke/timing";
+import {
+  getKaraokeTimingStatus,
+  getLegacyKaraokeStatus,
+  splitLyricsTextToLines,
+} from "@/lib/karaoke/timing";
 import { uuidSchema, karaokeLyricsUpdateSchema, validateRequestBody } from "@/lib/validations";
 import { mapKaraokeLyricsRow } from "@/lib/karaoke/server";
 
@@ -35,6 +39,8 @@ export async function GET(
       lyrics: bundle.lyrics ? mapKaraokeLyricsRow(bundle.lyrics) : null,
       job: bundle.job,
       status: bundle.item.status,
+      lyricsStatus: bundle.item.lyrics_status,
+      timingStatus: bundle.item.timing_status,
     });
   } catch (error) {
     console.error("Karaoke lyrics GET error:", error);
@@ -84,13 +90,16 @@ export async function PUT(
     }
 
     const lines = splitLyricsTextToLines(body.text);
-    const nextStatus =
-      lines.length === 0
-        ? "needs_lyrics"
-        : getKaraokeItemReadyStatus(
-            bundle.item.primary_provider,
-            Boolean(bundle.timeline?.cues?.length)
-          );
+    const nextLyricsStatus = lines.length === 0 ? "manual_fallback" : "ready";
+    const nextTimingStatus = getKaraokeTimingStatus(
+      bundle.item.primary_provider,
+      Boolean(bundle.timeline?.cues?.length)
+    );
+    const nextStatus = getLegacyKaraokeStatus({
+      provider: bundle.item.primary_provider,
+      lyricsStatus: nextLyricsStatus,
+      timingStatus: nextTimingStatus,
+    });
 
     const { data: lyricsData, error: lyricsError } = await supabase
       .from("karaoke_lyrics")
@@ -125,6 +134,14 @@ export async function PUT(
         .from("karaoke_items")
         .update({
           status: nextStatus,
+          lyrics_status: nextLyricsStatus,
+          timing_status: nextTimingStatus,
+          last_match_source: body.source ?? "manual",
+          last_match_confidence: null,
+          last_match_metadata: {
+            ...(bundle.item.last_match_metadata ?? {}),
+            manualOverrideAt: new Date().toISOString(),
+          },
         })
         .eq("user_id", user.id)
         .eq("id", itemId),
@@ -159,6 +176,8 @@ export async function PUT(
     return NextResponse.json({
       lyrics: mapKaraokeLyricsRow(lyricsData as never),
       status: nextStatus,
+      lyricsStatus: nextLyricsStatus,
+      timingStatus: nextTimingStatus,
     });
   } catch (error) {
     console.error("Karaoke lyrics PUT error:", error);

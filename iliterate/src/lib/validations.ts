@@ -13,12 +13,38 @@ export const karaokeMusicProviderSchema = z.enum([
   "apple_music",
   "spotify",
 ]);
-export const karaokeItemStatusSchema = z.enum([
+export const karaokeLegacyItemStatusSchema = z.enum([
   "fetching_lyrics",
   "needs_lyrics",
   "needs_timing",
   "ready",
   "error",
+]);
+export const karaokeItemStatusSchema = z.enum([
+  "matching",
+  "ready",
+  "needs_review",
+  "manual_fallback",
+  "error",
+]);
+export const karaokeLyricsStatusSchema = z.enum([
+  "queued",
+  "matching",
+  "ready",
+  "needs_review",
+  "manual_fallback",
+  "error",
+]);
+export const karaokeTimingStatusSchema = z.enum([
+  "not_applicable",
+  "draft",
+  "ready",
+  "needs_review",
+]);
+export const providerCollectionKindSchema = z.enum([
+  "tracks",
+  "playlists",
+  "recents",
 ]);
 
 // Supported languages for translation (common language codes)
@@ -114,6 +140,7 @@ export const karaokeTrackLinkRequestSchema = z.object({
 export const karaokeItemCreateSchema = z.object({
   url: z.string().url("A valid track URL is required").optional(),
   track: karaokeTrackSchema.optional(),
+  setlistId: uuidSchema.optional(),
 }).refine((value) => value.url || value.track, {
   message: "Either a track URL or a normalized track payload is required",
 });
@@ -138,6 +165,41 @@ export const karaokeItemTimelineRequestSchema = z.object({
 export const appleMusicConnectSchema = z.object({
   musicUserToken: z.string().min(1, "musicUserToken is required"),
   storefrontId: z.string().min(2).max(10).optional(),
+});
+
+export const karaokeSetlistCreateSchema = z.object({
+  name: z.string().trim().min(1).max(100),
+});
+
+export const karaokeSetlistUpdateSchema = z.object({
+  name: z.string().trim().min(1).max(100).optional(),
+});
+
+export const karaokeSetlistItemCreateSchema = z.object({
+  karaokeItemId: uuidSchema.optional(),
+  track: karaokeTrackSchema.optional(),
+  tracks: z.array(karaokeTrackSchema).max(100).optional(),
+  url: z.string().url("A valid track URL is required").optional(),
+  urls: z.array(z.string().url("A valid track URL is required")).max(100).optional(),
+  playlist: z.object({
+    provider: karaokeMusicProviderSchema,
+    playlistId: z.string().min(1).max(500),
+    title: z.string().min(1).max(500).optional(),
+  }).optional(),
+}).refine((value) => {
+  return Boolean(
+    value.karaokeItemId ||
+      value.track ||
+      value.url ||
+      (value.tracks && value.tracks.length > 0) ||
+      (value.urls && value.urls.length > 0)
+  );
+}, {
+  message: "Provide an existing karaoke item, one track, one URL, or a batch of tracks/URLs",
+});
+
+export const karaokeSetlistReorderSchema = z.object({
+  itemIds: z.array(uuidSchema).min(1).max(500),
 });
 
 // Highlight request validation

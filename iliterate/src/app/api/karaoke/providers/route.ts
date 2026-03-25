@@ -35,6 +35,9 @@ export async function GET() {
         expires_at: string | null;
       }>,
       {
+        soundcloudConfigured: Boolean(
+          env.karaoke.soundcloud.clientId && env.karaoke.soundcloud.clientSecret
+        ),
         appleMusicConfigured: Boolean(env.karaoke.appleMusic.developerToken),
         spotifyConfigured: Boolean(
           env.karaoke.spotify.clientId && env.karaoke.spotify.clientSecret

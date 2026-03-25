@@ -36,17 +36,36 @@ export type KaraokePlaybackProvider =
   | "spotify";
 export type KaraokeMusicProvider = Exclude<KaraokePlaybackProvider, "tts">;
 export type KaraokeTrackPlaybackMode = "embedded" | "link_out";
-export type KaraokeItemStatus =
+export type KaraokeLegacyItemStatus =
   | "fetching_lyrics"
   | "needs_lyrics"
   | "needs_timing"
   | "ready"
+  | "error";
+export type KaraokeItemLyricsStatus =
+  | "queued"
+  | "matching"
+  | "ready"
+  | "needs_review"
+  | "manual_fallback"
+  | "error";
+export type KaraokeItemTimingStatus =
+  | "not_applicable"
+  | "draft"
+  | "ready"
+  | "needs_review";
+export type KaraokeItemStatus =
+  | "matching"
+  | "ready"
+  | "needs_review"
+  | "manual_fallback"
   | "error";
 export type KaraokeLyricsJobStatus =
   | "pending"
   | "processing"
   | "completed"
   | "failed";
+export type ProviderCollectionKind = "tracks" | "playlists" | "recents";
 
 export type QuizType = "comprehension" | "vocabulary" | "grammar";
 
@@ -133,6 +152,44 @@ export interface KaraokeTrackLink {
   playbackMode: KaraokeTrackPlaybackMode;
 }
 
+export interface ProviderPlaylistSummary {
+  provider: KaraokeMusicProvider;
+  playlistId: string;
+  title: string;
+  curator: string;
+  artworkUrl?: string;
+  url?: string;
+  description?: string;
+  trackCount: number;
+}
+
+export interface ProviderLibraryItem {
+  id: string;
+  kind: "track" | "playlist";
+  provider: KaraokeMusicProvider;
+  title: string;
+  subtitle: string;
+  artworkUrl?: string;
+  url?: string;
+  durationMs?: number;
+  track?: KaraokeTrackLink;
+  playlist?: ProviderPlaylistSummary;
+  metadata?: Record<string, unknown>;
+}
+
+export interface ProviderLibraryCollection {
+  provider: KaraokeMusicProvider;
+  key: ProviderCollectionKind;
+  kind: ProviderCollectionKind;
+  label: string;
+  description?: string;
+  items: ProviderLibraryItem[];
+  cursor?: string | null;
+  hasMore: boolean;
+  connected: boolean;
+  emptyMessage?: string;
+}
+
 export interface MusicProviderConnection {
   id: string;
   user_id: string;
@@ -180,12 +237,18 @@ export interface KaraokeItem {
   user_id: string;
   title: string;
   artist: string;
-  status: KaraokeItemStatus;
+  status: KaraokeLegacyItemStatus;
+  lyrics_status: KaraokeItemLyricsStatus;
+  timing_status: KaraokeItemTimingStatus;
   primary_provider: KaraokeMusicProvider;
   primary_track_id: string;
   primary_track_url: string;
   artwork_url: string | null;
   duration_ms: number | null;
+  provider_sync_capable: boolean;
+  last_match_confidence: number | null;
+  last_match_source: string | null;
+  last_match_metadata: Record<string, unknown>;
   metadata: Record<string, unknown>;
   created_at: string;
   updated_at: string;
@@ -246,19 +309,44 @@ export interface KaraokeLyricsJob {
   updated_at: string;
 }
 
+export interface KaraokeSetlistRow {
+  id: string;
+  user_id: string;
+  name: string;
+  is_default: boolean;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface KaraokeSetlistItemRow {
+  id: string;
+  user_id: string;
+  setlist_id: string;
+  karaoke_item_id: string;
+  sort_order: number;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface KaraokeItemSummary {
   id: string;
   title: string;
   artist: string;
   status: KaraokeItemStatus;
+  lyricsStatus: KaraokeItemLyricsStatus;
+  timingStatus: KaraokeItemTimingStatus;
   primaryProvider: KaraokeMusicProvider;
   artworkUrl?: string;
   durationMs?: number;
+  providerSyncCapable: boolean;
   lineCount: number;
   hasLyrics: boolean;
   hasTimeline: boolean;
   track: KaraokeTrackLink | null;
   jobStatus?: KaraokeLyricsJobStatus;
+  matchConfidence?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -267,6 +355,36 @@ export interface KaraokeItemDetail extends KaraokeItemSummary {
   metadata: Record<string, unknown>;
   lyrics: KaraokeLyrics | null;
   timeline: KaraokeItemTimeline | null;
+  lastMatchSource?: string | null;
+  lastMatchMetadata?: Record<string, unknown>;
+}
+
+export interface KaraokeSetlistItem {
+  id: string;
+  karaokeItemId: string;
+  sortOrder: number;
+  metadata: Record<string, unknown>;
+  item: KaraokeItemSummary | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface KaraokeSetlist {
+  id: string;
+  name: string;
+  isDefault: boolean;
+  metadata: Record<string, unknown>;
+  itemCount: number;
+  items: KaraokeSetlistItem[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ActiveKaraokeSession {
+  setlistId: string | null;
+  currentItemId: string | null;
+  queueItemIds: string[];
+  currentIndex: number;
 }
 
 export interface ReadingProgress {

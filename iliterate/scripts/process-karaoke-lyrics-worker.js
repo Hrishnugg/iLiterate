@@ -51,6 +51,14 @@ function getReadyStatus(provider, hasTimeline) {
   return hasTimeline ? "ready" : "needs_timing";
 }
 
+function getTimingStatus(provider, hasTimeline) {
+  if (provider === "spotify") {
+    return "not_applicable";
+  }
+
+  return hasTimeline ? "ready" : "draft";
+}
+
 async function fetchNextJob() {
   const { data, error } = await supabase
     .from("karaoke_lyrics_jobs")
@@ -153,6 +161,14 @@ async function processJob(job) {
     last_error: null,
     updated_at: new Date().toISOString(),
   });
+  await supabase
+    .from("karaoke_items")
+    .update({
+      status: "fetching_lyrics",
+      lyrics_status: "matching",
+    })
+    .eq("id", job.karaoke_item_id)
+    .eq("user_id", job.user_id);
 
   try {
     const bundle = await loadBundle(job);
@@ -177,7 +193,15 @@ async function processJob(job) {
       throw new Error("No lyrics were returned for this track");
     }
 
-    const nextStatus = getReadyStatus(job.provider, bundle.hasTimeline);
+    const confidence =
+      typeof payload?.confidence === "number" ? payload.confidence : null;
+    const nextLyricsStatus =
+      confidence !== null && confidence < 0.65 ? "needs_review" : "ready";
+    const nextTimingStatus = getTimingStatus(job.provider, bundle.hasTimeline);
+    const nextStatus =
+      nextLyricsStatus === "needs_review"
+        ? "needs_timing"
+        : getReadyStatus(job.provider, bundle.hasTimeline);
 
     const [{ error: lyricsError }, { error: itemError }, { error: jobError }] =
       await Promise.all([
@@ -194,13 +218,27 @@ async function processJob(job) {
             metadata: {
               provider: job.provider,
               importedAt: new Date().toISOString(),
+              confidence,
             },
           },
           { onConflict: "karaoke_item_id" }
         ),
         supabase
           .from("karaoke_items")
-          .update({ status: nextStatus })
+          .update({
+            status: nextStatus,
+            lyrics_status: nextLyricsStatus,
+            timing_status: nextTimingStatus,
+            last_match_confidence: confidence,
+            last_match_source:
+              typeof payload?.source === "string" && payload.source.trim()
+                ? payload.source.trim()
+                : "licensed_service",
+            last_match_metadata: {
+              matchedAt: new Date().toISOString(),
+              confidence,
+            },
+          })
           .eq("id", job.karaoke_item_id)
           .eq("user_id", job.user_id),
         supabase
@@ -240,6 +278,7 @@ async function processJob(job) {
         .from("karaoke_items")
         .update({
           status: exhausted ? "needs_lyrics" : "fetching_lyrics",
+          lyrics_status: exhausted ? "manual_fallback" : "matching",
         })
         .eq("id", job.karaoke_item_id)
         .eq("user_id", job.user_id),
