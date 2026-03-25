@@ -244,7 +244,7 @@ export function LibraryContent({ contents, targetLanguage }: LibraryContentProps
                 No content matches the selected filters.
               </div>
             ) : (
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              <div className="grid items-start gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {filteredContents.map((content) => (
                   <ContentCard key={content.id} content={content} />
                 ))}
@@ -480,7 +480,7 @@ function MyContentTab({
           </p>
         </div>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid items-start gap-4 md:grid-cols-2 xl:grid-cols-3">
           {userContent.map((item) => (
             <Card key={item.id} className="flex flex-col">
               {item.source_upload_kind === "image" && item.thumbnail_url ? (
@@ -713,7 +713,7 @@ function SavedGrid({
   }
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+    <div className="grid items-start gap-4 md:grid-cols-2 xl:grid-cols-3">
       {bookmarks.map((bookmark) =>
         bookmark.item_type === "content" ? (
           <SavedContentCard key={bookmark.id} bookmark={bookmark} />
