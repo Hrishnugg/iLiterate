@@ -29,7 +29,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Content } from "@/types/database";
 import { ImportContentDialog } from "@/components/library/ImportContentDialog";
-import UploadBookDialog from "@/components/reader/UploadBookDialog";
 
 interface BookmarkWithMetadata {
   id: string;
@@ -123,9 +122,7 @@ export function LibraryContent({ contents, targetLanguage }: LibraryContentProps
 
   const [activeTab, setActiveTab] = useState<"browse" | "my-content">("browse");
   const [savedOnly, setSavedOnly] = useState(false);
-  const [selectedLanguages, setSelectedLanguages] = useState<string[]>(
-    targetLanguage && languages.includes(targetLanguage) ? [targetLanguage] : []
-  );
+  const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
   const [selectedDifficulties, setSelectedDifficulties] = useState<string[]>([]);
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
 
@@ -137,9 +134,7 @@ export function LibraryContent({ contents, targetLanguage }: LibraryContentProps
   const [userContent, setUserContent] = useState<UserContent[]>([]);
   const [isLoadingContent, setIsLoadingContent] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
-  const [myContentSelectedLanguages, setMyContentSelectedLanguages] = useState<string[]>(
-    targetLanguage ? [targetLanguage] : []
-  );
+  const [myContentSelectedLanguages, setMyContentSelectedLanguages] = useState<string[]>([]);
   const [myContentSelectedDifficulties, setMyContentSelectedDifficulties] = useState<string[]>([]);
 
   useEffect(() => {
@@ -212,9 +207,6 @@ export function LibraryContent({ contents, targetLanguage }: LibraryContentProps
             <div>
               <h1 className="text-2xl font-bold">Library</h1>
               <p className="mt-1 text-sm text-muted-foreground">Browse content by language.</p>
-            </div>
-            <div className="shrink-0">
-              <UploadBookDialog />
             </div>
           </div>
 
