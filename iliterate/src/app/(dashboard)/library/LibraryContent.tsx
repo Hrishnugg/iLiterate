@@ -729,6 +729,17 @@ function SavedContentCard({ bookmark }: { bookmark: BookmarkWithMetadata }) {
   const m = bookmark.metadata;
   return (
     <Card className="flex flex-col">
+      {m.source_upload_kind === "image" && typeof m.thumbnail_url === "string" ? (
+        <div className="relative aspect-[4/3] overflow-hidden rounded-t-xl border-b border-border/60 bg-muted/20">
+          <Image
+            src={m.thumbnail_url}
+            alt={String(m.title)}
+            fill
+            unoptimized
+            className="object-cover object-top"
+          />
+        </div>
+      ) : null}
       <CardHeader>
         <div className="flex items-start justify-between">
           <CardTitle className="text-lg">{m.title as string}</CardTitle>
