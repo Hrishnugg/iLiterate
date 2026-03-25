@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   LANGUAGE_TO_LOCALE,
@@ -12,11 +12,13 @@ import {
 interface I18nContextValue {
   t: (key: string) => string;
   locale: string;
+  refreshLocale: () => Promise<void>;
 }
 
 const I18nContext = createContext<I18nContextValue>({
   t: (key) => key,
   locale: "en",
+  refreshLocale: async () => {},
 });
 
 export function I18nProvider({ children }: { children: React.ReactNode }) {
@@ -25,34 +27,44 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
   );
   const [locale, setLocale] = useState("en");
 
-  useEffect(() => {
-    async function loadLocale() {
-      const supabase = createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) return;
+  const refreshLocale = useCallback(async () => {
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("native_language")
-        .eq("id", user.id)
-        .single();
-
-      if (profile?.native_language) {
-        const localeCode =
-          LANGUAGE_TO_LOCALE[profile.native_language.toLowerCase()] ?? "en";
-        setLocale(localeCode);
-        setMessages(getLocaleMessages(localeCode));
-      }
+    if (!user) {
+      setLocale("en");
+      setMessages(getLocaleMessages("en"));
+      return;
     }
-    loadLocale();
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("native_language")
+      .eq("id", user.id)
+      .single();
+
+    if (profile?.native_language) {
+      const localeCode =
+        LANGUAGE_TO_LOCALE[profile.native_language.toLowerCase()] ?? "en";
+      setLocale(localeCode);
+      setMessages(getLocaleMessages(localeCode));
+      return;
+    }
+
+    setLocale("en");
+    setMessages(getLocaleMessages("en"));
   }, []);
+
+  useEffect(() => {
+    void refreshLocale();
+  }, [refreshLocale]);
 
   const t = (key: string) => resolveKey(messages, key);
 
   return (
-    <I18nContext.Provider value={{ t, locale }}>
+    <I18nContext.Provider value={{ t, locale, refreshLocale }}>
       {children}
     </I18nContext.Provider>
   );
@@ -64,4 +76,8 @@ export function useT(): (key: string) => string {
 
 export function useLocale(): string {
   return useContext(I18nContext).locale;
+}
+
+export function useRefreshLocale(): () => Promise<void> {
+  return useContext(I18nContext).refreshLocale;
 }
