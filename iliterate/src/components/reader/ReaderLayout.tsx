@@ -35,6 +35,7 @@ interface ReaderLayoutProps {
   onToggleRSVP?: () => void;
   modePanel?: React.ReactNode;
   requestRightOpen?: string | null;
+  contentWidth?: "article" | "wide";
 }
 
 export function ReaderLayout({
@@ -50,6 +51,7 @@ export function ReaderLayout({
   onToggleRSVP,
   modePanel,
   requestRightOpen,
+  contentWidth = "article",
 }: ReaderLayoutProps) {
   const router = useRouter();
   const [rightOpen, setRightOpen] = useState(false);
@@ -370,7 +372,14 @@ export function ReaderLayout({
           {isRSVPMode ? (
             children
           ) : (
-            <article className="mx-auto max-w-[80ch] px-8 pb-24 pt-8">
+            <article
+              className={cn(
+                "mx-auto w-full pb-24 pt-8",
+                contentWidth === "wide"
+                  ? "max-w-[1600px] px-6 xl:px-8"
+                  : "max-w-[80ch] px-8"
+              )}
+            >
               {children}
             </article>
           )}

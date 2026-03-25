@@ -515,6 +515,7 @@ export function ArticleRenderer({
       <ReaderLayout
         title={content.title}
         contentScrollRef={contentContainerRef}
+        contentWidth={sourceImageUrl ? "wide" : "article"}
         hideLeftSidebar={tocItems.length === 0}
         isRSVPMode={isRSVPMode}
         onToggleRSVP={toggleRSVP}

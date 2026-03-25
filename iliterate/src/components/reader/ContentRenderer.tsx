@@ -707,7 +707,7 @@ export function ContentRenderer({
   if (hasSourceImage) {
     return (
       <div className="space-y-6">
-        <div className="grid gap-8 xl:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
+        <div className="grid gap-8 xl:grid-cols-[minmax(0,1.55fr)_minmax(20rem,0.75fr)] 2xl:grid-cols-[minmax(0,1.7fr)_minmax(22rem,0.65fr)]">
           <aside className="order-1 xl:order-none">
             <div className="xl:sticky xl:top-6">
               <div className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm">
@@ -717,7 +717,7 @@ export function ContentRenderer({
                   width={1400}
                   height={1800}
                   unoptimized
-                  className="h-auto max-h-[78vh] w-full object-contain bg-muted/20"
+                  className="h-auto max-h-[90vh] w-full object-contain bg-muted/20"
                 />
               </div>
               <p className="mt-3 text-sm text-muted-foreground">
