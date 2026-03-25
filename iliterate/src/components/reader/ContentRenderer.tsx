@@ -3,6 +3,7 @@
 import { useMemo, useEffect, useRef, useState, useCallback } from "react";
 import DOMPurify from "dompurify";
 import dynamic from "next/dynamic";
+import Image from "next/image";
 import { Content, Highlight } from "@/types/database";
 import { TextSelection } from "./TextHighlighter";
 import { buildReaderSegments, ReaderMode, ReaderSegment } from "./karaoke";
@@ -20,6 +21,8 @@ const EPUBRenderer = dynamic(() => import("./EPUBRenderer").then(mod => mod.EPUB
 
 interface ContentRendererProps {
   content: Content;
+  sourceImageUrl?: string | null;
+  sourceImageAlt?: string | null;
   highlights?: Highlight[];
   focusedHighlightId?: string | null;
   currentSelection?: TextSelection | null;
@@ -35,6 +38,8 @@ interface ContentRendererProps {
 
 export function ContentRenderer({
   content,
+  sourceImageUrl = null,
+  sourceImageAlt = null,
   highlights = [],
   focusedHighlightId,
   currentSelection,
@@ -57,6 +62,7 @@ export function ContentRenderer({
     content.source_url?.toLowerCase().endsWith(".epub") ||
     content.content_type === "epub";
   const isKaraokeMode = readerMode === "karaoke" && !isPDF && !isEPUB;
+  const hasSourceImage = Boolean(sourceImageUrl) && !isPDF && !isEPUB;
 
   // Track if mounted to avoid hydration mismatch
   const [isMounted, setIsMounted] = useState(false);
@@ -637,66 +643,93 @@ export function ContentRenderer({
     );
   }
 
-  return (
-    <div className="space-y-6">
-      <div
-        ref={contentRef}
-        onMouseUp={() => {
-          // Handle text selection for article content
-          const selection = window.getSelection();
-          if (selection && !selection.isCollapsed && contentRef.current) {
-            const text = selection.toString().trim();
-            if (text && onSelection) {
-              const range = selection.getRangeAt(0);
+  const contentBody = (
+    <div
+      ref={contentRef}
+      onMouseUp={() => {
+        // Handle text selection for article content
+        const selection = window.getSelection();
+        if (selection && !selection.isCollapsed && contentRef.current) {
+          const text = selection.toString().trim();
+          if (text && onSelection) {
+            const range = selection.getRangeAt(0);
 
-              // Calculate offset relative to the FULL content container (not parent element)
-              // This ensures stored positions match how highlightTextInDocument searches
-              const walker = document.createTreeWalker(
-                contentRef.current,
-                NodeFilter.SHOW_TEXT,
-                null
-              );
-              let startOffset = 0;
-              let foundStart = false;
-              let currentNode: Node | null;
+            // Calculate offset relative to the FULL content container (not parent element)
+            // This ensures stored positions match how highlightTextInDocument searches
+            const walker = document.createTreeWalker(
+              contentRef.current,
+              NodeFilter.SHOW_TEXT,
+              null
+            );
+            let startOffset = 0;
+            let foundStart = false;
+            let currentNode: Node | null;
 
-              while ((currentNode = walker.nextNode())) {
-                if (currentNode === range.startContainer) {
-                  startOffset += range.startOffset;
-                  foundStart = true;
-                  break;
-                }
-                startOffset += currentNode.textContent?.length || 0;
+            while ((currentNode = walker.nextNode())) {
+              if (currentNode === range.startContainer) {
+                startOffset += range.startOffset;
+                foundStart = true;
+                break;
               }
-
-              if (!foundStart) return;
-
-              const endOffset = startOffset + text.length;
-              const fullText = contentRef.current.textContent || "";
-
-              const contextLength = 50;
-              const contextBefore = fullText.slice(Math.max(0, startOffset - contextLength), startOffset);
-              const contextAfter = fullText.slice(endOffset, endOffset + contextLength);
-
-              onSelection({
-                text,
-                startOffset,
-                endOffset,
-                contextBefore,
-                contextAfter,
-                range: range.cloneRange(),
-              });
+              startOffset += currentNode.textContent?.length || 0;
             }
+
+            if (!foundStart) return;
+
+            const endOffset = startOffset + text.length;
+            const fullText = contentRef.current.textContent || "";
+
+            const contextLength = 50;
+            const contextBefore = fullText.slice(Math.max(0, startOffset - contextLength), startOffset);
+            const contextAfter = fullText.slice(endOffset, endOffset + contextLength);
+
+            onSelection({
+              text,
+              startOffset,
+              endOffset,
+              contextBefore,
+              contextAfter,
+              range: range.cloneRange(),
+            });
           }
-        }}
-        dangerouslySetInnerHTML={{ __html: renderedBody }}
-        className={
-          "space-y-4 text-lg leading-relaxed [&_h1]:mb-4 [&_h1]:text-3xl [&_h1]:font-bold [&_h1]:leading-tight [&_h2]:mt-8 [&_h2]:mb-4 [&_h2]:text-2xl [&_h2]:font-semibold [&_h3]:mt-6 [&_h3]:mb-3 [&_h3]:text-xl [&_h3]:font-semibold [&_li]:mb-2 [&_blockquote]:border-l-4 [&_blockquote]:border-muted [&_blockquote]:pl-4 [&_blockquote]:italic [&_ol]:list-decimal [&_ol]:pl-6 [&_p]:mb-4 [&_ul]:list-disc [&_ul]:pl-6" +
-          (isKaraokeMode
-            ? " [&_.reader-segment]:mx-px [&_.reader-segment]:inline-decoration-clone [&_.reader-segment]:box-decoration-clone"
-            : "")
         }
-      />
-    </div>
+      }}
+      dangerouslySetInnerHTML={{ __html: renderedBody }}
+      className={
+        "space-y-4 text-lg leading-relaxed [&_h1]:mb-4 [&_h1]:text-3xl [&_h1]:font-bold [&_h1]:leading-tight [&_h2]:mt-8 [&_h2]:mb-4 [&_h2]:text-2xl [&_h2]:font-semibold [&_h3]:mt-6 [&_h3]:mb-3 [&_h3]:text-xl [&_h3]:font-semibold [&_li]:mb-2 [&_blockquote]:border-l-4 [&_blockquote]:border-muted [&_blockquote]:pl-4 [&_blockquote]:italic [&_ol]:list-decimal [&_ol]:pl-6 [&_p]:mb-4 [&_ul]:list-disc [&_ul]:pl-6" +
+        (isKaraokeMode
+          ? " [&_.reader-segment]:mx-px [&_.reader-segment]:inline-decoration-clone [&_.reader-segment]:box-decoration-clone"
+          : "")
+      }
+    />
   );
+
+  if (hasSourceImage) {
+    return (
+      <div className="space-y-6">
+        <div className="grid gap-8 xl:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
+          <aside className="order-1 xl:order-none">
+            <div className="xl:sticky xl:top-6">
+              <div className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm">
+                <Image
+                  src={sourceImageUrl!}
+                  alt={sourceImageAlt ?? content.title}
+                  width={1400}
+                  height={1800}
+                  unoptimized
+                  className="h-auto max-h-[78vh] w-full object-contain bg-muted/20"
+                />
+              </div>
+              <p className="mt-3 text-sm text-muted-foreground">
+                Original uploaded image
+              </p>
+            </div>
+          </aside>
+          <div className="order-2 min-w-0">{contentBody}</div>
+        </div>
+      </div>
+    );
+  }
+
+  return <div className="space-y-6">{contentBody}</div>;
 }

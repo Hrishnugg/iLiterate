@@ -31,9 +31,16 @@ interface TOCItem {
 interface ArticleRendererProps {
   content: Content;
   isLesson?: boolean;
+  sourceImageUrl?: string | null;
+  sourceImageAlt?: string | null;
 }
 
-export function ArticleRenderer({ content, isLesson = false }: ArticleRendererProps) {
+export function ArticleRenderer({
+  content,
+  isLesson = false,
+  sourceImageUrl = null,
+  sourceImageAlt = null,
+}: ArticleRendererProps) {
   const [highlights, setHighlights] = useState<Highlight[]>([]);
   const [lookups, setLookups] = useState<TranslationLookup[]>([]);
   const [flashcardTerms, setFlashcardTerms] = useState<Set<string>>(new Set());
@@ -572,6 +579,8 @@ export function ArticleRenderer({ content, isLesson = false }: ArticleRendererPr
         ) : (
           <ContentRenderer
             content={content}
+            sourceImageUrl={sourceImageUrl}
+            sourceImageAlt={sourceImageAlt}
             highlights={highlights}
             focusedHighlightId={focusedHighlightId}
             currentSelection={selection}

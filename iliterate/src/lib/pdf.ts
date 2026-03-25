@@ -1,6 +1,36 @@
-import { createRequire } from "node:module";
-import path from "node:path";
-import { pathToFileURL } from "node:url";
+type PdfJsModule = typeof import("pdfjs-dist/legacy/build/pdf.mjs");
+type TextContentItem = {
+  str: string;
+  hasEOL: boolean;
+};
+type PdfDocumentInput = Parameters<PdfJsModule["getDocument"]>[0];
+
+let cachedPdfJsModule: Promise<PdfJsModule> | null = null;
+
+function loadPdfJsModule() {
+  if (!cachedPdfJsModule) {
+    cachedPdfJsModule = import("pdfjs-dist/legacy/build/pdf.mjs");
+  }
+
+  return cachedPdfJsModule;
+}
+
+function extractPageText(items: Array<TextContentItem | Record<string, unknown>>) {
+  let pageText = "";
+
+  for (const item of items) {
+    if (!("str" in item) || typeof item.str !== "string") {
+      continue;
+    }
+
+    pageText += item.str;
+    if ("hasEOL" in item && item.hasEOL === true) {
+      pageText += "\n";
+    }
+  }
+
+  return pageText.trimEnd();
+}
 
 /**
  * Extract plain text from a PDF buffer, preserving the visual structure of
@@ -8,69 +38,43 @@ import { pathToFileURL } from "node:url";
  *
  * Strategy
  * --------
- * 1.  pdf-parse v2 getText() gives us raw text with line-break hints injected
- *     whenever the y-position jumps between consecutive text items.
- * 2.  We then run a multi-pass post-processor to recover the document structure:
+ * 1.  pdfjs-dist's Node-compatible legacy build reads the PDF and exposes page
+ *     text items with inline space characters plus `hasEOL` line-break hints.
+ * 2.  We flatten each page to raw text and then run a multi-pass post-processor
+ *     to recover the document structure:
  *     a. Re-join soft hyphens and end-of-line hyphens (e.g. "analy-\nsis" → "analysis").
  *     b. Detect paragraph boundaries (gap > 1 line) and emit a blank-line separator.
- *     c. Strip mid-line tab characters inserted by pdf-parse's column detector
- *        (justified text produces irregular x-jumps that shouldn't become tabs).
+ *     c. Strip stray mid-line tab characters if any parser inserts them.
  *     d. Collapse runs of 3+ blank lines to 2.
  *     e. Trim trailing whitespace from every line.
- *
- * createRequire bypasses Next.js bundling (which breaks pdf-parse's CJS adapters).
- * The worker must be the one bundled inside pdf-parse to avoid a version mismatch.
  */
 export async function extractTextFromPdfBuffer(buffer: Buffer): Promise<string> {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const require = createRequire(import.meta.url);
-  const { PDFParse } = require("pdf-parse") as {
-    PDFParse: {
-      new (opts: { data: Buffer; verbosity?: number }): {
-        getText(opts?: {
-          lineEnforce?: boolean;
-          lineThreshold?: number;
-          cellSeparator?: string;
-          cellThreshold?: number;
-          pageJoiner?: string;
-          includeMarkedContent?: boolean;
-          disableNormalization?: boolean;
-        }): Promise<{ text: string; pages: Array<{ text: string; num: number }> }>;
-      };
-      setWorker(src?: string): string;
-    };
-  };
+  const pdfjs = await loadPdfJsModule();
+  const loadingTask = pdfjs.getDocument({
+    data: new Uint8Array(buffer),
+    disableWorker: true,
+    verbosity: 0,
+  } as PdfDocumentInput & { disableWorker: boolean });
 
-  // Use the worker that ships with pdf-parse itself to guarantee version match.
-  const workerPath = path.join(
-    process.cwd(),
-    "node_modules",
-    "pdf-parse",
-    "dist",
-    "worker",
-    "pdf.worker.mjs"
-  );
-  PDFParse.setWorker(pathToFileURL(workerPath).href);
+  try {
+    const pdf = await loadingTask.promise;
+    const pages: string[] = [];
 
-  const parser = new PDFParse({ data: buffer, verbosity: 0 });
-  const result = await parser.getText({
-    // Only break lines when y shifts by more than ~half a typical line height.
-    // 8pt avoids spurious breaks from baseline micro-variations and superscripts
-    // while still detecting actual new lines (typical line spacing is 12-16pt).
-    lineEnforce: true,
-    lineThreshold: 8,
-    // Very high column threshold — tab only for genuine multi-column layouts,
-    // never for normal word spacing in justified paragraphs.
-    cellSeparator: "\t",
-    cellThreshold: 80,
-    // Each page ends with a double newline (no "page N of M" banner).
-    pageJoiner: "\n\n",
-    // Keep marked-content spans (tagged headings, lists, etc.).
-    includeMarkedContent: true,
-    disableNormalization: false,
-  });
+    for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
+      const page = await pdf.getPage(pageNumber);
+      const textContent = await page.getTextContent({
+        includeMarkedContent: true,
+        disableNormalization: false,
+      });
 
-  return postProcess(result.text);
+      pages.push(extractPageText(textContent.items));
+      page.cleanup();
+    }
+
+    return postProcess(pages.join("\n\n"));
+  } finally {
+    await loadingTask.destroy().catch(() => undefined);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -114,10 +118,21 @@ function postProcess(raw: string): string {
     //     We do NOT join when the next line looks like a new sentence/heading
     //     (starts with uppercase, digit followed by '.', or is all-caps).
     const endsWithTerminator = /[.?!:…"»—]$/.test(line) || /\.\s*$/.test(line);
+    const containsCjk = /[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]/.test(
+      `${line}${next ?? ""}`
+    );
+    const lineLooksWrappedProse =
+      line.length >= 45 || line.split(/\s+/).filter(Boolean).length >= 8;
+    const nextLooksWrappedProse =
+      next !== null &&
+      (next.length >= 20 || next.split(/\s+/).filter(Boolean).length >= 4);
     const nextIsContinuation =
       next !== null &&
       next !== "" &&
-      /^[a-z\u00C0-\u024F\u3040-\u9FFF\uAC00-\uD7AF("]/.test(next);
+      !containsCjk &&
+      lineLooksWrappedProse &&
+      nextLooksWrappedProse &&
+      /^[a-z\u00C0-\u024F("]/.test(next);
 
     if (!endsWithTerminator && nextIsContinuation) {
       // Start accumulating a paragraph.

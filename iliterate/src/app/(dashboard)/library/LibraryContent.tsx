@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 
 import { BookOpen, Loader2, Award, Bookmark, X, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
@@ -372,6 +373,8 @@ type UserContent = {
   word_count: number | null;
   estimated_reading_time: number | null;
   created_at: string;
+  source_upload_kind?: string | null;
+  thumbnail_url?: string | null;
 };
 
 function MyContentTab({
@@ -480,6 +483,17 @@ function MyContentTab({
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {userContent.map((item) => (
             <Card key={item.id} className="flex flex-col">
+              {item.source_upload_kind === "image" && item.thumbnail_url ? (
+                <div className="relative aspect-[4/3] overflow-hidden rounded-t-xl border-b border-border/60 bg-muted/20">
+                  <Image
+                    src={item.thumbnail_url}
+                    alt={item.title}
+                    fill
+                    unoptimized
+                    className="object-cover object-top"
+                  />
+                </div>
+              ) : null}
               <CardHeader>
                 <div className="flex items-start justify-between gap-2">
                   <CardTitle className="text-base leading-snug">{item.title}</CardTitle>
