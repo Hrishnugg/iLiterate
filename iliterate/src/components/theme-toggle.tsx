@@ -11,9 +11,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { SidebarMenuButton } from "@/components/ui/sidebar";
+import { useT } from "@/lib/i18n/I18nProvider";
 
 export function ThemeToggle() {
   const { theme, setTheme } = useTheme();
+  const t = useT();
   const [mounted, setMounted] = React.useState(false);
 
   // Avoid hydration mismatch
@@ -42,25 +44,25 @@ export function ThemeToggle() {
   };
 
   const getThemeLabel = () => {
-    if (!mounted) return "Theme";
-    
+    if (!mounted) return t("profile.theme");
+
     switch (theme) {
       case "light":
-        return "Light";
+        return t("profile.themeLight");
       case "dark":
-        return "Dark";
+        return t("profile.themeDark");
       case "system":
       default:
-        return "System";
+        return t("profile.themeSystem");
     }
   };
 
   // Defer the entire DropdownMenu to avoid Radix ID hydration mismatch
   if (!mounted) {
     return (
-      <SidebarMenuButton tooltip="Change theme">
+      <SidebarMenuButton tooltip={t("profile.theme")}>
         <Sun className="transition-transform duration-200" />
-        <span>Theme</span>
+        <span>{t("profile.theme")}</span>
       </SidebarMenuButton>
     );
   }
@@ -68,7 +70,7 @@ export function ThemeToggle() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <SidebarMenuButton>
+        <SidebarMenuButton className="cursor-pointer">
           {getIcon()}
           <span>{getThemeLabel()}</span>
         </SidebarMenuButton>
@@ -79,7 +81,7 @@ export function ThemeToggle() {
           className="cursor-pointer"
         >
           <Sun className="mr-2 size-4" />
-          <span>Light</span>
+          <span>{t("profile.themeLight")}</span>
           {theme === "light" && (
             <span className="ml-auto text-xs">✓</span>
           )}
@@ -89,7 +91,7 @@ export function ThemeToggle() {
           className="cursor-pointer"
         >
           <Moon className="mr-2 size-4" />
-          <span>Dark</span>
+          <span>{t("profile.themeDark")}</span>
           {theme === "dark" && (
             <span className="ml-auto text-xs">✓</span>
           )}
@@ -99,7 +101,7 @@ export function ThemeToggle() {
           className="cursor-pointer"
         >
           <Monitor className="mr-2 size-4" />
-          <span>System</span>
+          <span>{t("profile.themeSystem")}</span>
           {theme === "system" && (
             <span className="ml-auto text-xs">✓</span>
           )}

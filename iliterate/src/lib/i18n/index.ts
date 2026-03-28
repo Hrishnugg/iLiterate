@@ -30,15 +30,15 @@ export const LANGUAGE_TO_LOCALE: Record<string, string> = {
 const locales: Record<string, Messages> = {
   en,
   es,
-  fr,
-  de,
-  ja,
-  ko,
-  "zh-cn": zhCn,
-  "zh-tw": zhTw,
-  pt,
-  ar,
-  hi,
+  fr: fr as unknown as Messages,
+  de: de as unknown as Messages,
+  ja: ja as unknown as Messages,
+  ko: ko as unknown as Messages,
+  "zh-cn": zhCn as unknown as Messages,
+  "zh-tw": zhTw as unknown as Messages,
+  pt: pt as unknown as Messages,
+  ar: ar as unknown as Messages,
+  hi: hi as unknown as Messages,
 };
 
 export function getLocaleMessages(localeCode: string): Messages {

@@ -14,7 +14,8 @@ const updatePublicProfileSchema = z.object({
     .string()
     .trim()
     .toLowerCase()
-    .regex(/^[a-z0-9_]{3,24}$/),
+    .regex(/^[a-z0-9_]{3,24}$/)
+    .optional(),
   displayName: z.string().trim().min(1).max(50),
   leaderboardAnonymous: z.boolean().optional(),
 });
@@ -66,11 +67,14 @@ export async function PUT(request: NextRequest) {
 
     const payload: Record<string, unknown> = {
       id: user.id,
-      username: parsed.data.username,
       display_name: parsed.data.displayName,
       avatar_seed: defaultAvatarSeed(user.id),
       updated_at: new Date().toISOString(),
     };
+
+    if (parsed.data.username !== undefined) {
+      payload.username = parsed.data.username;
+    }
 
     if (parsed.data.leaderboardAnonymous !== undefined) {
       payload.leaderboard_anonymous = parsed.data.leaderboardAnonymous;

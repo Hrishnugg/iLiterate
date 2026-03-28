@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2, ClipboardCheck, BookOpen, CheckCircle2 } from "lucide-react";
-import { useT } from "@/lib/i18n/I18nProvider";
+import { useT, T } from "@/lib/i18n/I18nProvider";
 
 interface PendingQuiz {
   id: string;
@@ -60,9 +60,9 @@ export default function QuizzesPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold">{t("quizzes.title")}</h1>
+        <h1 className="text-2xl font-bold"><T id="quizzes.title" /></h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          {t("quizzes.subtitle")}
+          <T id="quizzes.subtitle" />
         </p>
       </div>
 
@@ -71,10 +71,10 @@ export default function QuizzesPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <ClipboardCheck className="h-5 w-5" />
-            {t("quizzes.readyToTake")}
+            <T id="quizzes.readyToTake" />
           </CardTitle>
           <CardDescription>
-            {t("quizzes.readyToTakeDesc")}
+            <T id="quizzes.readyToTakeDesc" />
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -82,10 +82,10 @@ export default function QuizzesPage() {
             <div className="text-center py-8">
               <BookOpen className="h-12 w-12 mx-auto text-primary mb-4" />
               <p className="text-muted-foreground">
-                {t("quizzes.noQuizzes")}
+                <T id="quizzes.noQuizzes" />
               </p>
               <Button asChild className="mt-4">
-                <Link href="/library">{t("quizzes.goToLibrary")}</Link>
+                <Link href="/library"><T id="quizzes.goToLibrary" /></Link>
               </Button>
             </div>
           ) : (
@@ -98,11 +98,11 @@ export default function QuizzesPage() {
                   <div>
                     <p className="font-medium">{quiz.title}</p>
                     <p className="text-sm text-muted-foreground">
-                      {quiz.difficulty_level} • {quiz.progress_percent}% {t("quizzes.read")}
+                      {quiz.difficulty_level} • {quiz.progress_percent}% <T id="quizzes.read" />
                     </p>
                   </div>
                   <Button asChild>
-                    <Link href={quiz.source === "lesson" ? `/lesson-plan/${quiz.id}` : `/quizzes/${quiz.id}`}>{t("quizzes.takeQuiz")}</Link>
+                    <Link href={quiz.source === "lesson" ? `/lesson-plan/${quiz.id}` : `/quizzes/${quiz.id}`}><T id="quizzes.takeQuiz" /></Link>
                   </Button>
                 </div>
               ))}
@@ -116,14 +116,14 @@ export default function QuizzesPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <CheckCircle2 className="h-5 w-5 text-green-500" />
-            {t("quizzes.completed")}
+            <T id="quizzes.completed" />
           </CardTitle>
-          <CardDescription>{t("quizzes.completedDesc")}</CardDescription>
+          <CardDescription><T id="quizzes.completedDesc" /></CardDescription>
         </CardHeader>
         <CardContent>
           {completedQuizzes.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">
-              {t("quizzes.noCompleted")}
+              <T id="quizzes.noCompleted" />
             </p>
           ) : (
             <div className="space-y-3">

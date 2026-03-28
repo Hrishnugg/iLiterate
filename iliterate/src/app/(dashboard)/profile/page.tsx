@@ -39,32 +39,17 @@ export default async function ProfilePage() {
     }
   }
 
-  // Get the user's name from auth metadata
   const { data: socialProfile } = await supabase
     .from("public_profiles")
-    .select("id, username, display_name, avatar_seed, leaderboard_anonymous, created_at, updated_at")
+    .select("id, username, display_name, avatar_seed, avatar_url, leaderboard_anonymous, created_at, updated_at")
     .eq("id", user.id)
     .maybeSingle();
 
-  const userName =
-    socialProfile?.display_name ||
-    user.user_metadata?.full_name ||
-    user.email?.split("@")[0] ||
-    "there";
-
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Welcome, {userName}</h1>
-        <p className="text-muted-foreground mt-1">
-          Manage your account settings and learning preferences.
-        </p>
-      </div>
-      <ProfileSettings
-        user={user}
-        profile={profile}
-        socialProfile={socialProfile}
-      />
-    </div>
+    <ProfileSettings
+      user={user}
+      profile={profile}
+      socialProfile={socialProfile}
+    />
   );
 }

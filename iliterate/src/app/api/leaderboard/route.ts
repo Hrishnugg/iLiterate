@@ -80,12 +80,27 @@ export async function GET(request: NextRequest) {
       console.error("Participant count error:", countError);
     }
 
+    const userIds = (entries || []).map((e: { user_id: string }) => e.user_id);
+    const avatarMap: Record<string, { avatar_url: string | null; avatar_seed: string | null }> = {};
+
+    if (userIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from("public_profiles")
+        .select("id, avatar_url, avatar_seed")
+        .in("id", userIds);
+      for (const p of profiles ?? []) {
+        avatarMap[p.id] = { avatar_url: p.avatar_url, avatar_seed: p.avatar_seed };
+      }
+    }
+
     const formattedEntries = (entries || []).map(
       (e: { rank: number; user_id: string; display_name: string; total_points: number }) => ({
         rank: Number(e.rank),
         userId: e.user_id,
         displayName: e.display_name,
         points: Number(e.total_points),
+        avatarUrl: avatarMap[e.user_id]?.avatar_url ?? null,
+        avatarSeed: avatarMap[e.user_id]?.avatar_seed ?? null,
       })
     );
 

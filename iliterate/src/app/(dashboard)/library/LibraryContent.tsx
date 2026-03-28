@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Content } from "@/types/database";
 import { ImportContentDialog } from "@/components/library/ImportContentDialog";
+import { useT } from "@/lib/i18n/I18nProvider";
 
 interface BookmarkWithMetadata {
   id: string;
@@ -44,25 +45,43 @@ interface LibraryContentProps {
   targetLanguage: string | null;
 }
 
-const LANGUAGE_NAMES: Record<string, string> = {
-  en: "English",
-  es: "Spanish",
-  fr: "French",
-  de: "German",
-  it: "Italian",
-  pt: "Portuguese",
-  ja: "Japanese",
-  ko: "Korean",
-  zh: "Chinese",
-  ru: "Russian",
-  ar: "Arabic",
-  hi: "Hindi",
+const LANGUAGE_KEYS: Record<string, string> = {
+  en: "english",
+  es: "spanish",
+  fr: "french",
+  de: "german",
+  it: "it",
+  pt: "portuguese",
+  ja: "japanese",
+  ko: "korean",
+  zh: "chinese",
+  ru: "russian",
+  ar: "arabic",
+  hi: "hindi",
+  // full English name aliases (used by DB content)
+  english: "english",
+  spanish: "spanish",
+  french: "french",
+  german: "german",
+  italian: "it",
+  portuguese: "portuguese",
+  japanese: "japanese",
+  korean: "korean",
+  chinese: "chinese",
+  russian: "russian",
+  arabic: "arabic",
+  hindi: "hindi",
 };
 
 const CEFR_ORDER = ["A1", "A2", "B1", "B2", "C1", "C2"];
 
-function formatLanguage(code: string): string {
-  return LANGUAGE_NAMES[code.toLowerCase()] ?? code.charAt(0).toUpperCase() + code.slice(1);
+function formatLanguage(code: string, t: (key: string) => string): string {
+  const key = LANGUAGE_KEYS[code.toLowerCase()];
+  if (key) {
+    const translated = t(`library.languages.${key}`);
+    if (translated !== `library.languages.${key}`) return translated;
+  }
+  return code.charAt(0).toUpperCase() + code.slice(1);
 }
 
 function toggle(set: string[], value: string): string[] {
@@ -113,6 +132,8 @@ function FilterSection({
 }
 
 export function LibraryContent({ contents, targetLanguage }: LibraryContentProps) {
+  const t = useT();
+
   const languages = Array.from(new Set(contents.map((c) => c.language))).sort();
   const difficulties = CEFR_ORDER.filter((l) =>
     contents.some((c) => c.difficulty_level === l)
@@ -206,8 +227,8 @@ export function LibraryContent({ contents, targetLanguage }: LibraryContentProps
         <div className="flex-1 overflow-y-auto px-8 pb-10">
           <div className="mb-6 flex flex-col gap-4 pt-2 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <h1 className="text-2xl font-bold">Library</h1>
-              <p className="mt-1 text-sm text-muted-foreground">Browse content by language.</p>
+              <h1 className="text-2xl font-bold">{t("library.title")}</h1>
+              <p className="mt-1 text-sm text-muted-foreground">{t("library.browseSubtitle")}</p>
             </div>
           </div>
 
@@ -229,7 +250,7 @@ export function LibraryContent({ contents, targetLanguage }: LibraryContentProps
                   />
                 )}
                 <span className="relative z-10">
-                  {tab === "browse" ? "Browse" : "My Content"}
+                  {tab === "browse" ? t("library.browse") : t("library.myContent")}
                 </span>
               </button>
             ))}
@@ -241,10 +262,10 @@ export function LibraryContent({ contents, targetLanguage }: LibraryContentProps
               <SavedGrid bookmarks={bookmarks} isLoading={isLoadingBookmarks} />
             ) : filteredContents.length === 0 ? (
               <div className="py-16 text-center text-sm text-muted-foreground">
-                No content matches the selected filters.
+                {t("library.noMatch")}
               </div>
             ) : (
-              <div className="grid items-start gap-4 md:grid-cols-2 xl:grid-cols-3">
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {filteredContents.map((content) => (
                   <ContentCard key={content.id} content={content} />
                 ))}
@@ -269,7 +290,7 @@ export function LibraryContent({ contents, targetLanguage }: LibraryContentProps
           <>
             <div className="mb-5 flex items-center justify-between">
               <p className="text-sm font-semibold text-foreground">
-                Filters
+                {t("library.filters")}
               </p>
               <button
                 onClick={() => {
@@ -282,7 +303,7 @@ export function LibraryContent({ contents, targetLanguage }: LibraryContentProps
                 }`}
               >
                 <X className="h-2.5 w-2.5" />
-                Clear
+                {t("common.clear")}
               </button>
             </div>
 
@@ -296,29 +317,29 @@ export function LibraryContent({ contents, targetLanguage }: LibraryContentProps
                 }`}
               >
                 <Bookmark className={`h-3 w-3 transition-all ${savedOnly ? "fill-primary-foreground" : ""}`} />
-                Saved
+                {t("library.saved")}
               </button>
 
               <div className={`space-y-5 transition-opacity duration-150 ${savedOnly ? "pointer-events-none opacity-30" : ""}`}>
                 <FilterSection
-                  title="Language"
+                  title={t("common.language")}
                   options={languages}
                   selected={selectedLanguages}
                   onToggle={(v) => setSelectedLanguages(toggle(selectedLanguages, v))}
-                  formatOption={formatLanguage}
+                  formatOption={(v) => formatLanguage(v, t)}
                 />
                 <FilterSection
-                  title="Difficulty"
+                  title={t("common.difficulty")}
                   options={difficulties}
                   selected={selectedDifficulties}
                   onToggle={(v) => setSelectedDifficulties(toggle(selectedDifficulties, v))}
                 />
                 <FilterSection
-                  title="Type"
+                  title={t("common.type")}
                   options={types}
                   selected={selectedTypes}
                   onToggle={(v) => setSelectedTypes(toggle(selectedTypes, v))}
-                  formatOption={(v) => v.charAt(0).toUpperCase() + v.slice(1)}
+                  formatOption={(v) => t(`library.contentTypes.${v}`) !== `library.contentTypes.${v}` ? t(`library.contentTypes.${v}`) : v.charAt(0).toUpperCase() + v.slice(1)}
                 />
               </div>
             </div>
@@ -327,7 +348,7 @@ export function LibraryContent({ contents, targetLanguage }: LibraryContentProps
           <>
             <div className="mb-5 flex items-center justify-between">
               <p className="text-sm font-semibold text-foreground">
-                Filters
+                {t("library.filters")}
               </p>
               <button
                 onClick={() => {
@@ -339,20 +360,20 @@ export function LibraryContent({ contents, targetLanguage }: LibraryContentProps
                 }`}
               >
                 <X className="h-2.5 w-2.5" />
-                Clear
+                {t("common.clear")}
               </button>
             </div>
 
             <div className="space-y-5">
               <FilterSection
-                title="Language"
+                title={t("common.language")}
                 options={myContentLanguages}
                 selected={myContentSelectedLanguages}
                 onToggle={(v) => setMyContentSelectedLanguages(toggle(myContentSelectedLanguages, v))}
-                formatOption={formatLanguage}
+                formatOption={(v) => formatLanguage(v, t)}
               />
               <FilterSection
-                title="Difficulty"
+                title={t("common.difficulty")}
                 options={myContentDifficulties}
                 selected={myContentSelectedDifficulties}
                 onToggle={(v) => setMyContentSelectedDifficulties(toggle(myContentSelectedDifficulties, v))}
@@ -392,6 +413,7 @@ function MyContentTab({
   onUpdateItem: (id: string, updates: Partial<UserContent>) => void;
   onDeleteItem: (id: string) => void;
 }) {
+  const t = useT();
   const [editingItem, setEditingItem] = useState<UserContent | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editLanguage, setEditLanguage] = useState("");
@@ -474,13 +496,13 @@ function MyContentTab({
           <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-muted">
             <BookOpen className="h-6 w-6 text-muted-foreground" />
           </div>
-          <p className="text-sm font-medium text-foreground">No content yet</p>
+          <p className="text-sm font-medium text-foreground">{t("library.noContentYet")}</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Import a PDF, photo, or website to start reading.
+            {t("library.importPrompt")}
           </p>
         </div>
       ) : (
-        <div className="grid items-start gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {userContent.map((item) => (
             <Card key={item.id} className="flex flex-col">
               {item.source_upload_kind === "image" && item.thumbnail_url ? (
@@ -507,7 +529,7 @@ function MyContentTab({
                       <DropdownMenuContent align="end" className="w-36">
                         <DropdownMenuItem className="cursor-pointer" onClick={() => openEdit(item)}>
                           <Pencil className="mr-2 h-3.5 w-3.5" />
-                          Edit
+                          {t("common.edit")}
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
@@ -515,20 +537,20 @@ function MyContentTab({
                           className="cursor-pointer text-destructive focus:text-destructive"
                         >
                           <Trash2 className="mr-2 h-3.5 w-3.5" />
-                          Remove
+                          {t("common.remove")}
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
                 </div>
                 <CardDescription className="flex items-center gap-2">
-                  <span>{formatLanguage(item.language)}</span>
+                  <span>{formatLanguage(item.language, t)}</span>
                   <span>•</span>
                   <span className="rounded bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-primary">{item.difficulty_level}</span>
                   {item.estimated_reading_time && (
                     <>
                       <span>•</span>
-                      <span>{item.estimated_reading_time} min read</span>
+                      <span>{t("common.minRead").replace("{count}", String(item.estimated_reading_time))}</span>
                     </>
                   )}
                 </CardDescription>
@@ -537,7 +559,7 @@ function MyContentTab({
                 <Button asChild variant="outline" className="w-full">
                   <Link href={`/reader/${item.id}`}>
                     <BookOpen className="mr-2 h-4 w-4" />
-                    Read
+                    {t("library.read")}
                   </Link>
                 </Button>
               </CardContent>
@@ -552,12 +574,12 @@ function MyContentTab({
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Pencil className="h-4 w-4 text-primary" />
-              Edit content
+              {t("library.editContent")}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-1">
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-foreground">Title</label>
+              <label className="text-xs font-medium text-foreground">{t("common.title")}</label>
               <input
                 value={editTitle}
                 onChange={(e) => setEditTitle(e.target.value)}
@@ -566,19 +588,19 @@ function MyContentTab({
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-foreground">Language</label>
+                <label className="text-xs font-medium text-foreground">{t("common.language")}</label>
                 <select
                   value={editLanguage}
                   onChange={(e) => setEditLanguage(e.target.value)}
                   className="w-full rounded-md border border-border/60 bg-background px-3 py-2 text-sm outline-none focus:border-primary/60 focus:ring-1 focus:ring-primary/20"
                 >
-                  {Object.entries(LANGUAGE_NAMES).map(([code, name]) => (
-                    <option key={code} value={code}>{name}</option>
+                  {Object.entries(LANGUAGE_KEYS).map(([code, key]) => (
+                    <option key={code} value={code}>{t(`library.languages.${key}`)}</option>
                   ))}
                 </select>
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-foreground">Difficulty</label>
+                <label className="text-xs font-medium text-foreground">{t("common.difficulty")}</label>
                 <select
                   value={editDifficulty}
                   onChange={(e) => setEditDifficulty(e.target.value)}
@@ -593,7 +615,7 @@ function MyContentTab({
             {editError && <p className="text-xs text-destructive">{editError}</p>}
             <div className="flex justify-end gap-2 pt-1">
               <Button variant="outline" size="sm" onClick={() => setEditingItem(null)}>
-                Cancel
+                {t("common.cancel")}
               </Button>
               <Button
                 size="sm"
@@ -601,7 +623,7 @@ function MyContentTab({
                 disabled={isSavingEdit || !editTitle.trim()}
               >
                 {isSavingEdit ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : null}
-                Save
+                {t("common.save")}
               </Button>
             </div>
           </div>
@@ -614,17 +636,17 @@ function MyContentTab({
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Trash2 className="h-4 w-4 text-destructive" />
-              Remove content
+              {t("library.removeContent")}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-1">
             <p className="text-sm text-muted-foreground">
-              This will permanently remove the item from your library. This cannot be undone.
+              {t("library.removeConfirm")}
             </p>
             {deleteError && <p className="text-xs text-destructive">{deleteError}</p>}
             <div className="flex justify-end gap-2">
               <Button variant="outline" size="sm" onClick={() => setDeletingId(null)}>
-                Cancel
+                {t("common.cancel")}
               </Button>
               <Button
                 size="sm"
@@ -633,7 +655,7 @@ function MyContentTab({
                 disabled={isDeleting}
               >
                 {isDeleting ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : null}
-                Remove
+                {t("common.remove")}
               </Button>
             </div>
           </div>
@@ -644,6 +666,7 @@ function MyContentTab({
 }
 
 function ContentCard({ content }: { content: Content }) {
+  const t = useT();
   return (
     <Card className="flex flex-col">
       <CardHeader>
@@ -654,13 +677,13 @@ function ContentCard({ content }: { content: Content }) {
           </span>
         </div>
         <CardDescription className="flex items-center gap-2">
-          <span>{formatLanguage(content.language)}</span>
+          <span>{formatLanguage(content.language, t)}</span>
           <span>•</span>
-          <span>{content.content_type}</span>
+          <span>{t(`library.contentTypes.${content.content_type}` as Parameters<typeof t>[0]) || content.content_type}</span>
           {content.estimated_reading_time && (
             <>
               <span>•</span>
-              <span>{content.estimated_reading_time} min read</span>
+              <span>{t("common.minRead").replace("{count}", String(content.estimated_reading_time))}</span>
             </>
           )}
         </CardDescription>
@@ -681,7 +704,7 @@ function ContentCard({ content }: { content: Content }) {
         <Button asChild variant="outline" className="w-full">
           <Link href={`/reader/${content.id}`}>
             <BookOpen className="mr-2 h-4 w-4" />
-            Read
+            {t("library.read")}
           </Link>
         </Button>
       </CardContent>
@@ -696,6 +719,7 @@ function SavedGrid({
   bookmarks: BookmarkWithMetadata[];
   isLoading: boolean;
 }) {
+  const t = useT();
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-16">
@@ -707,13 +731,13 @@ function SavedGrid({
   if (bookmarks.length === 0) {
     return (
       <p className="py-16 text-center text-sm text-muted-foreground">
-        Bookmark content while reading to save it here.
+        {t("library.bookmarkHint")}
       </p>
     );
   }
 
   return (
-    <div className="grid items-start gap-4 md:grid-cols-2 xl:grid-cols-3">
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
       {bookmarks.map((bookmark) =>
         bookmark.item_type === "content" ? (
           <SavedContentCard key={bookmark.id} bookmark={bookmark} />
@@ -726,6 +750,7 @@ function SavedGrid({
 }
 
 function SavedContentCard({ bookmark }: { bookmark: BookmarkWithMetadata }) {
+  const t = useT();
   const m = bookmark.metadata;
   return (
     <Card className="flex flex-col">
@@ -748,13 +773,13 @@ function SavedContentCard({ bookmark }: { bookmark: BookmarkWithMetadata }) {
           </span>
         </div>
         <CardDescription className="flex items-center gap-2">
-          <span>{formatLanguage(m.language as string)}</span>
+          <span>{formatLanguage(m.language as string, t)}</span>
           <span>•</span>
-          <span>{m.content_type as string}</span>
+          <span>{t(`library.contentTypes.${m.content_type}` as Parameters<typeof t>[0]) || (m.content_type as string)}</span>
           {Number(m.estimated_reading_time) > 0 && (
             <>
               <span>•</span>
-              <span>{Number(m.estimated_reading_time)} min read</span>
+              <span>{t("common.minRead").replace("{count}", String(m.estimated_reading_time))}</span>
             </>
           )}
         </CardDescription>
@@ -775,7 +800,7 @@ function SavedContentCard({ bookmark }: { bookmark: BookmarkWithMetadata }) {
         <Button asChild className="w-full">
           <Link href={`/reader/${bookmark.item_id}`}>
             <BookOpen className="mr-2 h-4 w-4" />
-            Read
+            {t("library.read")}
           </Link>
         </Button>
       </CardContent>
@@ -784,6 +809,7 @@ function SavedContentCard({ bookmark }: { bookmark: BookmarkWithMetadata }) {
 }
 
 function SavedLessonCard({ bookmark }: { bookmark: BookmarkWithMetadata }) {
+  const t = useT();
   const m = bookmark.metadata;
   const topic = m.topic as { name?: string; icon?: string } | null;
   const hasQuizScore = m.quiz_score != null && m.quiz_max_score != null;
@@ -798,7 +824,7 @@ function SavedLessonCard({ bookmark }: { bookmark: BookmarkWithMetadata }) {
           <CardTitle className="text-lg">{m.title as string}</CardTitle>
           {Number(m.target_level) > 0 && (
             <span className="rounded bg-primary/10 px-2 py-1 text-xs font-medium text-primary">
-              Level {Number(m.target_level)}
+              {t("library.level").replace("{level}", String(Number(m.target_level)))}
             </span>
           )}
         </div>
@@ -809,7 +835,7 @@ function SavedLessonCard({ bookmark }: { bookmark: BookmarkWithMetadata }) {
               <span>•</span>
             </>
           )}
-          {Number(m.word_count) > 0 && <span>{Number(m.word_count)} words</span>}
+          {Number(m.word_count) > 0 && <span>{Number(m.word_count)} {t("common.words")}</span>}
           {String(m.status) === "completed" && hasQuizScore && (
             <>
               <span>•</span>
@@ -825,7 +851,7 @@ function SavedLessonCard({ bookmark }: { bookmark: BookmarkWithMetadata }) {
         <Button asChild className="w-full">
           <Link href={`/lesson-plan/${bookmark.item_id}`}>
             <BookOpen className="mr-2 h-4 w-4" />
-            {String(m.status) === "completed" ? "Re-Read" : "Continue"}
+            {String(m.status) === "completed" ? t("library.reRead") : t("common.continue")}
           </Link>
         </Button>
       </CardContent>

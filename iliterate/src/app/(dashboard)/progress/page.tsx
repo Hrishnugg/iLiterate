@@ -6,6 +6,7 @@ import { DowngradeLevelDialog } from "@/components/lesson/DowngradeLevelDialog";
 import { Loader2, BookOpen, Layers, FileText } from "lucide-react";
 import { CEFRLevel } from "@/types/database";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/I18nProvider";
 
 interface SkillProgress {
   level: number;
@@ -57,21 +58,13 @@ interface ProgressData {
 }
 
 const skillMeta = {
-  reading: { label: "Reading", icon: BookOpen },
-  vocabulary: { label: "Vocabulary", icon: Layers },
-  grammar: { label: "Grammar", icon: FileText },
+  reading: { labelKey: "progress.skills.reading", icon: BookOpen },
+  vocabulary: { labelKey: "progress.skills.vocabulary", icon: Layers },
+  grammar: { labelKey: "progress.skills.grammar", icon: FileText },
 } as const;
 
-const cefrDescription: Record<CEFRLevel, string> = {
-  A1: "Beginner",
-  A2: "Elementary",
-  B1: "Intermediate",
-  B2: "Upper Intermediate",
-  C1: "Advanced",
-  C2: "Proficient",
-};
-
 export default function ProgressPage() {
+  const t = useT();
   const [data, setData] = useState<ProgressData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -121,7 +114,7 @@ export default function ProgressPage() {
       {/* Hero — Dramatic Level Display */}
       <div className="flex flex-col gap-1">
         <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          Your Level
+          {t("progress.yourLevel")}
         </span>
         <div className="flex items-baseline gap-4">
           <span className="font-mono text-8xl font-bold leading-none tracking-tighter text-foreground">
@@ -129,10 +122,10 @@ export default function ProgressPage() {
           </span>
           <div className="relative">
             <span className="absolute bottom-full mb-1 text-sm font-medium leading-none text-muted-foreground">
-              Level {progressInfo.overall.level}
+              {t("progress.levelLabel").replace("{level}", String(progressInfo.overall.level))}
             </span>
             <span className="text-lg leading-none text-muted-foreground">
-              {cefrDescription[progressInfo.overall.cefr]}
+              {t(`progress.cefr.${progressInfo.overall.cefr}`)}
             </span>
           </div>
         </div>
@@ -141,7 +134,7 @@ export default function ProgressPage() {
             onClick={() => setShowDowngradeDialog(true)}
             className="mt-1 w-fit text-xs text-muted-foreground hover:text-destructive hover:underline"
           >
-            Feeling overwhelmed? Lower your level
+            {t("progress.feelingOverwhelmed")}
           </button>
         )}
       </div>
@@ -155,7 +148,7 @@ export default function ProgressPage() {
       {/* Skill Band — 3 skills in one unified container */}
       <div className="flex flex-col gap-3">
         <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          Skills
+          {t("progress.skillsLabel")}
         </span>
         <div className="flex overflow-hidden rounded-lg border bg-card">
           {(["reading", "vocabulary", "grammar"] as const).map(
@@ -175,7 +168,7 @@ export default function ProgressPage() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Icon className="size-3.5 text-primary" />
-                      <span className="text-sm font-medium">{meta.label}</span>
+                      <span className="text-sm font-medium">{t(meta.labelKey)}</span>
                     </div>
                     <span className="rounded bg-muted px-2 py-0.5 font-mono text-xs font-medium text-muted-foreground">
                       {info.cefr}
@@ -190,7 +183,7 @@ export default function ProgressPage() {
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-xs text-muted-foreground">
-                        {info.progress}% to next
+                        {t("progress.percentToNext").replace("{percent}", String(info.progress))}
                       </span>
                       <span className="font-mono text-xs text-muted-foreground">
                         {info.xp} XP
@@ -217,11 +210,11 @@ export default function ProgressPage() {
       {/* Recent Assessments */}
       <div className="flex flex-col gap-3">
         <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          Recent Assessments
+          {t("progress.recentAssessments")}
         </span>
         {recentAssessments.length === 0 ? (
           <p className="py-8 text-center text-sm text-muted-foreground">
-            No assessments yet. Complete a lesson to see your history.
+            {t("progress.noAssessments")}
           </p>
         ) : (
           <div className="flex flex-col gap-2">
@@ -256,7 +249,7 @@ export default function ProgressPage() {
                   />
                   <div className="flex-1 min-w-0">
                     <span className="text-sm font-medium">
-                      {assessment.content?.title || "Reading Quiz"}
+                      {assessment.content?.title || t("progress.readingQuiz")}
                     </span>
                     <span className="ml-2 text-xs text-muted-foreground">
                       {new Date(assessment.created_at).toLocaleDateString(

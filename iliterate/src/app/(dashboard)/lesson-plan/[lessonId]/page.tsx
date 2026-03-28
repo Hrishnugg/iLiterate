@@ -27,6 +27,7 @@ import {
 import { Content, numericLevelToCEFR } from "@/types/database";
 import { Separator } from "@/components/ui/separator";
 import { ArticleRenderer } from "@/components/reader/ArticleRenderer";
+import { useT } from "@/lib/i18n/I18nProvider";
 
 interface TopicInfo {
   id: string;
@@ -92,6 +93,7 @@ export default function LessonPage() {
   const params = useParams();
   const router = useRouter();
   const lessonId = params.lessonId as string;
+  const t = useT();
 
   const [lesson, setLesson] = useState<LessonData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -223,7 +225,7 @@ export default function LessonPage() {
         <p className="text-destructive mb-4">{error || "Lesson not found"}</p>
         <Button variant="outline" onClick={() => router.push("/lesson-plan")}>
           <ChevronLeft className="mr-2 h-4 w-4" />
-          Back to Lessons
+          {t("lessonPlan.backToLessons")}
         </Button>
       </div>
     );
@@ -237,7 +239,7 @@ export default function LessonPage() {
       <div className="space-y-6 max-w-3xl mx-auto">
         <Button variant="ghost" onClick={() => router.push("/lesson-plan")}>
           <ChevronLeft className="mr-2 h-4 w-4" />
-          Back to Lessons
+          {t("lessonPlan.backToLessons")}
         </Button>
 
         <Card className="border-primary">
@@ -245,7 +247,7 @@ export default function LessonPage() {
             <div className="mx-auto h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
               <Award className="h-8 w-8 text-primary" />
             </div>
-            <CardTitle className="text-2xl">Lesson Complete!</CardTitle>
+            <CardTitle className="text-2xl">{t("lessonPlan.lessonComplete")}</CardTitle>
             <CardDescription>{lesson.title}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -272,13 +274,13 @@ export default function LessonPage() {
                 {/* Score Breakdown */}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="p-4 rounded-lg bg-muted/50 text-center">
-                    <p className="text-sm text-muted-foreground">Reading</p>
+                    <p className="text-sm text-muted-foreground">{t("quizzes.reading")}</p>
                     <p className="text-xl font-bold">
                       {quizResults.readingScore}/{quizResults.readingMaxScore}
                     </p>
                   </div>
                   <div className="p-4 rounded-lg bg-muted/50 text-center">
-                    <p className="text-sm text-muted-foreground">Vocabulary</p>
+                    <p className="text-sm text-muted-foreground">{t("quizzes.vocabulary")}</p>
                     <p className="text-xl font-bold">
                       {quizResults.vocabularyScore}/{quizResults.vocabularyMaxScore}
                     </p>
@@ -288,14 +290,14 @@ export default function LessonPage() {
                 {/* XP Earned */}
                 <div className="p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
                   <div className="flex items-center justify-between">
-                    <span className="font-medium">XP Earned</span>
+                    <span className="font-medium">{t("lessonPlan.xpEarned")}</span>
                     <span className="text-xl font-bold text-yellow-600 dark:text-yellow-400">
                       +{quizResults.xpAwarded.total} XP
                     </span>
                   </div>
                   <div className="flex gap-4 mt-2 text-sm text-muted-foreground">
-                    <span>Reading: +{quizResults.xpAwarded.reading}</span>
-                    <span>Vocabulary: +{quizResults.xpAwarded.vocabulary}</span>
+                    <span>{t("lessonPlan.readingXp").replace("{xp}", String(quizResults.xpAwarded.reading))}</span>
+                    <span>{t("lessonPlan.vocabularyXp").replace("{xp}", String(quizResults.xpAwarded.vocabulary))}</span>
                   </div>
                 </div>
 
@@ -309,10 +311,10 @@ export default function LessonPage() {
                         </div>
                         <div>
                           <p className="font-medium text-green-600 dark:text-green-400">
-                            Great job!
+                            {t("lessonPlan.greatJob")}
                           </p>
                           <p className="text-sm text-muted-foreground">
-                            Your next lesson will be slightly more challenging.
+                            {t("lessonPlan.nextLessonHarder")}
                           </p>
                         </div>
                       </>
@@ -324,10 +326,10 @@ export default function LessonPage() {
                         </div>
                         <div>
                           <p className="font-medium text-orange-600 dark:text-orange-400">
-                            Keep practicing!
+                            {t("lessonPlan.keepPracticing")}
                           </p>
                           <p className="text-sm text-muted-foreground">
-                            Your next lesson will reinforce these concepts.
+                            {t("lessonPlan.nextLessonReinforce")}
                           </p>
                         </div>
                       </>
@@ -339,10 +341,10 @@ export default function LessonPage() {
                         </div>
                         <div>
                           <p className="font-medium text-blue-600 dark:text-blue-400">
-                            Good work!
+                            {t("lessonPlan.goodWork")}
                           </p>
                           <p className="text-sm text-muted-foreground">
-                            You&apos;re ready for more content at this level.
+                            {t("lessonPlan.readyForMore")}
                           </p>
                         </div>
                       </>
@@ -352,7 +354,7 @@ export default function LessonPage() {
 
                 {/* Question Review */}
                 <div className="space-y-4">
-                  <h3 className="font-semibold">Question Review</h3>
+                  <h3 className="font-semibold">{t("lessonPlan.questionReview")}</h3>
                   {quizResults.gradedQuestions.map((q, index) => (
                     <div
                       key={q.id}
@@ -375,10 +377,10 @@ export default function LessonPage() {
                           {!q.correct && (
                             <div className="mt-2 space-y-1 text-sm">
                               <p className="text-red-600 dark:text-red-400">
-                                Your answer: {q.user_answer || "(no answer)"}
+                                {t("lessonPlan.yourAnswer").replace("{answer}", q.user_answer || t("lessonPlan.noAnswer"))}
                               </p>
                               <p className="text-green-600 dark:text-green-400">
-                                Correct answer: {q.correct_answer}
+                                {t("lessonPlan.correctAnswer").replace("{answer}", q.correct_answer)}
                               </p>
                             </div>
                           )}
@@ -400,10 +402,10 @@ export default function LessonPage() {
                 }}
               >
                 <RotateCcw className="mr-2 h-4 w-4" />
-                Re-Read Article
+                {t("lessonPlan.reReadArticle")}
               </Button>
               <Button className="flex-1" onClick={() => router.push("/lesson-plan")}>
-                Start New Lesson
+                {t("lessonPlan.startNewLessonBtn")}
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </div>
@@ -423,23 +425,23 @@ export default function LessonPage() {
       <div className="space-y-6 max-w-3xl mx-auto">
         <Button variant="ghost" onClick={() => router.push("/lesson-plan")}>
           <ChevronLeft className="mr-2 h-4 w-4" />
-          Back to Lessons
+          {t("lessonPlan.backToLessons")}
         </Button>
 
         <Card>
           <CardHeader>
-            <CardTitle>Quiz: {lesson.title}</CardTitle>
+            <CardTitle>{t("lessonPlan.quizTitle").replace("{title}", lesson.title)}</CardTitle>
             <CardDescription>
-              Answer the questions based on what you read
+              {t("lessonPlan.answerQuestions")}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             {/* Progress Bar */}
             <div>
               <div className="flex justify-between text-sm mb-2">
-                <span className="text-muted-foreground">Progress</span>
+                <span className="text-muted-foreground">{t("progress.title")}</span>
                 <span className="font-medium">
-                  {answeredCount}/{totalQuestions} answered
+                  {t("quizzes.answered").replace("{current}", String(answeredCount)).replace("{total}", String(totalQuestions))}
                 </span>
               </div>
               <Progress value={progress} />
@@ -482,7 +484,7 @@ export default function LessonPage() {
                   ) : (
                     <div className="ml-9">
                       <Input
-                        placeholder="Type your answer..."
+                        placeholder={t("quizzes.typeAnswer")}
                         value={answers[question.id] || ""}
                         onChange={(e) =>
                           handleAnswerChange(question.id, e.target.value)
@@ -498,7 +500,7 @@ export default function LessonPage() {
                         className="text-sm text-primary flex items-center gap-1"
                       >
                         <Lightbulb className="h-3 w-3" />
-                        {showHint[question.id] ? "Hide hint" : "Show hint"}
+                        {showHint[question.id] ? t("lessonPlan.hideHint") : t("lessonPlan.showHint")}
                       </button>
                       {showHint[question.id] && (
                         <p className="text-sm text-muted-foreground mt-1 p-2 rounded bg-muted/50">
@@ -526,11 +528,11 @@ export default function LessonPage() {
               {isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Submitting...
+                  {t("quizzes.submitting")}
                 </>
               ) : (
                 <>
-                  Submit Quiz
+                  {t("quizzes.submitQuiz")}
                   <CheckCircle2 className="ml-2 h-4 w-4" />
                 </>
               )}
@@ -549,7 +551,7 @@ export default function LessonPage() {
       <div className="space-y-6 max-w-3xl mx-auto">
         <Button variant="ghost" onClick={() => router.push("/lesson-plan")}>
           <ChevronLeft className="mr-2 h-4 w-4" />
-          Back to Lessons
+          {t("lessonPlan.backToLessons")}
         </Button>
 
         <Card>
@@ -566,7 +568,7 @@ export default function LessonPage() {
               </span>
               <span className="inline-flex items-center gap-1 text-sm text-muted-foreground">
                 <FileText className="h-3.5 w-3.5" />
-                {lesson.wordCount} words
+                {lesson.wordCount} {t("common.words")}
               </span>
               <span className="inline-flex items-center gap-1 text-sm text-muted-foreground">
                 <Clock className="h-3.5 w-3.5" />
@@ -582,7 +584,7 @@ export default function LessonPage() {
                 <div>
                   <h3 className="font-semibold mb-2 flex items-center gap-2">
                     <BookOpen className="h-4 w-4" />
-                    About This Reading
+                    {t("lessonPlan.aboutReading")}
                   </h3>
                   <p className="text-muted-foreground">{lesson.summary}</p>
                 </div>
@@ -594,7 +596,7 @@ export default function LessonPage() {
             <div>
               <h3 className="font-semibold mb-3 flex items-center gap-2">
                 <Languages className="h-4 w-4" />
-                Key Vocabulary
+                {t("lessonPlan.keyVocabulary")}
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {lesson.vocabulary.map((item, index) => (
@@ -617,7 +619,7 @@ export default function LessonPage() {
                 <div>
                   <h3 className="font-semibold mb-3 flex items-center gap-2">
                     <Lightbulb className="h-4 w-4" />
-                    Grammar Tips
+                    {t("lessonPlan.grammarTips")}
                   </h3>
                   <ul className="space-y-2">
                     {lesson.grammarPoints.map((point, index) => (
@@ -639,7 +641,7 @@ export default function LessonPage() {
               size="lg"
               onClick={() => setHasStartedReading(true)}
             >
-              Start Reading
+              {t("lessonPlan.startReading")}
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </CardContent>
@@ -684,7 +686,7 @@ export default function LessonPage() {
             }}
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Results
+            {t("lessonPlan.backToResults")}
           </Button>
         ) : (
           <Button
@@ -696,12 +698,12 @@ export default function LessonPage() {
             {isCompletingReading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Creating Quiz...
+                {t("lessonPlan.creatingQuiz")}
               </>
             ) : (
               <>
                 <BookOpen className="mr-2 h-4 w-4" />
-                I&apos;ve Finished Reading - Take Quiz
+                {t("lessonPlan.finishedReading")}
               </>
             )}
           </Button>

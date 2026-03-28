@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Volume2, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useWordAudio } from "@/lib/tts/use-word-audio";
+import { useT } from "@/lib/i18n/I18nProvider";
 
 interface VocabularyItem {
   id: string;
@@ -46,6 +47,7 @@ export function FlashcardCard({
   const [showPronunciation, setShowPronunciation] = useState(false);
   const [showHint, setShowHint] = useState(false);
   const { play, loading: audioLoading } = useWordAudio();
+  const t = useT();
 
   const vocab = card.vocabulary;
 
@@ -58,7 +60,7 @@ export function FlashcardCard({
     if (vocab.definitions?.translation) return vocab.definitions.translation;
     if (vocab.definitions?.definitions?.[0])
       return vocab.definitions.definitions[0];
-    return "No translation";
+    return t("flashcards.noTranslation");
   };
 
   const handleCardClick = () => {
@@ -100,7 +102,7 @@ export function FlashcardCard({
             ) : (
               <Volume2 className="size-3.5" />
             )}
-            Listen
+            {t("flashcards.listen")}
           </button>
 
           {/* Pronunciation — tap to reveal */}
@@ -112,7 +114,7 @@ export function FlashcardCard({
               }}
               className="mt-4 text-sm text-muted-foreground transition-colors hover:text-foreground"
             >
-              {showPronunciation ? vocab.pronunciation : "Show pronunciation"}
+              {showPronunciation ? vocab.pronunciation : t("flashcards.showPronunciation")}
             </button>
           )}
 
@@ -131,7 +133,7 @@ export function FlashcardCard({
               {showHint ? (
                 <span className="italic">{card.context_sentence}</span>
               ) : (
-                "Show context"
+                t("flashcards.showContext")
               )}
             </button>
           )}
@@ -144,7 +146,7 @@ export function FlashcardCard({
 
           {/* Tap hint */}
           <p className="mt-8 text-xs text-muted-foreground/50">
-            Tap or press Space to reveal
+            {t("flashcards.tapToReveal")}
           </p>
         </div>
 
@@ -211,7 +213,7 @@ export function FlashcardCard({
           )}
 
           <span className="mt-6 text-[10px] text-muted-foreground/50">
-            Reviewed {card.times_reviewed}x ({card.times_correct} correct)
+            {t("flashcards.reviewedStats").replace("{reviewed}", String(card.times_reviewed)).replace("{correct}", String(card.times_correct))}
           </span>
         </div>
       </div>

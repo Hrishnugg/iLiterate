@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useT } from "@/lib/i18n/I18nProvider";
+import { useT, T } from "@/lib/i18n/I18nProvider";
 import { HeroTile } from "@/components/home/HeroTile";
 import { LevelTile } from "@/components/home/LevelTile";
 import { FlashcardDueTile } from "@/components/home/FlashcardDueTile";
@@ -97,9 +97,9 @@ export default function HomePage() {
               if (lesson.status === "completed") {
                 recentActivity.push({
                   id: lesson.id,
-                  title: lesson.title ?? "Lesson",
+                  title: lesson.title ?? t("home.startLesson"),
                   type: "lesson",
-                  detail: `Score ${lesson.quiz_score ?? 0}%`,
+                  detail: `${t("home.scoreLabel")} ${lesson.quiz_score ?? 0}%`,
                   xp: lesson.total_xp ?? 0,
                 });
               }
@@ -158,9 +158,9 @@ export default function HomePage() {
     <div className="flex flex-col gap-8">
       {/* Page heading — lives in content now, not header bar */}
       <div>
-        <h1 className="text-3xl font-semibold tracking-tight">{t("home.title")}</h1>
+        <h1 className="text-3xl font-semibold tracking-tight"><T id="home.title" /></h1>
         <p className="mt-1 text-muted-foreground">
-          {t("home.subtitle")}
+          <T id="home.subtitle" />
         </p>
       </div>
 

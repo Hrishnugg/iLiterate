@@ -2,6 +2,7 @@
 
 import { formatInterval } from "@/lib/spaced-repetition";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/I18nProvider";
 
 type ResponseQuality = "again" | "hard" | "good" | "easy";
 
@@ -26,27 +27,27 @@ const buttonConfig: {
 }[] = [
   {
     response: "again",
-    label: "Again",
+    label: "flashcards.again",
     key: "1",
     className:
       "border-destructive/40 text-destructive hover:bg-destructive/10",
   },
   {
     response: "hard",
-    label: "Hard",
+    label: "flashcards.hard",
     key: "2",
     className: "border-chart-4/40 text-chart-4 hover:bg-chart-4/10",
   },
   {
     response: "good",
-    label: "Good",
+    label: "flashcards.good",
     key: "3",
     className:
       "border-primary/40 bg-primary/5 text-primary hover:bg-primary/10",
   },
   {
     response: "easy",
-    label: "Easy",
+    label: "flashcards.easy",
     key: "4",
     className:
       "bg-primary text-primary-foreground hover:bg-primary/90 border-primary",
@@ -58,6 +59,7 @@ export function ReviewButtons({
   onResponse,
   disabled = false,
 }: ReviewButtonsProps) {
+  const t = useT();
   return (
     <div className="mx-auto flex w-full max-w-lg gap-3">
       {buttonConfig.map(({ response, label, key, className }) => (
@@ -70,7 +72,7 @@ export function ReviewButtons({
           onClick={() => onResponse(response)}
           disabled={disabled}
         >
-          <span>{label}</span>
+          <span>{t(label)}</span>
           <span className="font-mono text-[10px] opacity-60">
             {formatInterval(intervalPreview[response])}
           </span>
