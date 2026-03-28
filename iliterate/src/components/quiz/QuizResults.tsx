@@ -12,6 +12,7 @@ import { Progress } from "@/components/ui/progress";
 import { numericLevelToCEFR } from "@/types/database";
 import { Trophy, Star, TrendingUp, ArrowRight, Sparkles } from "lucide-react";
 import Link from "next/link";
+import { useT } from "@/lib/i18n/I18nProvider";
 
 interface XPAward {
   skill: string;
@@ -58,6 +59,7 @@ export function QuizResults({
   contentTitle,
   onContinue,
 }: QuizResultsProps) {
+  const t = useT();
   const { totalScore, totalMaxScore, percentage, reading, vocabulary } = results;
 
   const hasLevelUp = reading.levelUp || vocabulary.levelUp;
@@ -68,16 +70,16 @@ export function QuizResults({
   let performanceIcon: React.ReactNode;
 
   if (percentage >= 90) {
-    performanceMessage = "Excellent work!";
+    performanceMessage = t("quizzes.excellent");
     performanceIcon = <Trophy className="h-8 w-8 text-yellow-500" />;
   } else if (percentage >= 70) {
-    performanceMessage = "Great job!";
+    performanceMessage = t("quizzes.great");
     performanceIcon = <Star className="h-8 w-8 text-blue-500" />;
   } else if (percentage >= 50) {
-    performanceMessage = "Good effort!";
+    performanceMessage = t("quizzes.goodEffort");
     performanceIcon = <TrendingUp className="h-8 w-8 text-green-500" />;
   } else {
-    performanceMessage = "Keep practicing!";
+    performanceMessage = t("quizzes.keepPracticing");
     performanceIcon = <Sparkles className="h-8 w-8 text-purple-500" />;
   }
 
@@ -89,7 +91,7 @@ export function QuizResults({
           <div className="mx-auto mb-2">{performanceIcon}</div>
           <CardTitle className="text-2xl">{performanceMessage}</CardTitle>
           {contentTitle && (
-            <CardDescription>Quiz for: {contentTitle}</CardDescription>
+            <CardDescription>{t("quizzes.quizFor").replace("{title}", contentTitle)}</CardDescription>
           )}
         </CardHeader>
         <CardContent className="space-y-6">
@@ -98,13 +100,13 @@ export function QuizResults({
             <div className="text-5xl font-bold">
               {totalScore}/{totalMaxScore}
             </div>
-            <div className="text-lg text-muted-foreground">{percentage}% correct</div>
+            <div className="text-lg text-muted-foreground">{percentage}% {t("quizzes.correct")}</div>
             <Progress value={percentage} className="h-3 mt-4" />
           </div>
 
           {/* XP Earned */}
           <div className="rounded-lg bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-yellow-950/20 dark:to-orange-950/20 p-4 text-center">
-            <div className="text-sm text-muted-foreground">XP Earned</div>
+            <div className="text-sm text-muted-foreground">{t("quizzes.xpEarned")}</div>
             <div className="text-3xl font-bold text-yellow-600 dark:text-yellow-400">
               +{totalXP} XP
             </div>
@@ -116,32 +118,32 @@ export function QuizResults({
               <div className="flex items-center justify-center gap-2 mb-2">
                 <Sparkles className="h-5 w-5 text-purple-500" />
                 <span className="font-semibold text-purple-700 dark:text-purple-300">
-                  Level Up!
+                  {t("quizzes.levelUp")}
                 </span>
               </div>
               <div className="space-y-2">
                 {reading.levelUp && (
                   <div className="text-center">
-                    <span className="text-sm text-muted-foreground">Reading: </span>
+                    <span className="text-sm text-muted-foreground">{t("quizzes.reading")}: </span>
                     <span className="font-medium">
                       Level {reading.levelUp.from} → {reading.levelUp.to}
                     </span>
                     {reading.levelUp.crossedCEFRBoundary && (
                       <span className="ml-2 text-xs bg-purple-100 dark:bg-purple-900 px-2 py-0.5 rounded">
-                        Now {reading.levelUp.newCEFR}!
+                        {t("quizzes.now").replace("{level}", reading.levelUp.newCEFR)}
                       </span>
                     )}
                   </div>
                 )}
                 {vocabulary.levelUp && (
                   <div className="text-center">
-                    <span className="text-sm text-muted-foreground">Vocabulary: </span>
+                    <span className="text-sm text-muted-foreground">{t("quizzes.vocabulary")}: </span>
                     <span className="font-medium">
                       Level {vocabulary.levelUp.from} → {vocabulary.levelUp.to}
                     </span>
                     {vocabulary.levelUp.crossedCEFRBoundary && (
                       <span className="ml-2 text-xs bg-purple-100 dark:bg-purple-900 px-2 py-0.5 rounded">
-                        Now {vocabulary.levelUp.newCEFR}!
+                        {t("quizzes.now").replace("{level}", vocabulary.levelUp.newCEFR)}
                       </span>
                     )}
                   </div>
@@ -157,7 +159,7 @@ export function QuizResults({
         {/* Reading */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Reading Comprehension</CardTitle>
+            <CardTitle className="text-base">{t("quizzes.readingComprehension")}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center justify-between mb-2">
@@ -172,7 +174,7 @@ export function QuizResults({
               {reading.xpAwarded.reason}
             </div>
             <div className="mt-2 text-sm">
-              Current Level: <span className="font-medium">{newLevels.reading}</span>
+              {t("quizzes.currentLevel")} <span className="font-medium">{newLevels.reading}</span>
               <span className="text-muted-foreground ml-1">
                 ({numericLevelToCEFR(newLevels.reading)})
               </span>
@@ -183,7 +185,7 @@ export function QuizResults({
         {/* Vocabulary */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Vocabulary</CardTitle>
+            <CardTitle className="text-base">{t("quizzes.vocabulary")}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center justify-between mb-2">
@@ -198,7 +200,7 @@ export function QuizResults({
               {vocabulary.xpAwarded.reason}
             </div>
             <div className="mt-2 text-sm">
-              Current Level: <span className="font-medium">{newLevels.vocabulary}</span>
+              {t("quizzes.currentLevel")} <span className="font-medium">{newLevels.vocabulary}</span>
               <span className="text-muted-foreground ml-1">
                 ({numericLevelToCEFR(newLevels.vocabulary)})
               </span>
@@ -211,12 +213,12 @@ export function QuizResults({
       <div className="flex flex-col sm:flex-row gap-3">
         <Button asChild variant="outline" className="flex-1">
           <Link href="/library">
-            Back to Library
+            {t("quizzes.backToLibrary")}
           </Link>
         </Button>
         <Button asChild className="flex-1">
           <Link href="/progress">
-            View Progress
+            {t("quizzes.viewProgress")}
             <ArrowRight className="ml-2 h-4 w-4" />
           </Link>
         </Button>

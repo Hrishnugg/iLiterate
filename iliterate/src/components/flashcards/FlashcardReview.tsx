@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2, PartyPopper, X } from "lucide-react";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/I18nProvider";
 
 interface ReviewState {
   cards: FlashcardData[];
@@ -31,6 +32,7 @@ export function FlashcardReview({ onClose }: FlashcardReviewProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [completedCount, setCompletedCount] = useState(0);
+  const t = useT();
 
   const fetchCards = useCallback(async () => {
     try {
@@ -157,10 +159,10 @@ export function FlashcardReview({ onClose }: FlashcardReviewProps) {
           <p className="text-sm text-destructive">{error}</p>
           <div className="flex gap-2">
             <Button size="sm" onClick={fetchCards}>
-              Try Again
+              {t("flashcards.tryAgain")}
             </Button>
             <Button size="sm" variant="outline" onClick={onClose}>
-              Close
+              {t("flashcards.close")}
             </Button>
           </div>
         </div>
@@ -177,12 +179,12 @@ export function FlashcardReview({ onClose }: FlashcardReviewProps) {
         <div className="flex flex-col items-center gap-4 text-center">
           <PartyPopper className="size-12 text-primary" />
           <h3 className="text-xl font-semibold tracking-tight">
-            All caught up!
+            {t("flashcards.allCaughtUpTitle")}
           </h3>
           <p className="text-sm text-muted-foreground">
-            No cards are due for review right now.
+            {t("flashcards.noDueCards")}
           </p>
-          <Button onClick={onClose}>Done</Button>
+          <Button onClick={onClose}>{t("flashcards.done")}</Button>
         </div>
       </div>
     );
@@ -208,20 +210,20 @@ export function FlashcardReview({ onClose }: FlashcardReviewProps) {
         <div className="flex flex-col items-center gap-4 text-center">
           <PartyPopper className="size-12 text-primary" />
           <h3 className="text-xl font-semibold tracking-tight">
-            Session Complete
+            {t("flashcards.sessionComplete")}
           </h3>
           <p className="font-mono text-5xl font-bold tracking-tighter text-primary">
             {completedCount}
           </p>
           <p className="text-sm text-muted-foreground">
-            cards reviewed
+            {t("flashcards.cardsReviewed")}
             {!reviewState.isPremium && (
               <span className="block mt-1">
-                {reviewState.remainingReviews} reviews remaining today
+                {t("flashcards.reviewsRemaining").replace("{count}", String(reviewState.remainingReviews))}
               </span>
             )}
           </p>
-          <Button onClick={onClose}>Done</Button>
+          <Button onClick={onClose}>{t("flashcards.done")}</Button>
         </div>
       </div>
     );

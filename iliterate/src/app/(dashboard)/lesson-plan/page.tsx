@@ -26,6 +26,7 @@ import { numericLevelToCEFR } from "@/types/database";
 import { DowngradeLevelDialog } from "@/components/lesson/DowngradeLevelDialog";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useT } from "@/lib/i18n/I18nProvider";
 
 interface TopicInfo {
   id: string;
@@ -65,32 +66,34 @@ interface LessonData {
 }
 
 const TOPICS = [
-  { id: "travel", name: "Travel", Icon: Globe },
-  { id: "food", name: "Food", Icon: UtensilsCrossed },
-  { id: "daily_life", name: "Daily Life", Icon: Home },
-  { id: "culture", name: "Culture", Icon: Landmark },
-  { id: "work", name: "Work", Icon: Briefcase },
-  { id: "news", name: "News", Icon: Newspaper },
-  { id: "nature", name: "Nature", Icon: TreePine },
-  { id: "technology", name: "Technology", Icon: Monitor },
-  { id: "relationships", name: "Relationships", Icon: Users },
-  { id: "health", name: "Health", Icon: Heart },
-  { id: "entertainment", name: "Entertainment", Icon: Film },
-  { id: "education", name: "Education", Icon: BookOpen },
+  { id: "travel", name: "lessonPlan.topics.travel", Icon: Globe },
+  { id: "food", name: "lessonPlan.topics.food", Icon: UtensilsCrossed },
+  { id: "daily_life", name: "lessonPlan.topics.daily_life", Icon: Home },
+  { id: "culture", name: "lessonPlan.topics.culture", Icon: Landmark },
+  { id: "work", name: "lessonPlan.topics.work", Icon: Briefcase },
+  { id: "news", name: "lessonPlan.topics.news", Icon: Newspaper },
+  { id: "nature", name: "lessonPlan.topics.nature", Icon: TreePine },
+  { id: "technology", name: "lessonPlan.topics.technology", Icon: Monitor },
+  { id: "relationships", name: "lessonPlan.topics.relationships", Icon: Users },
+  { id: "health", name: "lessonPlan.topics.health", Icon: Heart },
+  { id: "entertainment", name: "lessonPlan.topics.entertainment", Icon: Film },
+  { id: "education", name: "lessonPlan.topics.education", Icon: BookOpen },
 ] as const;
 
 const LENGTH_OPTIONS = [
-  { id: "short" as const, label: "Short", time: "~1 min" },
-  { id: "medium" as const, label: "Medium", time: "~5 min" },
-  { id: "long" as const, label: "Long", time: "~10 min" },
+  { id: "short" as const, label: "lessonPlan.lengthShort", time: "~1 min" },
+  { id: "medium" as const, label: "lessonPlan.lengthMedium", time: "~5 min" },
+  { id: "long" as const, label: "lessonPlan.lengthLong", time: "~10 min" },
 ];
 
 export default function LessonPlanPage() {
   const router = useRouter();
+  const t = useT();
   const [isLoading, setIsLoading] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
 
   const [userLevel, setUserLevel] = useState<number>(1);
+  const [targetLanguage, setTargetLanguage] = useState<string | null>(null);
   const [currentLesson, setCurrentLesson] = useState<LessonData | null>(null);
   const [recentLessons, setRecentLessons] = useState<LessonHistoryItem[]>([]);
 
@@ -112,6 +115,7 @@ export default function LessonPlanPage() {
       if (progressResponse.ok) {
         const progressData = await progressResponse.json();
         setUserLevel(progressData.skillLevels?.reading_level || 1);
+        setTargetLanguage(progressData.targetLanguage ?? null);
       }
 
       const historyResponse = await fetch("/api/lesson/history?limit=5");
@@ -188,13 +192,15 @@ export default function LessonPlanPage() {
       {/* Page header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Lessons</h1>
+          <h1 className="text-2xl font-bold">{t("lessonPlan.title")}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Personalized reading lessons tailored to your level
+            {t("lessonPlan.subtitle")}
           </p>
         </div>
         <div className="flex items-center gap-2 rounded-md border bg-primary/5 px-4 py-2">
-          <span className="text-sm font-medium text-primary">Japanese</span>
+          <span className="text-sm font-medium text-primary">
+            {targetLanguage ? t(`library.languages.${targetLanguage}` as Parameters<typeof t>[0]) || targetLanguage : ""}
+          </span>
           <span className="font-mono text-sm font-semibold text-primary">
             {cefrLevel}
           </span>
@@ -215,17 +221,17 @@ export default function LessonPlanPage() {
         >
           <div className="flex flex-col gap-1">
             <span className="text-xs font-medium uppercase tracking-wider opacity-60">
-              Continue Lesson
+              {t("lessonPlan.continueLesson")}
             </span>
             <span className="text-lg font-semibold">{currentLesson.title}</span>
             <span className="text-xs opacity-70">
               {currentLesson.status === "reading"
-                ? "Reading in progress"
-                : "Ready to take the quiz"}
+                ? t("lessonPlan.readingInProgress")
+                : t("lessonPlan.readyForQuiz")}
             </span>
           </div>
           <div className="flex items-center gap-2 rounded-md bg-primary-foreground/15 px-4 py-2 text-sm font-medium">
-            Continue
+            {t("common.continue")}
             <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
           </div>
         </button>
@@ -235,11 +241,11 @@ export default function LessonPlanPage() {
       <div className="flex flex-col gap-5">
         <div className="flex items-center justify-between">
           <div className="flex items-baseline gap-2">
-            <span className="text-base font-semibold">Start a New Lesson</span>
+            <span className="text-base font-semibold">{t("lessonPlan.startNewLesson")}</span>
             {selectedTopics.length === 0 ? (
-              <span className="text-xs text-muted-foreground">Select up to 3 topics</span>
+              <span className="text-xs text-muted-foreground">{t("lessonPlan.selectTopics")}</span>
             ) : (
-              <span className="text-xs text-primary/70">{selectedTopics.length}/3 selected</span>
+              <span className="text-xs text-primary/70">{t("lessonPlan.topicsSelected").replace("{count}", String(selectedTopics.length))}</span>
             )}
           </div>
           <div className="flex items-center gap-2">
@@ -255,7 +261,7 @@ export default function LessonPlanPage() {
                     onClick={() => setSelectedTopics([])}
                     className="inline-flex items-center gap-1.5 overflow-hidden rounded-md border border-border/60 bg-card px-2.5 py-1 text-xs font-medium text-muted-foreground hover:border-primary/30 hover:bg-primary/5 hover:text-foreground transition-colors cursor-pointer whitespace-nowrap"
                   >
-                    Clear
+                    {t("common.clear")}
                   </motion.button>
                 )}
               </AnimatePresence>
@@ -268,7 +274,7 @@ export default function LessonPlanPage() {
                 className="inline-flex items-center gap-1.5 rounded-md border border-border/60 bg-card px-2.5 py-1 text-xs font-medium text-muted-foreground hover:border-primary/30 hover:bg-primary/5 hover:text-foreground transition-colors cursor-pointer"
               >
                 <Shuffle className="size-3" />
-                Shuffle
+                {t("lessonPlan.shuffle")}
               </button>
             </div>
             {/* Length segmented control */}
@@ -289,7 +295,7 @@ export default function LessonPlanPage() {
                     transition={{ type: "spring", bounce: 0.2, duration: 0.35 }}
                   />
                 )}
-                <span className="relative z-10">{opt.label}</span>
+                <span className="relative z-10">{t(opt.label)}</span>
               </button>
             ))}
             </div>
@@ -337,7 +343,7 @@ export default function LessonPlanPage() {
                     : <topic.Icon className="size-3.5" />
                   }
                 </motion.span>
-                <span>{topic.name}</span>
+                <span>{t(topic.name)}</span>
               </motion.button>
             );
           })}
@@ -352,11 +358,11 @@ export default function LessonPlanPage() {
           {isGenerating ? (
             <>
               <Loader2 className="mr-2 size-4 animate-spin" />
-              Preparing Lesson...
+              {t("lessonPlan.preparingLesson")}
             </>
           ) : (
             <>
-              Begin Lesson
+              {t("lessonPlan.beginLesson")}
               <ArrowRight className="ml-2 size-4" />
             </>
           )}
@@ -366,7 +372,7 @@ export default function LessonPlanPage() {
       {/* Recent lessons — horizontal strip */}
       {completedLessons.length > 0 && (
         <div className="flex flex-col gap-4">
-          <span className="text-base font-semibold">Recent Lessons</span>
+          <span className="text-base font-semibold">{t("lessonPlan.recentLessons")}</span>
           <div className="flex gap-3 overflow-x-auto pb-2">
             {completedLessons.map((lesson) => {
               const totalXP =
@@ -404,10 +410,9 @@ export default function LessonPlanPage() {
                       {lesson.title}
                     </span>
                     <span className="text-xs text-muted-foreground">
-                      {lesson.topic.name} ·{" "}
+                      {t(`lessonPlan.topics.${lesson.topic.id}` as Parameters<typeof t>[0]) || lesson.topic.name} ·{" "}
                       {lesson.length
-                        ? lesson.length.charAt(0).toUpperCase() +
-                          lesson.length.slice(1)
+                        ? t(`lessonPlan.length${lesson.length.charAt(0).toUpperCase() + lesson.length.slice(1)}` as Parameters<typeof t>[0]) || lesson.length
                         : ""}{" "}
                       ·{" "}
                       {new Date(lesson.createdAt).toLocaleDateString(
@@ -428,7 +433,7 @@ export default function LessonPlanPage() {
           onClick={() => setShowDowngradeDialog(true)}
           className="w-fit text-xs text-muted-foreground hover:text-destructive hover:underline"
         >
-          Feeling overwhelmed? Lower your level
+          {t("lessonPlan.feelingOverwhelmed")}
         </button>
       )}
     </div>

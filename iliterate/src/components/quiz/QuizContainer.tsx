@@ -13,6 +13,7 @@ import { Progress } from "@/components/ui/progress";
 import { MCQQuestion } from "./MCQQuestion";
 import { FillBlankQuestion } from "./FillBlankQuestion";
 import { QuizResults } from "./QuizResults";
+import { useT, T } from "@/lib/i18n/I18nProvider";
 import { AssessmentQuestion } from "@/types/database";
 import { Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 
@@ -59,6 +60,7 @@ export function QuizContainer({
   contentTitle,
   onComplete,
 }: QuizContainerProps) {
+  const t = useT();
   const [quiz, setQuiz] = useState<QuizState | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -147,9 +149,9 @@ export function QuizContainer({
       <Card className="mx-auto max-w-2xl">
         <CardContent className="flex flex-col items-center justify-center py-12">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="mt-4 text-muted-foreground">Generating your quiz...</p>
+          <p className="mt-4 text-muted-foreground">{t("quizzes.generating")}</p>
           <p className="text-sm text-muted-foreground">
-            This may take a few seconds
+            {t("quizzes.secondsTaken")}
           </p>
         </CardContent>
       </Card>
@@ -162,7 +164,7 @@ export function QuizContainer({
       <Card className="mx-auto max-w-2xl">
         <CardContent className="py-12 text-center">
           <p className="text-destructive mb-4">{error}</p>
-          <Button onClick={() => window.location.reload()}>Try Again</Button>
+          <Button onClick={() => window.location.reload()}>{t("quizzes.tryAgain")}</Button>
         </CardContent>
       </Card>
     );
@@ -187,7 +189,7 @@ export function QuizContainer({
     return (
       <Card className="mx-auto max-w-2xl">
         <CardContent className="py-12 text-center">
-          <p className="text-muted-foreground">No questions available</p>
+          <p className="text-muted-foreground">{t("quizzes.noQuestions")}</p>
         </CardContent>
       </Card>
     );
@@ -203,14 +205,14 @@ export function QuizContainer({
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle>Reading Quiz</CardTitle>
+            <CardTitle>{t("quizzes.readingQuiz")}</CardTitle>
             <CardDescription>
-              Question {currentIndex + 1} of {quiz.questions.length}
+              {t("quizzes.questionCount").replace("{current}", String(currentIndex + 1)).replace("{total}", String(quiz.questions.length))}
             </CardDescription>
           </div>
           <div className="text-right">
             <div className="text-sm text-muted-foreground">
-              {answeredCount}/{quiz.questions.length} answered
+              {t("quizzes.answered").replace("{current}", String(answeredCount)).replace("{total}", String(quiz.questions.length))}
             </div>
           </div>
         </div>
@@ -228,8 +230,8 @@ export function QuizContainer({
             }`}
           >
             {currentQuestion.type === "comprehension_mcq"
-              ? "Reading Comprehension"
-              : "Vocabulary"}
+              ? t("quizzes.readingComprehension")
+              : t("quizzes.vocabulary")}
           </span>
         </div>
 
@@ -256,7 +258,7 @@ export function QuizContainer({
             disabled={currentIndex === 0}
           >
             <ChevronLeft className="mr-1 h-4 w-4" />
-            Previous
+            {t("quizzes.previous")}
           </Button>
 
           <div className="flex gap-1">
@@ -283,15 +285,15 @@ export function QuizContainer({
               {isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Submitting...
+                  {t("quizzes.submitting")}
                 </>
               ) : (
-                "Submit Quiz"
+                t("quizzes.submitQuiz")
               )}
             </Button>
           ) : (
             <Button onClick={handleNext}>
-              Next
+              {t("common.next")}
               <ChevronRight className="ml-1 h-4 w-4" />
             </Button>
           )}

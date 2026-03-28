@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowLeft, ArrowRight, Loader2, BookOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/I18nProvider";
 
 interface DeckProps {
   contentId: string;
@@ -30,6 +31,7 @@ export function Deck({ contentId, contentTitle }: DeckProps) {
   const [isFlipped, setIsFlipped] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const t = useT();
 
   useEffect(() => {
     async function loadCards() {
@@ -71,14 +73,14 @@ export function Deck({ contentId, contentTitle }: DeckProps) {
   const getTranslation = (vocab: VocabularyItem) => {
     if (vocab.definitions?.translation) return vocab.definitions.translation;
     if (vocab.definitions?.definitions?.[0]) return vocab.definitions.definitions[0];
-    return "No translation";
+    return t("flashcards.noTranslation");
   };
 
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-12">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        <p className="mt-4 text-muted-foreground">Loading flashcards...</p>
+        <p className="mt-4 text-muted-foreground">{t("flashcards.loadingFlashcards")}</p>
       </div>
     );
   }
@@ -98,9 +100,9 @@ export function Deck({ contentId, contentTitle }: DeckProps) {
       <Card>
         <CardContent className="flex flex-col items-center justify-center py-12">
           <BookOpen className="h-12 w-12 text-muted-foreground" />
-          <h3 className="mt-4 text-lg font-semibold">No flashcards found</h3>
+          <h3 className="mt-4 text-lg font-semibold">{t("flashcards.noFlashcardsFound")}</h3>
           <p className="mt-2 text-center text-sm text-muted-foreground">
-            No vocabulary has been saved from this book yet.
+            {t("flashcards.noVocabSaved")}
           </p>
         </CardContent>
       </Card>
@@ -152,7 +154,7 @@ export function Deck({ contentId, contentTitle }: DeckProps) {
                   {vocab.pronunciation}
                 </p>
               )}
-              <p className="text-sm text-muted-foreground">Click to reveal</p>
+              <p className="text-sm text-muted-foreground">{t("flashcards.clickToReveal")}</p>
             </CardContent>
           </Card>
 
@@ -215,7 +217,7 @@ export function Deck({ contentId, contentTitle }: DeckProps) {
 
       {/* Keyboard hint */}
       <p className="text-xs text-muted-foreground">
-        Press Space or Enter to flip, or click the card
+        {t("flashcards.flipHint")}
       </p>
     </div>
   );

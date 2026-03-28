@@ -1,4 +1,7 @@
+"use client";
+
 import { GraduationCap, Layers } from "lucide-react";
+import { useT } from "@/lib/i18n/I18nProvider";
 
 interface ActivityItem {
   id: string;
@@ -9,14 +12,16 @@ interface ActivityItem {
 }
 
 export function RecentActivityBand({ items }: { items: ActivityItem[] }) {
+  const t = useT();
+
   if (items.length === 0) {
     return (
       <div className="rounded-lg border bg-card p-6" style={{ gridColumn: "1 / -1" }}>
         <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          Recent Activity
+          {t("home.recentActivity")}
         </span>
         <p className="mt-3 text-sm text-muted-foreground">
-          No recent activity. Start a lesson to get going!
+          {t("home.noRecentActivity")}
         </p>
       </div>
     );
@@ -25,7 +30,7 @@ export function RecentActivityBand({ items }: { items: ActivityItem[] }) {
   return (
     <div className="rounded-lg border bg-card p-6" style={{ gridColumn: "1 / -1" }}>
       <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-        Recent Activity
+        {t("home.recentActivity")}
       </span>
       <div className="mt-4 flex flex-col gap-3">
         {items.map((item) => (

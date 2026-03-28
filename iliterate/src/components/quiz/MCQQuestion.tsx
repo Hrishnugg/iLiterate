@@ -3,6 +3,7 @@
 import { AssessmentQuestion } from "@/types/database";
 import { cn } from "@/lib/utils";
 import { CheckCircle2, XCircle } from "lucide-react";
+import { useT } from "@/lib/i18n/I18nProvider";
 
 interface MCQQuestionProps {
   question: AssessmentQuestion;
@@ -19,6 +20,7 @@ export function MCQQuestion({
   showResult = false,
   disabled = false,
 }: MCQQuestionProps) {
+  const t = useT();
   const options = question.options || [];
 
   return (
@@ -27,7 +29,7 @@ export function MCQQuestion({
         <h3 className="text-lg font-medium">{question.question}</h3>
         {question.hint && !showResult && (
           <p className="text-sm text-muted-foreground mt-1">
-            Hint: {question.hint}
+            {t("quizzes.hint").replace("{hint}", question.hint)}
           </p>
         )}
       </div>
@@ -87,7 +89,7 @@ export function MCQQuestion({
 
       {showResult && question.correct !== undefined && !question.correct && (
         <p className="text-sm text-muted-foreground">
-          Correct answer: <span className="font-medium">{question.correct_answer}</span>
+          {t("quizzes.correctAnswer")}<span className="font-medium">{question.correct_answer}</span>
         </p>
       )}
     </div>

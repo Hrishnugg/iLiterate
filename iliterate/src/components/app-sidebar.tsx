@@ -8,7 +8,6 @@ import {
   ClipboardCheck,
   PanelLeftClose,
   PanelLeftOpen,
-  User,
   TrendingUp,
   GraduationCap,
   Users,
@@ -33,7 +32,8 @@ import {
 } from "@/components/ui/sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useSearch } from "@/components/search/SearchContext";
-import { useT } from "@/lib/i18n/I18nProvider";
+import { useT, T } from "@/lib/i18n/I18nProvider";
+import { SidebarUserMenu } from "@/components/sidebar-user-menu";
 
 export function AppSidebar() {
   const pathname = usePathname();
@@ -42,33 +42,33 @@ export function AppSidebar() {
   const t = useT();
   const SidebarToggleIcon = state === "collapsed" ? PanelLeftOpen : PanelLeftClose;
   const sidebarToggleLabel = isMobile
-    ? "Close sidebar"
+    ? t("nav.closeSidebar")
     : state === "collapsed"
-      ? "Expand sidebar"
-      : "Collapse sidebar";
+      ? t("nav.expandSidebar")
+      : t("nav.collapseSidebar");
 
   const navGroups = [
     {
-      label: t("nav.learn"),
+      labelKey: "nav.learn",
       items: [
-        { title: t("nav.lessonPlan"), href: "/lesson-plan", icon: GraduationCap },
-        { title: t("nav.library"), href: "/library", icon: Library },
-        { title: "Study Chat", href: "/study-chat", icon: Sparkles },
-        { title: t("nav.progress"), href: "/progress", icon: TrendingUp },
+        { titleKey: "nav.lessonPlan", href: "/lesson-plan", icon: GraduationCap },
+        { titleKey: "nav.library", href: "/library", icon: Library },
+        { titleKey: "nav.studyChat", href: "/study-chat", icon: Sparkles },
+        { titleKey: "nav.progress", href: "/progress", icon: TrendingUp },
       ],
     },
     {
-      label: t("nav.practice"),
+      labelKey: "nav.practice",
       items: [
-        { title: t("nav.flashcards"), href: "/flashcards", icon: Layers },
-        { title: t("nav.quizzes"), href: "/quizzes", icon: ClipboardCheck },
+        { titleKey: "nav.flashcards", href: "/flashcards", icon: Layers },
+        { titleKey: "nav.quizzes", href: "/quizzes", icon: ClipboardCheck },
       ],
     },
     {
-      label: t("nav.community"),
+      labelKey: "nav.community",
       items: [
-        { title: t("nav.social"), href: "/social", icon: Users },
-        { title: t("nav.leaderboard"), href: "/leaderboard", icon: Trophy },
+        { titleKey: "nav.social", href: "/social", icon: Users },
+        { titleKey: "nav.leaderboard", href: "/leaderboard", icon: Trophy },
       ],
     },
   ];
@@ -98,7 +98,7 @@ export function AppSidebar() {
               <SidebarMenuItem>
                 <SidebarMenuButton tooltip="Search (⌘K)" onClick={openSearch} className="cursor-pointer">
                   <Search />
-                  <span className="text-muted-foreground">{t("nav.search")}</span>
+                  <T id="nav.search" className="text-muted-foreground" />
                   <kbd className="ml-auto text-[10px] font-mono text-muted-foreground opacity-60">
                     ⌘K
                   </kbd>
@@ -110,25 +110,26 @@ export function AppSidebar() {
 
         {/* Grouped navigation */}
         {navGroups.map((group) => (
-          <SidebarGroup key={group.label}>
-            <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+          <SidebarGroup key={group.labelKey}>
+            <SidebarGroupLabel><T id={group.labelKey} /></SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 {group.items.map((item) => {
                   const isActive =
                     pathname === item.href ||
                     pathname?.startsWith(item.href + "/");
+                  const resolvedTitle = t(item.titleKey);
 
                   return (
                     <SidebarMenuItem key={item.href}>
                       <SidebarMenuButton
                         asChild
                         isActive={isActive}
-                        tooltip={item.title}
+                        tooltip={resolvedTitle}
                       >
                         <Link href={item.href}>
                           <item.icon />
-                          <span>{item.title}</span>
+                          <T id={item.titleKey} />
                         </Link>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
@@ -146,6 +147,7 @@ export function AppSidebar() {
             <SidebarMenuButton
               onClick={toggleSidebar}
               tooltip={sidebarToggleLabel}
+              className="cursor-pointer"
             >
               <SidebarToggleIcon />
               <span>{sidebarToggleLabel}</span>
@@ -155,16 +157,7 @@ export function AppSidebar() {
             <ThemeToggle />
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              tooltip={t("nav.profile")}
-              isActive={pathname === "/profile"}
-            >
-              <Link href="/profile">
-                <User />
-                <span>{t("nav.profile")}</span>
-              </Link>
-            </SidebarMenuButton>
+            <SidebarUserMenu />
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>

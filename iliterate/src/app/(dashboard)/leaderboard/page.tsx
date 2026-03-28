@@ -9,7 +9,7 @@ import { UserRankCard } from "@/components/leaderboard/UserRankCard";
 import { LeaderboardTable } from "@/components/leaderboard/LeaderboardTable";
 import { createClient } from "@/lib/supabase/client";
 import { LeaderboardEntry } from "@/types/database";
-import { useT } from "@/lib/i18n/I18nProvider";
+import { useT, T } from "@/lib/i18n/I18nProvider";
 
 interface LeaderboardData {
   entries: LeaderboardEntry[];
@@ -101,12 +101,12 @@ export default function LeaderboardPage() {
       <div>
         <h1 className="text-2xl font-bold flex items-center gap-2">
           <Trophy className="h-6 w-6" />
-          {t("leaderboard.title")}
+          <T id="leaderboard.title" />
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
           {scope === "friends"
-            ? t("leaderboard.subtitleFriends")
-            : t("leaderboard.subtitleGlobal")}
+            ? <T id="leaderboard.subtitleFriends" />
+            : <T id="leaderboard.subtitleGlobal" />}
         </p>
       </div>
 
@@ -114,11 +114,11 @@ export default function LeaderboardPage() {
         <TabsList>
           <TabsTrigger value="global" className="gap-1.5">
             <Globe className="h-4 w-4" />
-            {t("leaderboard.global")}
+            <T id="leaderboard.global" />
           </TabsTrigger>
           <TabsTrigger value="friends" className="gap-1.5">
             <Users className="h-4 w-4" />
-            {t("leaderboard.friends")}
+            <T id="leaderboard.friends" />
           </TabsTrigger>
         </TabsList>
       </Tabs>
@@ -133,8 +133,8 @@ export default function LeaderboardPage() {
 
       <Tabs value={period} onValueChange={(v) => setPeriod(v as "weekly" | "monthly")}>
         <TabsList>
-          <TabsTrigger value="weekly">{t("leaderboard.thisWeek")}</TabsTrigger>
-          <TabsTrigger value="monthly">{t("leaderboard.thisMonth")}</TabsTrigger>
+          <TabsTrigger value="weekly"><T id="leaderboard.thisWeek" /></TabsTrigger>
+          <TabsTrigger value="monthly"><T id="leaderboard.thisMonth" /></TabsTrigger>
         </TabsList>
       </Tabs>
 
@@ -145,11 +145,11 @@ export default function LeaderboardPage() {
           emptyMessage={
             scope === "friends" ? (
               <span>
-                {t("leaderboard.noFriendActivity")}{" "}
+                <T id="leaderboard.noFriendActivity" />{" "}
                 <Link href="/social" className="text-primary underline underline-offset-4 hover:text-primary/80">
-                  {t("leaderboard.findFriends")}
+                  <T id="leaderboard.findFriends" />
                 </Link>{" "}
-                {t("leaderboard.compareScores")}
+                <T id="leaderboard.compareScores" />
               </span>
             ) : undefined
           }
@@ -159,7 +159,7 @@ export default function LeaderboardPage() {
       {data && data.entries.length >= offset + LIMIT && (
         <div className="flex justify-center">
           <Button variant="outline" onClick={handleLoadMore} disabled={isLoading}>
-            {isLoading ? t("common.loading") : t("common.loadMore")}
+            {isLoading ? <T id="common.loading" /> : <T id="common.loadMore" />}
           </Button>
         </div>
       )}

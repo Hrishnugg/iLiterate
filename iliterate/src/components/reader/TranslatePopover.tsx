@@ -6,6 +6,7 @@ import { Loader2, MessageSquare, Languages, BookOpen, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/I18nProvider";
 import { TextSelection } from "./TextHighlighter";
 
 interface TranslationResult {
@@ -33,6 +34,7 @@ export function TranslatePopover({
   onSaveWord,
   onClose,
 }: TranslatePopoverProps) {
+  const t = useT();
   const [translation, setTranslation] = useState<TranslationResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [showNoteInput, setShowNoteInput] = useState(false);
@@ -186,7 +188,7 @@ export function TranslatePopover({
                 className="flex-1 cursor-pointer"
               >
                 <Languages className="mr-1.5 h-3.5 w-3.5" />
-                Translate
+                {t("reader.translate")}
               </Button>
               <Button
                 size="sm"
@@ -195,7 +197,7 @@ export function TranslatePopover({
                 className="cursor-pointer"
               >
                 <MessageSquare className="mr-1.5 h-3.5 w-3.5" />
-                Note
+                {t("reader.note")}
               </Button>
             </div>
           )}
@@ -229,7 +231,7 @@ export function TranslatePopover({
               {translation.definitions && translation.definitions.length > 0 && (
                 <div className="space-y-1">
                   <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                    Definitions
+                    {t("reader.definitions")}
                   </p>
                   <ul className="space-y-1">
                     {translation.definitions.map((def, i) => (
@@ -249,7 +251,7 @@ export function TranslatePopover({
                   className="cursor-pointer"
                 >
                   <MessageSquare className="mr-1.5 h-3.5 w-3.5" />
-                  Add Note
+                  {t("reader.addNote")}
                 </Button>
                 <Button
                   size="sm"
@@ -258,7 +260,7 @@ export function TranslatePopover({
                   className="cursor-pointer"
                 >
                   <BookOpen className="mr-1.5 h-3.5 w-3.5" />
-                  Save Word
+                  {t("reader.saveWord")}
                 </Button>
               </div>
             </div>
@@ -270,7 +272,7 @@ export function TranslatePopover({
               <textarea
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
-                placeholder="Add a note about this..."
+                placeholder={t("reader.notePlaceholder")}
                 className={cn(
                   "w-full rounded-md border bg-background px-3 py-2 text-sm",
                   "placeholder:text-muted-foreground",
@@ -285,7 +287,7 @@ export function TranslatePopover({
                     checked={alsoAddFlashcard}
                     onCheckedChange={(checked) => setAlsoAddFlashcard(checked === true)}
                   />
-                  Also add to flashcards
+                  {t("reader.alsoAddFlashcard")}
                 </label>
               )}
               <div className="flex gap-2">
@@ -295,7 +297,7 @@ export function TranslatePopover({
                   disabled={!note.trim()}
                   className="cursor-pointer"
                 >
-                  Save Note
+                  {t("reader.saveNote")}
                 </Button>
                 <Button
                   size="sm"
@@ -306,7 +308,7 @@ export function TranslatePopover({
                   }}
                   className="cursor-pointer"
                 >
-                  Cancel
+                  {t("common.cancel")}
                 </Button>
               </div>
             </div>

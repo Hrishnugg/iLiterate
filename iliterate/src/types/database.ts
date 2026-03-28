@@ -806,6 +806,8 @@ export interface LeaderboardEntry {
   userId: string;
   displayName: string;
   points: number;
+  avatarUrl?: string | null;
+  avatarSeed?: string | null;
 }
 
 // ============================================================================

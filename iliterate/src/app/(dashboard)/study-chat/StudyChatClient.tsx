@@ -42,6 +42,7 @@ import type {
   StudyChatViewerLanguages,
 } from "@/lib/study-chat/types";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/I18nProvider";
 import type { StudyChatMessage } from "@/types/database";
 
 interface SessionsResponse {
@@ -69,21 +70,21 @@ const QUICK_ACTIONS: Array<{
 }> = [
   {
     action: "summary",
-    label: "Summarize",
+    label: "studyChat.summarize",
     prompt:
       "Summarize the uploaded material for me. Focus on the main ideas, structure, and details I should study first.",
     Icon: Sparkles,
   },
   {
     action: "translation",
-    label: "Translate",
+    label: "studyChat.translate",
     prompt:
       "Translate the uploaded material into my native language. If it is too long, translate the most important sections and explain the rest at a high level.",
     Icon: Languages,
   },
   {
     action: "vocabulary",
-    label: "Key vocab",
+    label: "studyChat.keyVocab",
     prompt:
       "Pull out the most useful vocabulary and phrases from the uploaded material for a learner.",
     Icon: NotebookPen,
@@ -119,6 +120,7 @@ function messageBubbleTone(message: StudyChatMessage) {
 
 export function StudyChatClient() {
   const isMobile = useIsMobile();
+  const t = useT();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -142,6 +144,7 @@ export function StudyChatClient() {
   const [confirmDeleteTitle, setConfirmDeleteTitle] = useState("");
   const [isRenaming, setIsRenaming] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
 
   const activeSession = useMemo(
     () => sessions.find((session) => session.id === activeSessionId) ?? null,
@@ -323,22 +326,56 @@ export function StudyChatClient() {
   }
 
   async function handleSend(action: StudyChatAction = "chat", promptText?: string) {
-    const body = (promptText ?? draft).trim();
+    const filesToUpload = promptText ? [] : pendingFiles;
+    const body =
+      (promptText ?? draft).trim() ||
+      (filesToUpload.length > 0
+        ? t("studyChat.defaultUploadMessage")
+        : "");
     if (!body) {
       return;
     }
 
     try {
       setIsSending(true);
+
+      let uploadedIds: string[] = [];
+      if (filesToUpload.length > 0) {
+        setIsUploading(true);
+        uploadedIds = await Promise.all(
+          filesToUpload.map(async (file) => {
+            const formData = new FormData();
+            formData.append("file", file);
+            formData.append("scope", "study_chat");
+            const response = await fetch("/api/uploads", {
+              method: "POST",
+              body: formData,
+            });
+            const payload = (await response.json().catch(() => null)) as
+              | UploadResponse
+              | { error?: string }
+              | null;
+            if (!response.ok || !payload || !("id" in payload)) {
+              throw new Error(payload && "error" in payload ? payload.error : "Failed to upload file");
+            }
+            return payload.id;
+          })
+        );
+        setPendingFiles([]);
+      }
+
       let sessionId = activeSessionId;
       if (!sessionId) {
-        sessionId = await createSession();
+        sessionId = await createSession(uploadedIds.length ? { uploadIds: uploadedIds } : undefined);
+        // uploads are already grounded via createSession — don't re-attach
+        uploadedIds = [];
       }
 
       await sendPrompt({
         sessionId,
         body,
         action,
+        uploadIds: uploadedIds.length ? uploadedIds : undefined,
       });
 
       if (!promptText) {
@@ -348,64 +385,7 @@ export function StudyChatClient() {
       toast.error(error instanceof Error ? error.message : "Failed to send message");
     } finally {
       setIsSending(false);
-    }
-  }
-
-  async function uploadStudyFiles(files: File[]) {
-    if (files.length === 0) {
-      return;
-    }
-
-    try {
-      setIsUploading(true);
-      const uploaded = await Promise.all(
-        files.map(async (file) => {
-          const formData = new FormData();
-          formData.append("file", file);
-          formData.append("scope", "study_chat");
-
-          const response = await fetch("/api/uploads", {
-            method: "POST",
-            body: formData,
-          });
-          const payload = (await response.json().catch(() => null)) as
-            | UploadResponse
-            | { error?: string }
-            | null;
-
-          if (!response.ok || !payload || !("id" in payload)) {
-            throw new Error(payload && "error" in payload ? payload.error : "Failed to upload file");
-          }
-
-          return payload.id;
-        })
-      );
-
-      if (uploaded.length === 0) {
-        return;
-      }
-
-      let sessionId = activeSessionId;
-      if (!sessionId) {
-        sessionId = await createSession({ uploadIds: uploaded });
-      }
-
-      await sendPrompt({
-        sessionId,
-        body:
-          "I've uploaded new study material. Tell me what it contains and what I can do with it in this study chat.",
-        action: "chat",
-        uploadIds: activeSessionId ? uploaded : undefined,
-      });
-
-      toast.success(files.length === 1 ? "Study material uploaded" : "Study materials uploaded");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to upload study material");
-    } finally {
       setIsUploading(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
     }
   }
 
@@ -469,16 +449,16 @@ export function StudyChatClient() {
         <div className="flex items-center gap-2">
           <SidebarTrigger className="-ml-1 size-8 text-muted-foreground md:hidden" />
           <div className="min-w-0 flex-1">
-            <p className="text-[13px] font-semibold tracking-tight">Study Chat</p>
+            <p className="text-[13px] font-semibold tracking-tight">{t("studyChat.title")}</p>
           </div>
           <button
             type="button"
             onClick={() => void handleNewSession()}
-            title="New session"
+            title={t("studyChat.newSession")}
             className="flex h-7 items-center gap-1.5 rounded-lg bg-primary/15 px-2.5 text-[12px] font-medium text-primary transition-colors hover:bg-primary/25"
           >
             <MessageSquarePlus className="size-3.5" />
-            New
+            {t("studyChat.new")}
           </button>
         </div>
 
@@ -501,7 +481,7 @@ export function StudyChatClient() {
           </div>
         ) : sessions.length === 0 ? (
           <div className="rounded-xl border border-dashed border-border/50 px-4 py-6 text-center">
-            <p className="text-[12px] text-muted-foreground">Upload something to start a grounded study thread.</p>
+            <p className="text-[12px] text-muted-foreground">{t("studyChat.emptyState")}</p>
           </div>
         ) : (
           <div className="space-y-0.5">
@@ -604,7 +584,7 @@ export function StudyChatClient() {
                                 className="flex w-full items-center gap-2.5 px-3 py-2 text-[13px] text-foreground hover:bg-accent"
                               >
                                 <Pencil className="size-3.5 text-muted-foreground" />
-                                Rename
+                                {t("studyChat.rename")}
                               </button>
                               <button
                                 type="button"
@@ -616,7 +596,7 @@ export function StudyChatClient() {
                                 className="flex w-full items-center gap-2.5 px-3 py-2 text-[13px] text-destructive hover:bg-destructive/8"
                               >
                                 <Trash2 className="size-3.5" />
-                                Delete
+                                {t("studyChat.delete")}
                               </button>
                             </div>
                           </>
@@ -638,57 +618,117 @@ export function StudyChatClient() {
   // Shared compose input content
   const composeInner = (
     <>
-      <button
-        type="button"
-        onClick={() => fileInputRef.current?.click()}
-        disabled={isUploading}
-        title="Attach file"
-        className="flex size-7 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-40"
-      >
-        {isUploading ? (
-          <Loader2 className="size-3.5 animate-spin" />
-        ) : (
-          <Plus className="size-4" />
+      {/* Pending file previews — animated expand/collapse */}
+      <AnimatePresence>
+        {pendingFiles.length > 0 && (
+          <motion.div
+            key="file-previews"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ type: "spring", stiffness: 320, damping: 32 }}
+            style={{ overflow: "hidden" }}
+          >
+            <div className="grid grid-cols-3 gap-2 pb-2.5 pt-0.5">
+              <AnimatePresence mode="popLayout">
+                {pendingFiles.map((file, index) => {
+                  const isImage = file.type.startsWith("image/");
+                  const Icon = isImage ? FileImage : FileText;
+                  const typeLabel = isImage
+                    ? t("studyChat.image")
+                    : file.name.toLowerCase().endsWith(".pdf")
+                    ? "PDF"
+                    : t("studyChat.document");
+                  return (
+                    <motion.div
+                      key={`${file.name}-${index}`}
+                      initial={{ opacity: 0, scale: 0.85 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.85 }}
+                      transition={{ type: "spring", stiffness: 380, damping: 26 }}
+                      className="flex items-center gap-2 rounded-xl border border-border/60 bg-background/80 px-2.5 py-2"
+                    >
+                      <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/12 text-primary">
+                        <Icon className="size-4" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-[12px] font-medium leading-tight text-foreground">
+                          {file.name}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground">{typeLabel}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setPendingFiles((prev) => prev.filter((_, i) => i !== index))
+                        }
+                        className="ml-1 flex size-4 shrink-0 items-center justify-center rounded-full bg-muted-foreground/25 text-muted-foreground transition-colors hover:bg-destructive/20 hover:text-destructive"
+                      >
+                        <X className="size-2.5" />
+                      </button>
+                    </motion.div>
+                  );
+                })}
+              </AnimatePresence>
+            </div>
+          </motion.div>
         )}
-      </button>
-      <textarea
-        value={draft}
-        onChange={(event) => {
-          setDraft(event.target.value);
-          const el = event.target;
-          el.style.height = "auto";
-          el.style.height = Math.min(el.scrollHeight, 180) + "px";
-        }}
-        onKeyDown={(event) => {
-          if (event.key === "Enter" && !event.shiftKey) {
-            event.preventDefault();
-            void handleSend("chat");
-          }
-        }}
-        placeholder="Ask about meaning, request a translation, or dig into vocabulary…"
-        rows={1}
-        className="flex-1 resize-none bg-transparent text-[13px] leading-[1.6] outline-none placeholder:text-muted-foreground/60"
-        style={{ minHeight: "24px", maxHeight: "180px" }}
-        disabled={isSending}
-      />
-      <div className="flex shrink-0 items-center gap-1.5 pb-0.5">
-        {!isIdle && !!thread?.uploads.length && (
-          <div className="mr-1 text-[11px] text-muted-foreground/50">
-            {thread.uploads.length} grounded
-          </div>
-        )}
+      </AnimatePresence>
+
+      {/* Input row */}
+      <div className="flex items-end gap-2">
         <button
           type="button"
-          onClick={() => void handleSend("chat")}
-          disabled={isSending || !draft.trim()}
-          className="flex size-7 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-all hover:bg-primary/85 disabled:opacity-35 disabled:cursor-not-allowed"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={isUploading || isSending}
+          title={t("studyChat.attachFile")}
+          className="flex size-7 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-40"
         >
-          {isSending ? (
+          {isUploading ? (
             <Loader2 className="size-3.5 animate-spin" />
           ) : (
-            <Send className="size-3.5" />
+            <Plus className="size-4" />
           )}
         </button>
+        <textarea
+          value={draft}
+          onChange={(event) => {
+            setDraft(event.target.value);
+            const el = event.target;
+            el.style.height = "auto";
+            el.style.height = Math.min(el.scrollHeight, 180) + "px";
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" && !event.shiftKey) {
+              event.preventDefault();
+              void handleSend("chat");
+            }
+          }}
+          placeholder={t("studyChat.placeholder")}
+          rows={1}
+          className="flex-1 resize-none bg-transparent text-[13px] leading-[1.6] outline-none placeholder:text-muted-foreground/60"
+          style={{ minHeight: "24px", maxHeight: "180px" }}
+          disabled={isSending}
+        />
+        <div className="flex shrink-0 items-center gap-1.5 pb-0.5">
+          {!isIdle && !!thread?.uploads.length && (
+            <div className="mr-1 text-[11px] text-muted-foreground/50">
+              {t("studyChat.grounded").replace("{count}", String(thread.uploads.length))}
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={() => void handleSend("chat")}
+            disabled={isSending || (!draft.trim() && pendingFiles.length === 0)}
+            className="flex size-7 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-all hover:bg-primary/85 disabled:opacity-35 disabled:cursor-not-allowed"
+          >
+            {isSending ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <Send className="size-3.5" />
+            )}
+          </button>
+        </div>
       </div>
     </>
   );
@@ -718,12 +758,14 @@ export function StudyChatClient() {
                 ) : null}
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[13px] font-semibold">
-                    {thread?.session.title || activeSession?.title || "Study Chat"}
+                    {thread?.session.title || activeSession?.title || t("studyChat.title")}
                   </p>
                   <p className="text-[11px] text-muted-foreground">
                     {thread
-                      ? `${thread.uploads.length} upload${thread.uploads.length === 1 ? "" : "s"} grounded`
-                      : "Upload study material, then ask for summaries, translations, or vocabulary help."}
+                      ? thread.uploads.length === 1
+                        ? t("studyChat.uploadsGrounded").replace("{count}", "1")
+                        : t("studyChat.uploadsGroundedPlural").replace("{count}", String(thread.uploads.length))
+                      : t("studyChat.uploadHint")}
                   </p>
                 </div>
 
@@ -743,7 +785,7 @@ export function StudyChatClient() {
                       )}
                     >
                       <Icon className="size-3.5" />
-                      {label}
+                      {t(label)}
                     </button>
                   ))}
                 </div>
@@ -761,7 +803,7 @@ export function StudyChatClient() {
                         className="flex items-center gap-1.5 rounded-md bg-muted/50 px-2 py-1 text-[11px] text-foreground/70"
                       >
                         <Icon className="size-3 shrink-0 text-primary/70" />
-                        <span className="max-w-[160px] truncate">{uploadLabel(upload)}</span>
+                        <span className="max-w-[160px] truncate">{upload.title || upload.original_filename || t("studyChat.untitledUpload")}</span>
                         {upload.language_detected && (
                           <span className="text-muted-foreground/60">{upload.language_detected}</span>
                         )}
@@ -807,7 +849,7 @@ export function StudyChatClient() {
             transition={{ duration: 0.4, ease: "easeOut" }}
             className="pointer-events-none absolute inset-x-0 top-[calc(50%-80px)] text-center text-2xl font-semibold text-foreground"
           >
-            What do you want to study today?
+            {t("studyChat.idleMessage")}
           </motion.p>
         )}
       </AnimatePresence>
@@ -815,17 +857,21 @@ export function StudyChatClient() {
       {/* Outer wrapper: plain div that instantly resizes — no animation on the container */}
       <div
         className={cn(
-          isIdle
-            ? "flex flex-1 items-center justify-center px-6"
-            : "px-4 pb-6 pt-3"
+          isIdle ? "relative flex-1" : "px-4 pb-6 pt-3"
         )}
       >
         <motion.div
           layout="position"
           transition={{ type: "spring", stiffness: 280, damping: 28 }}
-          className="mx-auto w-full max-w-3xl"
+          className={cn(
+            "w-full max-w-3xl",
+            isIdle
+              ? "absolute left-1/2 -translate-x-1/2 px-6"
+              : "mx-auto"
+          )}
+          style={isIdle ? { top: "calc(50% - 22px)" } : undefined}
         >
-          <div className="flex items-end gap-2 rounded-2xl border border-border/60 bg-muted/20 px-3 py-2.5 transition-colors focus-within:border-primary/40 focus-within:bg-background">
+          <div className="rounded-2xl border border-border/60 bg-muted/20 px-3 py-2.5 transition-colors focus-within:border-primary/40 focus-within:bg-background">
             {composeInner}
           </div>
         </motion.div>
@@ -843,7 +889,10 @@ export function StudyChatClient() {
         className="hidden"
         onChange={(event) => {
           const selected = Array.from(event.target.files ?? []);
-          void uploadStudyFiles(selected);
+          if (selected.length > 0) {
+            setPendingFiles((prev) => [...prev, ...selected]);
+          }
+          if (fileInputRef.current) fileInputRef.current.value = "";
         }}
       />
       {isMobile ? (
@@ -863,9 +912,9 @@ export function StudyChatClient() {
       <Dialog open={!!confirmDeleteId} onOpenChange={(open) => { if (!open) setConfirmDeleteId(null); }}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>Delete session?</DialogTitle>
+            <DialogTitle>{t("studyChat.deleteSession")}</DialogTitle>
             <DialogDescription>
-              &ldquo;{confirmDeleteTitle}&rdquo; will be permanently deleted.
+              {t("studyChat.deleteSessionConfirm").replace("{title}", confirmDeleteTitle)}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="mt-2 flex-row gap-2">
@@ -875,7 +924,7 @@ export function StudyChatClient() {
               onClick={() => setConfirmDeleteId(null)}
               disabled={isDeleting}
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               variant="destructive"
@@ -884,7 +933,7 @@ export function StudyChatClient() {
               disabled={isDeleting}
             >
               {isDeleting ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
-              Delete
+              {t("common.delete")}
             </Button>
           </DialogFooter>
         </DialogContent>

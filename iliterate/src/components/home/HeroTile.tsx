@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { ArrowRight, GraduationCap, Plus } from "lucide-react";
+import { useT } from "@/lib/i18n/I18nProvider";
 
 interface ActiveLesson {
   id: string;
@@ -12,6 +13,8 @@ interface ActiveLesson {
 }
 
 export function HeroTile({ lesson }: { lesson: ActiveLesson | null }) {
+  const t = useT();
+
   if (lesson) {
     return (
       <Link
@@ -21,7 +24,7 @@ export function HeroTile({ lesson }: { lesson: ActiveLesson | null }) {
       >
         <div className="flex flex-col gap-2">
           <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Continue Lesson
+            {t("home.continueLesson")}
           </span>
           <h2 className="text-2xl font-semibold tracking-tight text-foreground">
             {lesson.title}
@@ -32,7 +35,7 @@ export function HeroTile({ lesson }: { lesson: ActiveLesson | null }) {
         <div className="mt-8 flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <span className="text-xs text-muted-foreground">
-              Reading progress
+              {t("home.readingProgress")}
             </span>
             <span className="font-mono text-xs font-medium">
               {lesson.progress_percent ?? 0}%
@@ -45,7 +48,7 @@ export function HeroTile({ lesson }: { lesson: ActiveLesson | null }) {
             />
           </div>
           <div className="mt-2 flex items-center gap-2 text-sm font-medium text-primary">
-            Continue Reading
+            {t("home.continueReading")}
             <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
           </div>
         </div>
@@ -64,14 +67,14 @@ export function HeroTile({ lesson }: { lesson: ActiveLesson | null }) {
         <GraduationCap className="size-7" />
       </div>
       <h2 className="mt-4 text-xl font-semibold tracking-tight">
-        Start a Lesson
+        {t("home.startLesson")}
       </h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        Personalized reading lessons tailored to your level
+        {t("home.startLessonDesc")}
       </p>
       <div className="mt-6 flex items-center gap-2 rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground transition-colors group-hover:bg-primary/90">
         <Plus className="size-4" />
-        New Lesson
+        {t("home.newLesson")}
       </div>
     </Link>
   );

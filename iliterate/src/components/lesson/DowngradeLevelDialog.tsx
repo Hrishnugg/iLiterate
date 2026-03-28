@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { useT } from "@/lib/i18n/I18nProvider";
 
 interface DowngradeInfo {
   canDowngrade: boolean;
@@ -33,6 +34,7 @@ export function DowngradeLevelDialog({
   onOpenChange,
   onDowngradeComplete,
 }: DowngradeLevelDialogProps) {
+  const t = useT();
   const [info, setInfo] = useState<DowngradeInfo | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isDowngrading, setIsDowngrading] = useState(false);
@@ -53,11 +55,11 @@ export function DowngradeLevelDialog({
         const data = await response.json();
         setInfo(data);
       } else {
-        toast.error("Failed to load level information");
+        toast.error(t("downgrade.failedToLoad"));
         onOpenChange(false);
       }
     } catch {
-      toast.error("Failed to load level information");
+      toast.error(t("downgrade.failedToLoad"));
       onOpenChange(false);
     } finally {
       setIsLoading(false);
@@ -76,10 +78,10 @@ export function DowngradeLevelDialog({
       if (response.ok) {
         const result = await response.json();
         toast.success(
-          `Level downgraded from ${result.oldCEFR} to ${result.newCEFR}`,
+          t("downgrade.success").replace("{old}", result.oldCEFR).replace("{new}", result.newCEFR),
           {
             description: result.lessonsCleared > 0
-              ? `${result.lessonsCleared} in-progress lesson(s) cleared`
+              ? t("downgrade.lessonsCleared").replace("{count}", String(result.lessonsCleared))
               : undefined,
           }
         );
@@ -87,10 +89,10 @@ export function DowngradeLevelDialog({
         onDowngradeComplete?.();
       } else {
         const error = await response.json();
-        toast.error(error.error || "Failed to downgrade level");
+        toast.error(error.error || t("downgrade.failedToDowngrade"));
       }
     } catch {
-      toast.error("Failed to downgrade level");
+      toast.error(t("downgrade.failedToDowngrade"));
     } finally {
       setIsDowngrading(false);
     }
@@ -102,18 +104,21 @@ export function DowngradeLevelDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <TrendingDown className="h-5 w-5 text-orange-500" />
-            Downgrade Your Level?
+            {t("downgrade.title")}
           </DialogTitle>
           <DialogDescription>
             {isLoading ? (
-              "Loading..."
+              t("downgrade.loading")
             ) : info ? (
               <>
-                You&apos;re currently at <strong>{info.currentCEFR}</strong> (Level {info.currentLevel}).
-                This will drop you to <strong>{info.targetCEFR}</strong> (Level {info.targetLevel}).
+                {t("downgrade.currentAt")
+                  .replace("{current}", info.currentCEFR)
+                  .replace("{level}", String(info.currentLevel))
+                  .replace("{target}", info.targetCEFR)
+                  .replace("{targetLevel}", String(info.targetLevel))}
               </>
             ) : (
-              "Unable to load level information"
+              t("downgrade.unableToLoad")
             )}
           </DialogDescription>
         </DialogHeader>
@@ -125,11 +130,11 @@ export function DowngradeLevelDialog({
               <div className="flex gap-3">
                 <AlertTriangle className="h-5 w-5 text-orange-500 flex-shrink-0 mt-0.5" />
                 <div className="text-sm text-orange-800 dark:text-orange-200">
-                  <p className="font-medium mb-1">This action:</p>
+                  <p className="font-medium mb-1">{t("downgrade.thisAction")}</p>
                   <ul className="list-disc list-inside space-y-1 text-orange-700 dark:text-orange-300">
-                    <li>Reduces all skill levels by one tier</li>
-                    <li>Resets your XP progress to 0</li>
-                    <li>Cannot be undone (you&apos;ll need to earn XP again)</li>
+                    <li>{t("downgrade.reducesLevels")}</li>
+                    <li>{t("downgrade.resetsXP")}</li>
+                    <li>{t("downgrade.cannotUndo")}</li>
                   </ul>
                 </div>
               </div>
@@ -139,7 +144,7 @@ export function DowngradeLevelDialog({
             {info.inProgressLessons > 0 && (
               <div className="rounded-lg border p-4">
                 <p className="text-sm font-medium mb-3">
-                  You have {info.inProgressLessons} in-progress lesson{info.inProgressLessons > 1 ? "s" : ""}
+                  {(info.inProgressLessons > 1 ? t("downgrade.inProgressLessonsPlural") : t("downgrade.inProgressLessons")).replace("{count}", String(info.inProgressLessons))}
                 </p>
                 <div className="space-y-2">
                   <label className="flex items-center gap-3 cursor-pointer">
@@ -150,7 +155,7 @@ export function DowngradeLevelDialog({
                       onChange={() => setClearLessons(true)}
                       className="h-4 w-4"
                     />
-                    <span className="text-sm">Clear and start fresh at new level</span>
+                    <span className="text-sm">{t("downgrade.clearLessons")}</span>
                   </label>
                   <label className="flex items-center gap-3 cursor-pointer">
                     <input
@@ -160,7 +165,7 @@ export function DowngradeLevelDialog({
                       onChange={() => setClearLessons(false)}
                       className="h-4 w-4"
                     />
-                    <span className="text-sm">Keep (finish at current difficulty)</span>
+                    <span className="text-sm">{t("downgrade.keepLessons")}</span>
                   </label>
                 </div>
               </div>
@@ -174,7 +179,7 @@ export function DowngradeLevelDialog({
             onClick={() => onOpenChange(false)}
             disabled={isDowngrading}
           >
-            Cancel
+            {t("common.cancel")}
           </Button>
           <Button
             variant="destructive"
@@ -184,10 +189,10 @@ export function DowngradeLevelDialog({
             {isDowngrading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Downgrading...
+                {t("downgrade.downgrading")}
               </>
             ) : (
-              "Confirm Downgrade"
+              t("downgrade.confirm")
             )}
           </Button>
         </DialogFooter>

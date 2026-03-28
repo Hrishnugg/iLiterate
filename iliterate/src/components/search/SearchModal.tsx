@@ -17,6 +17,7 @@ import {
   X,
 } from "lucide-react";
 import { useSearch } from "./SearchContext";
+import { useT } from "@/lib/i18n/I18nProvider";
 
 interface ContentResult {
   id: string;
@@ -51,16 +52,16 @@ interface SearchResults {
   friends: FriendResult[];
 }
 
-const PAGE_SHORTCUTS = [
-  { title: "Library", subtitle: "Browse your reading collection", href: "/library", icon: Library },
-  { title: "Flashcards", subtitle: "Review your vocabulary cards", href: "/flashcards", icon: Layers },
-  { title: "Quizzes", subtitle: "Test your comprehension", href: "/quizzes", icon: ClipboardCheck },
-  { title: "Lesson Plan", subtitle: "Start or continue a lesson", href: "/lesson-plan", icon: GraduationCap },
-  { title: "Study Chat", subtitle: "Ask grounded questions about uploaded materials", href: "/study-chat", icon: Sparkles },
-  { title: "Social", subtitle: "Friends and messages", href: "/social", icon: Users },
-  { title: "Leaderboard", subtitle: "See how you rank", href: "/leaderboard", icon: Trophy },
-  { title: "Progress", subtitle: "View your learning stats", href: "/progress", icon: TrendingUp },
-  { title: "Profile", subtitle: "Edit your account", href: "/profile", icon: User },
+const PAGE_SHORTCUT_DEFS = [
+  { titleKey: "nav.library",     subtitleKey: "search.pages.library",     href: "/library",     icon: Library },
+  { titleKey: "nav.flashcards",  subtitleKey: "search.pages.flashcards",  href: "/flashcards",  icon: Layers },
+  { titleKey: "nav.quizzes",     subtitleKey: "search.pages.quizzes",     href: "/quizzes",     icon: ClipboardCheck },
+  { titleKey: "nav.lessonPlan",  subtitleKey: "search.pages.lessonPlan",  href: "/lesson-plan", icon: GraduationCap },
+  { titleKey: "nav.studyChat",   subtitleKey: "search.pages.studyChat",   href: "/study-chat",  icon: Sparkles },
+  { titleKey: "nav.social",      subtitleKey: "search.pages.social",      href: "/social",      icon: Users },
+  { titleKey: "nav.leaderboard", subtitleKey: "search.pages.leaderboard", href: "/leaderboard", icon: Trophy },
+  { titleKey: "nav.progress",    subtitleKey: "search.pages.progress",    href: "/progress",    icon: TrendingUp },
+  { titleKey: "nav.profile",     subtitleKey: "search.pages.profile",     href: "/profile",     icon: User },
 ];
 
 type FlatResult =
@@ -70,12 +71,14 @@ type FlatResult =
   | { kind: "vocab"; id: string; word: string; reading: string | null }
   | { kind: "friend"; id: string; display_name: string; username: string | null };
 
-function buildFlat(query: string, results: SearchResults | null): FlatResult[] {
+type PageShortcut = { title: string; subtitle: string; href: string; icon: React.ElementType };
+
+function buildFlat(query: string, results: SearchResults | null, pageShortcuts: PageShortcut[]): FlatResult[] {
   const flat: FlatResult[] = [];
 
   // Pages: fuzzy filter against query
   const q = query.toLowerCase();
-  const matchedPages = PAGE_SHORTCUTS.filter(
+  const matchedPages = pageShortcuts.filter(
     (p) =>
       p.title.toLowerCase().includes(q) ||
       p.subtitle.toLowerCase().includes(q)
@@ -121,6 +124,7 @@ function ResultRow({
   onSelect: () => void;
 }) {
   const ref = useRef<HTMLButtonElement>(null);
+  const t = useT();
 
   useEffect(() => {
     if (isSelected) ref.current?.scrollIntoView({ block: "nearest" });
@@ -138,19 +142,19 @@ function ResultRow({
   } else if (result.kind === "content") {
     icon = <BookOpen className="size-4 shrink-0 text-muted-foreground" />;
     primary = result.title;
-    secondary = result.subtitle || "Library";
+    secondary = result.subtitle || t("search.fallback.library");
   } else if (result.kind === "lesson") {
     icon = <GraduationCap className="size-4 shrink-0 text-muted-foreground" />;
     primary = result.title;
-    secondary = result.subtitle || "Lesson";
+    secondary = result.subtitle || t("search.fallback.lesson");
   } else if (result.kind === "vocab") {
     icon = <Layers className="size-4 shrink-0 text-muted-foreground" />;
     primary = result.word;
-    secondary = result.reading ?? "Vocabulary";
+    secondary = result.reading ?? t("search.fallback.vocabulary");
   } else {
     icon = <Users className="size-4 shrink-0 text-muted-foreground" />;
     primary = result.display_name;
-    secondary = result.username ? `@${result.username}` : "Friend";
+    secondary = result.username ? `@${result.username}` : t("search.fallback.friend");
   }
 
   return (
@@ -195,12 +199,20 @@ function groupedSections(flat: FlatResult[]) {
 export function SearchModal() {
   const { isOpen, closeSearch } = useSearch();
   const router = useRouter();
+  const t = useT();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResults | null>(null);
   const [loading, setLoading] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const pageShortcuts: PageShortcut[] = PAGE_SHORTCUT_DEFS.map((d) => ({
+    title: t(d.titleKey),
+    subtitle: t(d.subtitleKey),
+    href: d.href,
+    icon: d.icon,
+  }));
 
   // Reset state when opening
   useEffect(() => {
@@ -240,7 +252,7 @@ export function SearchModal() {
     [fetchResults]
   );
 
-  const flat = buildFlat(query, results);
+  const flat = buildFlat(query, results, pageShortcuts);
 
   const navigate = useCallback(
     (result: FlatResult) => {
@@ -275,11 +287,11 @@ export function SearchModal() {
   // Build a flat index offset map so ResultRow gets the right global index
   let idx = 0;
   const sections: { label: string; items: FlatResult[] }[] = [];
-  if (pages.length) sections.push({ label: "Pages", items: pages });
-  if (content.length) sections.push({ label: "Library", items: content });
-  if (lessons.length) sections.push({ label: "Lessons", items: lessons });
-  if (vocab.length) sections.push({ label: "Vocabulary", items: vocab });
-  if (friends.length) sections.push({ label: "Friends", items: friends });
+  if (pages.length) sections.push({ label: t("search.sections.pages"), items: pages });
+  if (content.length) sections.push({ label: t("search.sections.library"), items: content });
+  if (lessons.length) sections.push({ label: t("search.sections.lessons"), items: lessons });
+  if (vocab.length) sections.push({ label: t("search.sections.vocabulary"), items: vocab });
+  if (friends.length) sections.push({ label: t("search.sections.friends"), items: friends });
 
   return (
     /* Backdrop */
@@ -301,7 +313,7 @@ export function SearchModal() {
           <input
             ref={inputRef}
             type="text"
-            placeholder="Search lessons, library, friends, vocabulary…"
+            placeholder={t("search.placeholder")}
             value={query}
             onChange={(e) => handleInput(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -330,13 +342,13 @@ export function SearchModal() {
         <div className="max-h-[420px] overflow-y-auto p-2">
           {!query && (
             <div className="py-8 text-center text-sm text-muted-foreground">
-              Start typing to search…
+              {t("search.startTyping")}
             </div>
           )}
 
           {query && !hasResults && !loading && (
             <div className="py-8 text-center text-sm text-muted-foreground">
-              No results for &ldquo;{query}&rdquo;
+              {t("search.noResults").replace("{query}", query)}
             </div>
           )}
 
@@ -361,9 +373,9 @@ export function SearchModal() {
         {/* Footer hint */}
         {hasResults && (
           <div className="flex items-center gap-4 border-t px-4 py-2 text-[11px] text-muted-foreground">
-            <span><kbd className="font-mono">↑↓</kbd> navigate</span>
-            <span><kbd className="font-mono">↵</kbd> open</span>
-            <span><kbd className="font-mono">Esc</kbd> close</span>
+            <span><kbd className="font-mono">↑↓</kbd> {t("search.hints.navigate")}</span>
+            <span><kbd className="font-mono">↵</kbd> {t("search.hints.open")}</span>
+            <span><kbd className="font-mono">Esc</kbd> {t("search.hints.close")}</span>
           </div>
         )}
       </div>

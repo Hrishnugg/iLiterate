@@ -1,6 +1,8 @@
 "use client";
 
+import Image from "next/image";
 import { LeaderboardEntry } from "@/types/database";
+import { useT } from "@/lib/i18n/I18nProvider";
 
 interface LeaderboardTableProps {
   entries: LeaderboardEntry[];
@@ -48,10 +50,11 @@ function getRankEmoji(rank: number): string {
 }
 
 export function LeaderboardTable({ entries, currentUserId, emptyMessage }: LeaderboardTableProps) {
+  const t = useT();
   if (entries.length === 0) {
     return (
       <div className="text-center py-12 text-muted-foreground">
-        {emptyMessage ?? "No activity this period yet. Complete quizzes, readings, or flashcard reviews to earn points!"}
+        {emptyMessage ?? t("leaderboard.noActivity")}
       </div>
     );
   }
@@ -70,19 +73,43 @@ export function LeaderboardTable({ entries, currentUserId, emptyMessage }: Leade
               isCurrentUser ? "ring-2 ring-primary" : ""
             }`}
           >
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted font-bold text-sm">
-              {emoji || getRankLabel(entry.rank)}
+            <div className="relative flex-shrink-0">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted overflow-hidden">
+                {entry.avatarUrl ? (
+                  <Image
+                    src={entry.avatarUrl}
+                    alt={entry.displayName}
+                    width={40}
+                    height={40}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <span className="text-sm font-bold text-muted-foreground">
+                    {entry.displayName.charAt(0).toUpperCase()}
+                  </span>
+                )}
+              </div>
+              {emoji && (
+                <span className="absolute -bottom-1 -right-1 text-sm leading-none select-none">
+                  {emoji}
+                </span>
+              )}
+              {!emoji && (
+                <span className="absolute -bottom-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-muted px-0.5 text-[10px] font-bold leading-none text-muted-foreground ring-1 ring-background">
+                  {getRankLabel(entry.rank)}
+                </span>
+              )}
             </div>
             <div className="flex-1 min-w-0">
               <p className="font-medium truncate">
                 {entry.displayName}
                 {isCurrentUser && (
-                  <span className="ml-2 text-xs text-primary font-normal">(you)</span>
+                  <span className="ml-2 text-xs text-primary font-normal">({t("leaderboard.you")})</span>
                 )}
               </p>
             </div>
             <div className="text-right font-semibold tabular-nums">
-              {entry.points.toLocaleString()} pts
+              {entry.points.toLocaleString()} {t("leaderboard.pts")}
             </div>
           </div>
         );

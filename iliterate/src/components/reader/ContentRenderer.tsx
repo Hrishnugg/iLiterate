@@ -7,6 +7,7 @@ import Image from "next/image";
 import { Content, Highlight } from "@/types/database";
 import { TextSelection } from "./TextHighlighter";
 import { buildReaderSegments, ReaderMode, ReaderSegment } from "./karaoke";
+import { T } from "@/lib/i18n/I18nProvider";
 
 // Dynamic imports to avoid SSR issues with browser-only APIs (DOMMatrix, etc.)
 const PDFRenderer = dynamic(() => import("./PDFRenderer").then(mod => mod.PDFRenderer), {
@@ -721,7 +722,7 @@ export function ContentRenderer({
                 />
               </div>
               <p className="mt-3 text-sm text-muted-foreground">
-                Original uploaded image
+                <T id="reader.originalImage" />
               </p>
             </div>
           </aside>

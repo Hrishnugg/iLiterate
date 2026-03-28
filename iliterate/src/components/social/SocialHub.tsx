@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+import { useT, T } from "@/lib/i18n/I18nProvider";
 import { AttachmentPreviewDialog } from "@/components/social/AttachmentPreviewDialog";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { createClient } from "@/lib/supabase/client";
@@ -105,12 +106,55 @@ interface AttachmentPreviewState {
 
 const MAX_TRANSLATION_CHARS = 4000;
 
-const relationshipLabel: Record<RelationshipState, string> = {
-  none: "New",
-  incoming: "Incoming",
-  outgoing: "Pending",
-  friends: "Friends",
-};
+function RelationshipLabel({ state }: { state: RelationshipState }) {
+  const t = useT();
+  const labels: Record<RelationshipState, string> = {
+    none: t("common.new"),
+    incoming: t("social.incoming"),
+    outgoing: t("common.pending"),
+    friends: t("social.friends"),
+  };
+  return <>{labels[state]}</>;
+}
+
+function AttachmentLabel({ type }: { type: DirectMessageAttachmentType }) {
+  const t = useT();
+  switch (type) {
+    case "image":
+      return <>{t("social.image")}</>;
+    case "pdf":
+      return <>{t("social.pdf")}</>;
+    case "docx":
+      return <>{t("social.docx")}</>;
+  }
+}
+
+function formatTimestamp(value: string | null | undefined, t: (key: string, values?: any) => string): string {
+  if (!value) {
+    return t("social.noActivity");
+  }
+
+  const date = new Date(value);
+  const now = Date.now();
+  const diffMs = now - date.getTime();
+  const diffMinutes = Math.max(1, Math.floor(diffMs / 60000));
+
+  if (diffMinutes < 60) {
+    return t("social.ago", { time: `${diffMinutes}${t("social.minutesAbbr")}` });
+  }
+
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) {
+    return t("social.ago", { time: `${diffHours}${t("social.hoursAbbr")}` });
+  }
+
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 7) {
+    return t("social.ago", { time: `${diffDays}${t("social.daysAbbr")}` });
+  }
+
+  return date.toLocaleDateString();
+}
 
 function inferAttachmentType(file: File): DirectMessageAttachmentType | null {
   const mimeType = file.type.toLowerCase();
@@ -133,17 +177,6 @@ function inferAttachmentType(file: File): DirectMessageAttachmentType | null {
   }
 
   return null;
-}
-
-function attachmentLabel(type: DirectMessageAttachmentType) {
-  switch (type) {
-    case "image":
-      return "Image";
-    case "pdf":
-      return "PDF";
-    case "docx":
-      return "Document";
-  }
 }
 
 function attachmentIcon(type: DirectMessageAttachmentType) {
@@ -274,33 +307,6 @@ function normalizeSearchResults(items: unknown[]): SocialSearchResult[] {
   });
 }
 
-function formatTimestamp(value: string | null | undefined): string {
-  if (!value) {
-    return "No activity yet";
-  }
-
-  const date = new Date(value);
-  const now = Date.now();
-  const diffMs = now - date.getTime();
-  const diffMinutes = Math.max(1, Math.floor(diffMs / 60000));
-
-  if (diffMinutes < 60) {
-    return `${diffMinutes}m ago`;
-  }
-
-  const diffHours = Math.floor(diffMinutes / 60);
-  if (diffHours < 24) {
-    return `${diffHours}h ago`;
-  }
-
-  const diffDays = Math.floor(diffHours / 24);
-  if (diffDays < 7) {
-    return `${diffDays}d ago`;
-  }
-
-  return date.toLocaleDateString();
-}
-
 function getFriendFromConversation(
   conversation: DirectConversation,
   currentUserId: string,
@@ -319,6 +325,7 @@ function getFriendFromConversation(
 }
 
 export function SocialHub() {
+  const t = useT();
   const supabase = createClient();
   const isMobile = useIsMobile();
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
@@ -364,7 +371,7 @@ export function SocialHub() {
     }
 
     if (!response.ok) {
-      throw new Error("Failed to load social profile");
+      throw new Error(t("social.failedLoadSocial"));
     }
 
     const payload = await response.json();
@@ -374,7 +381,7 @@ export function SocialHub() {
   const loadViewerLanguages = async () => {
     const response = await fetch("/api/profile");
     if (!response.ok) {
-      throw new Error("Failed to load profile languages");
+      throw new Error(t("common.loadError"));
     }
 
     const payload = (await response.json()) as {
@@ -391,7 +398,7 @@ export function SocialHub() {
   const loadFriendships = async () => {
     const response = await fetch("/api/social/friendships");
     if (!response.ok) {
-      throw new Error("Failed to load friendships");
+      throw new Error(t("social.failedLoadSocial"));
     }
 
     const payload = (await response.json()) as FriendshipsPayload;
@@ -411,7 +418,7 @@ export function SocialHub() {
   const loadConversations = async () => {
     const response = await fetch("/api/social/conversations");
     if (!response.ok) {
-      throw new Error("Failed to load conversations");
+      throw new Error(t("social.failedLoadConversations"));
     }
 
     const payload = (await response.json()) as ConversationsPayload;
@@ -426,7 +433,7 @@ export function SocialHub() {
               ? conversation.user_two_id
               : conversation.user_one_id,
           username: null,
-          display_name: "Study partner",
+          display_name: t("social.studyPartner"),
           avatar_seed: null,
           created_at: conversation.created_at,
           updated_at: conversation.updated_at,
@@ -444,7 +451,7 @@ export function SocialHub() {
   const loadMessages = useCallback(async (conversationId: string) => {
     const response = await fetch(`/api/social/conversations/${conversationId}/messages`);
     if (!response.ok) {
-      throw new Error("Failed to load messages");
+      throw new Error(t("social.failedLoadMessages"));
     }
 
     const payload = (await response.json()) as ConversationDetailsPayload;
@@ -464,7 +471,7 @@ export function SocialHub() {
                 ? payload.conversation.user_two_id
                 : payload.conversation.user_one_id,
             username: null,
-            display_name: "Study partner",
+            display_name: t("social.studyPartner"),
             avatar_seed: null,
             created_at: payload.conversation.created_at,
             updated_at: payload.conversation.updated_at,
@@ -475,7 +482,7 @@ export function SocialHub() {
 
     setMessages(payload.messages ?? []);
     setTimeout(scrollToBottom, 0);
-  }, [activeConversation?.friend, profileLookup, publicProfile?.id]);
+  }, [activeConversation?.friend, profileLookup, publicProfile?.id, t]);
 
   const ensureAttachmentUrl = useCallback(async (
     attachmentId: string,
@@ -509,7 +516,7 @@ export function SocialHub() {
       } | null;
 
       if (!response.ok || !payload?.url) {
-        throw new Error(payload?.error || "Failed to load attachment");
+        throw new Error(payload?.error || t("social.previewUnavailable"));
       }
 
       setAttachmentUrls((current) => ({
@@ -525,7 +532,7 @@ export function SocialHub() {
       return payload.url;
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "Failed to load attachment";
+        error instanceof Error ? error.message : t("social.previewUnavailable");
       setAttachmentUrls((current) => ({
         ...current,
         [attachmentId]: {
@@ -537,7 +544,7 @@ export function SocialHub() {
       }));
       throw error;
     }
-  }, [attachmentUrls]);
+  }, [attachmentUrls, t]);
 
   const detectLanguage = useCallback(async (text: string) => {
     const response = await fetch("/api/content/detect", {
@@ -552,23 +559,23 @@ export function SocialHub() {
     } | null;
 
     if (!response.ok || !payload?.language) {
-      throw new Error(payload?.error || "Failed to detect language");
+      throw new Error(payload?.error || t("common.error"));
     }
 
     return payload.language;
-  }, []);
+  }, [t]);
 
   const translateSnippet = useCallback(async (
     text: string,
     detectedLanguage: string | null | undefined
   ) => {
     if (!viewerLanguages) {
-      throw new Error("Profile languages are not available yet");
+      throw new Error(t("common.loadError"));
     }
 
     const trimmed = text.trim().slice(0, MAX_TRANSLATION_CHARS);
     if (!trimmed) {
-      throw new Error("No text available to translate");
+      throw new Error(t("social.previewUnavailable"));
     }
 
     const sourceLang =
@@ -590,14 +597,14 @@ export function SocialHub() {
     } | null;
 
     if (!response.ok || !payload?.translation) {
-      throw new Error(payload?.error || "Failed to translate content");
+      throw new Error(payload?.error || t("common.error"));
     }
 
     return {
       text: payload.translation,
       sourceLanguage: sourceLang,
     };
-  }, [detectLanguage, viewerLanguages]);
+  }, [detectLanguage, viewerLanguages, t]);
 
   const refreshLists = async () => {
     await loadFriendships();
@@ -625,11 +632,11 @@ export function SocialHub() {
 
   useEffect(() => {
     void bootSocialHub().catch((error) => {
-      const message = error instanceof Error ? error.message : "Failed to load social hub";
+      const message = error instanceof Error ? error.message : t("social.failedLoadSocial");
       toast.error(message);
       setIsLoading(false);
     });
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     if (!publicProfile?.username) {
@@ -637,10 +644,10 @@ export function SocialHub() {
     }
 
     void refreshConversationList().catch((error) => {
-      const message = error instanceof Error ? error.message : "Failed to load conversations";
+      const message = error instanceof Error ? error.message : t("social.failedLoadConversations");
       toast.error(message);
     });
-  }, [publicProfile?.username, publicProfile?.id, friends.length]);
+  }, [publicProfile?.username, publicProfile?.id, friends.length, t]);
 
   useEffect(() => {
     if (!activeConversation?.id) {
@@ -680,13 +687,13 @@ export function SocialHub() {
         setIsSearching(true);
         const response = await fetch(`/api/social/search?q=${encodeURIComponent(query)}`);
         if (!response.ok) {
-          throw new Error("Failed to search for learners");
+          throw new Error(t("social.failedSearch"));
         }
 
         const payload = await response.json();
         setSearchResults(normalizeSearchResults(payload.results ?? []));
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Failed to search for learners";
+        const message = error instanceof Error ? error.message : t("social.failedSearch");
         toast.error(message);
       } finally {
         setIsSearching(false);
@@ -694,7 +701,7 @@ export function SocialHub() {
     }, 250);
 
     return () => window.clearTimeout(timer);
-  }, [searchQuery, publicProfile?.username]);
+  }, [searchQuery, publicProfile?.username, t]);
 
   useEffect(() => {
     if (!activeConversation?.id) {
@@ -729,7 +736,7 @@ export function SocialHub() {
     });
 
     if (!response.ok) {
-      throw new Error("Failed to update read state");
+      throw new Error(t("common.error"));
     }
 
     setConversations((current) =>
@@ -764,7 +771,7 @@ export function SocialHub() {
 
     const payload = (await response.json().catch(() => null)) as ConversationDetailsPayload | null;
     if (!response.ok || !payload?.conversation) {
-      throw new Error(payload && "error" in payload ? String((payload as { error?: unknown }).error) : "Failed to open conversation");
+      throw new Error(payload && "error" in payload ? String((payload as { error?: unknown }).error) : t("social.failedLoadConversations"));
     }
 
     const friend =
@@ -772,7 +779,7 @@ export function SocialHub() {
       profileLookup[friendId] ?? {
         id: friendId,
         username: null,
-        display_name: "Study partner",
+        display_name: t("social.studyPartner"),
         avatar_seed: null,
         created_at: payload.conversation.created_at,
         updated_at: payload.conversation.updated_at,
@@ -810,7 +817,7 @@ export function SocialHub() {
     const payload = await response.json().catch(() => null);
 
     if (!response.ok) {
-      throw new Error(payload?.error || "Failed to update friend request");
+      throw new Error(payload?.error || t("social.failedUpdateFriend"));
     }
 
     await refreshLists();
@@ -830,10 +837,10 @@ export function SocialHub() {
 
     const payload = await response.json().catch(() => null);
     if (!response.ok) {
-      throw new Error(payload?.error || "Failed to send friend request");
+      throw new Error(payload?.error || t("social.failedFriendRequest"));
     }
 
-    toast.success("Friend request sent");
+    toast.success(t("social.friendRequestSent"));
     await refreshLists();
   };
 
@@ -886,7 +893,7 @@ export function SocialHub() {
           | null;
 
         if (!uploadResponse.ok) {
-          throw new Error(uploadPayload?.error || `Failed to upload ${file.name}`);
+          throw new Error(uploadPayload?.error || t("common.error"));
         }
 
         const uploadId =
@@ -935,7 +942,7 @@ export function SocialHub() {
 
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
-        throw new Error(payload?.error || "Failed to send message");
+        throw new Error(payload?.error || t("social.failedSendMessage"));
       }
 
       const nextMessage = (payload?.message ?? payload) as DirectMessage;
@@ -976,7 +983,7 @@ export function SocialHub() {
       }));
     } catch (error) {
       const messageText =
-        error instanceof Error ? error.message : "Failed to translate message";
+        error instanceof Error ? error.message : t("social.failedSendMessage");
       setMessageTranslations((current) => ({
         ...current,
         [message.id]: {
@@ -1017,7 +1024,7 @@ export function SocialHub() {
       }));
     } catch (error) {
       const messageText =
-        error instanceof Error ? error.message : "Failed to translate attachment";
+        error instanceof Error ? error.message : t("social.failedSendMessage");
       setAttachmentTranslations((current) => ({
         ...current,
         [attachment.id]: {
@@ -1040,7 +1047,7 @@ export function SocialHub() {
   }
 
   const derivedDisplayName =
-    publicProfile?.display_name ?? "Learner";
+    publicProfile?.display_name ?? t("common.learner");
 
   if (!publicProfile?.username) {
     return (
@@ -1051,7 +1058,7 @@ export function SocialHub() {
             initialUsername={publicProfile?.username}
             onSaved={(profile) => {
               setPublicProfile(profile);
-              toast.success("Your social workspace is ready");
+              toast.success(t("social.socialWorkspaceReady"));
             }}
           />
         </div>
@@ -1114,7 +1121,7 @@ export function SocialHub() {
           | null;
 
         if (!response.ok) {
-          throw new Error(payload?.error || "Failed to load attachment preview");
+          throw new Error(payload?.error || t("social.previewUnavailable"));
         }
 
         if (payload?.url) {
@@ -1173,7 +1180,7 @@ export function SocialHub() {
       }));
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "Failed to load attachment preview";
+        error instanceof Error ? error.message : t("social.previewUnavailable");
       setAttachmentPreviews((current) => ({
         ...current,
         [attachment.id]: {
@@ -1197,7 +1204,7 @@ export function SocialHub() {
       });
       window.open(url, "_blank", "noopener,noreferrer");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to open attachment");
+      toast.error(error instanceof Error ? error.message : t("common.error"));
     }
   };
 
@@ -1208,7 +1215,7 @@ export function SocialHub() {
       });
       const response = await fetch(url);
       if (!response.ok) {
-        throw new Error("Failed to download attachment");
+        throw new Error(t("common.error"));
       }
 
       const blob = await response.blob();
@@ -1223,7 +1230,7 @@ export function SocialHub() {
       window.URL.revokeObjectURL(objectUrl);
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Failed to download attachment"
+        error instanceof Error ? error.message : t("common.error")
       );
     }
   };
@@ -1235,13 +1242,13 @@ export function SocialHub() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <SidebarTrigger className="size-7 text-muted-foreground md:hidden" />
-            <span className="text-lg font-semibold tracking-tight">Messages</span>
+            <span className="text-lg font-semibold tracking-tight"><T id="social.messages" /></span>
           </div>
           <Button
             variant="outline"
             size="icon"
             className="size-8"
-            title="Find friends"
+            title={t("social.findFriends")}
             onClick={() => setActiveTab("friends")}
           >
             <UserRoundPlus className="size-4" />
@@ -1254,7 +1261,7 @@ export function SocialHub() {
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
             className="pl-9 h-9 bg-muted/50 border-0"
-            placeholder={activeTab === "friends" || activeTab === "requests" ? "Search by username, name, or email..." : "Search conversations..."}
+            placeholder={activeTab === "friends" || activeTab === "requests" ? t("social.searchPlaceholderSocial") : t("social.searchConversations")}
           />
         </div>
       </div>
@@ -1262,9 +1269,9 @@ export function SocialHub() {
       {/* Tabs — always visible, below search */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-1 flex-col min-h-0">
         <TabsList variant="line" className="w-full justify-start px-4 shrink-0 border-b">
-          <TabsTrigger value="chats" className="text-xs">Chats</TabsTrigger>
-          <TabsTrigger value="friends" className="text-xs">Friends ({friends.length})</TabsTrigger>
-          <TabsTrigger value="requests" className="text-xs">Requests ({pendingCount})</TabsTrigger>
+          <TabsTrigger value="chats" className="text-xs"><T id="social.chats" /></TabsTrigger>
+          <TabsTrigger value="friends" className="text-xs"><T id="social.friendsCount" values={{ count: String(friends.length) }} /></TabsTrigger>
+          <TabsTrigger value="requests" className="text-xs"><T id="social.requestsCount" values={{ count: String(pendingCount) }} /></TabsTrigger>
         </TabsList>
 
         {/* Chats tab — conversation list */}
@@ -1273,7 +1280,7 @@ export function SocialHub() {
           {searchQuery.trim() && (
             <div className="border-b">
               <div className="flex items-center justify-between px-4 py-2">
-                <p className="text-xs font-medium text-muted-foreground">Search results</p>
+                <p className="text-xs font-medium text-muted-foreground"><T id="social.searchResults" /></p>
                 {isSearching ? <Loader2 className="size-3 animate-spin text-primary" /> : null}
               </div>
               <div className="max-h-48 overflow-y-auto">
@@ -1286,29 +1293,29 @@ export function SocialHub() {
                         </div>
                         <div className="min-w-0">
                           <p className="truncate text-sm font-medium">{result.profile.display_name}</p>
-                          <p className="text-xs text-muted-foreground">@{result.profile.username ?? "pending"}</p>
+                          <p className="text-xs text-muted-foreground">@{result.profile.username ?? t("common.pending")}</p>
                         </div>
                       </div>
                       {result.relationship === "none" ? (
                         <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => void handleSendFriendRequest(result.profile.id).catch((error) => {
-                          toast.error(error instanceof Error ? error.message : "Failed to send request");
+                          toast.error(error instanceof Error ? error.message : t("social.failedFriendRequest"));
                         })}>
-                          Add
+                          <T id="social.add" />
                         </Button>
                       ) : result.relationship === "friends" ? (
-                        <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => void openConversationWithFriend(result.profile.id).catch(() => toast.error("Failed"))}>
+                        <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => void openConversationWithFriend(result.profile.id).catch(() => toast.error(t("common.error")))}>
                           <MessageCircle className="size-3 mr-1" />
-                          Chat
+                          <T id="social.chat" />
                         </Button>
                       ) : (
                         <span className="rounded bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                          {relationshipLabel[result.relationship]}
+                          <RelationshipLabel state={result.relationship} />
                         </span>
                       )}
                     </div>
                   ))
                 ) : !isSearching ? (
-                  <p className="text-muted-foreground px-4 py-3 text-xs">No matching learners.</p>
+                  <p className="text-muted-foreground px-4 py-3 text-xs"><T id="social.noLearners" /></p>
                 ) : null}
               </div>
             </div>
@@ -1319,7 +1326,7 @@ export function SocialHub() {
                 key={conversation.id}
                 type="button"
                 onClick={() => void openConversation(conversation.id).catch((error) => {
-                  toast.error(error instanceof Error ? error.message : "Failed to load conversation");
+                  toast.error(error instanceof Error ? error.message : t("social.failedLoadMessages"));
                 })}
                 className={cn(
                   "flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-accent/50",
@@ -1333,7 +1340,7 @@ export function SocialHub() {
                   <div className="flex items-center justify-between">
                     <span className="truncate text-sm font-medium">{conversation.friend.display_name}</span>
                     <div className="flex shrink-0 items-center gap-1.5 ml-2">
-                      <span className="text-xs text-muted-foreground">{formatTimestamp(conversation.last_message_at)}</span>
+                      <span className="text-xs text-muted-foreground">{formatTimestamp(conversation.last_message_at, t)}</span>
                       {conversation.unread_count ? (
                         <div className="size-2 rounded-full bg-primary" />
                       ) : null}
@@ -1343,15 +1350,15 @@ export function SocialHub() {
                     "truncate text-xs mt-0.5",
                     conversation.unread_count ? "font-medium text-foreground" : "text-muted-foreground"
                   )}>
-                    {conversation.last_message_preview || "No messages yet"}
+                    {conversation.last_message_preview || t("social.noMessages")}
                   </p>
                 </div>
               </button>
             ))
           ) : (
             <div className="px-4 py-8 text-center">
-              <p className="text-sm text-muted-foreground">No conversations yet.</p>
-              <p className="text-xs text-muted-foreground mt-1">Add friends to start chatting.</p>
+              <p className="text-sm text-muted-foreground"><T id="social.noConversations" /></p>
+              <p className="text-xs text-muted-foreground mt-1"><T id="social.addFriendsToChat" /></p>
             </div>
           )}
         </TabsContent>
@@ -1362,7 +1369,7 @@ export function SocialHub() {
           {searchQuery.trim() && (
             <div className="space-y-1 pb-3 border-b mb-3">
               <div className="flex items-center justify-between pb-1">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Search Results</p>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider"><T id="social.searchResults" /></p>
                 {isSearching ? <Loader2 className="size-3 animate-spin text-primary" /> : null}
               </div>
               {searchResults.length > 0 ? (
@@ -1377,29 +1384,29 @@ export function SocialHub() {
                       </div>
                       <div className="min-w-0">
                         <p className="truncate text-sm font-medium">{result.profile.display_name}</p>
-                        <p className="text-xs text-muted-foreground">@{result.profile.username ?? "pending"}</p>
+                        <p className="text-xs text-muted-foreground">@{result.profile.username ?? t("common.pending")}</p>
                       </div>
                     </div>
                     {result.relationship === "none" ? (
                       <Button size="sm" className="h-7 text-xs" onClick={() => void handleSendFriendRequest(result.profile.id).catch((error) => {
-                        toast.error(error instanceof Error ? error.message : "Failed to send request");
+                        toast.error(error instanceof Error ? error.message : t("social.failedFriendRequest"));
                       })}>
                         <UserRoundPlus className="size-3 mr-1" />
-                        Add
+                        <T id="social.add" />
                       </Button>
                     ) : result.relationship === "incoming" && result.friendship_id ? (
-                      <Button size="sm" className="h-7 text-xs" onClick={() => void handleFriendshipAction(result.friendship_id!, "accept").catch(() => toast.error("Failed"))}>
-                        Accept
+                      <Button size="sm" className="h-7 text-xs" onClick={() => void handleFriendshipAction(result.friendship_id!, "accept").catch(() => toast.error(t("common.error")))}>
+                        <T id="social.accept" />
                       </Button>
-                    ) : result.relationship === "outgoing" ? (
-                      <span className="rounded bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">Pending</span>
                     ) : (
-                      <span className="rounded bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">Friends</span>
+                      <span className="rounded bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                        <RelationshipLabel state={result.relationship} />
+                      </span>
                     )}
                   </div>
                 ))
               ) : !isSearching ? (
-                <p className="text-xs text-muted-foreground py-2">No matching learners found.</p>
+                <p className="text-xs text-muted-foreground py-2"><T id="social.noLearners" /></p>
               ) : null}
             </div>
           )}
@@ -1407,8 +1414,8 @@ export function SocialHub() {
           {/* Existing friends list */}
           {!searchQuery.trim() && !friends.length && (
             <div className="py-6 text-center">
-              <p className="text-sm font-medium">No friends yet</p>
-              <p className="text-xs text-muted-foreground mt-1">Type a username or email above to find learners.</p>
+              <p className="text-sm font-medium"><T id="social.noFriends" /></p>
+              <p className="text-xs text-muted-foreground mt-1"><T id="social.searchToFindDesc" /></p>
             </div>
           )}
           {friends.map(({ friendship, profile }) => (
@@ -1419,28 +1426,28 @@ export function SocialHub() {
                 </div>
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium">{profile.display_name}</p>
-                  <p className="text-xs text-muted-foreground">@{profile.username ?? "pending"}</p>
+                  <p className="text-xs text-muted-foreground">@{profile.username ?? t("common.pending")}</p>
                 </div>
               </div>
               <div className="flex gap-1">
-                <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => void openConversationWithFriend(profile.id).catch(() => toast.error("Failed"))}>
+                <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => void openConversationWithFriend(profile.id).catch(() => toast.error(t("common.error")))}>
                   <MessageCircle className="size-3" />
                 </Button>
-                <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground" onClick={() => void handleFriendshipAction(friendship.id, "remove").catch(() => toast.error("Failed"))}>
-                  Remove
+                <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground" onClick={() => void handleFriendshipAction(friendship.id, "remove").catch(() => toast.error(t("common.error")))}>
+                  <T id="social.remove" />
                 </Button>
               </div>
             </div>
           ))}
           {!friends.length && (
-            <p className="text-xs text-muted-foreground py-4 text-center">No friends yet. Search to find learners.</p>
+            <p className="text-xs text-muted-foreground py-4 text-center"><T id="social.noFriends" /> <T id="social.searchToFind" /></p>
           )}
         </TabsContent>
 
         {/* Requests tab */}
         <TabsContent value="requests" className="flex-1 overflow-y-auto mt-0 px-4 py-3 space-y-2">
           {incomingRequests.length > 0 && (
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider pb-1">Incoming</p>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider pb-1"><T id="social.incoming" /></p>
           )}
           {incomingRequests.map(({ friendship, profile }) => (
             <div key={friendship.id} className="flex items-center justify-between gap-2 py-2">
@@ -1450,17 +1457,17 @@ export function SocialHub() {
                 </div>
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium">{profile.display_name}</p>
-                  <p className="text-xs text-muted-foreground">@{profile.username ?? "pending"}</p>
+                  <p className="text-xs text-muted-foreground">@{profile.username ?? t("common.pending")}</p>
                 </div>
               </div>
               <div className="flex gap-1">
-                <Button size="sm" className="h-7 text-xs" onClick={() => void handleFriendshipAction(friendship.id, "accept").catch(() => toast.error("Failed"))}>Accept</Button>
-                <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => void handleFriendshipAction(friendship.id, "decline").catch(() => toast.error("Failed"))}>Decline</Button>
+                <Button size="sm" className="h-7 text-xs" onClick={() => void handleFriendshipAction(friendship.id, "accept").catch(() => toast.error(t("common.error")))}><T id="social.accept" /></Button>
+                <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => void handleFriendshipAction(friendship.id, "decline").catch(() => toast.error(t("common.error")))}><T id="social.decline" /></Button>
               </div>
             </div>
           ))}
           {outgoingRequests.length > 0 && (
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider pb-1 pt-2">Outgoing</p>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider pb-1 pt-2"><T id="social.outgoing" /></p>
           )}
           {outgoingRequests.map(({ friendship, profile }) => (
             <div key={friendship.id} className="flex items-center justify-between gap-2 py-2">
@@ -1470,14 +1477,14 @@ export function SocialHub() {
                 </div>
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium">{profile.display_name}</p>
-                  <p className="text-xs text-muted-foreground">Pending</p>
+                  <p className="text-xs text-muted-foreground"><T id="common.pending" /></p>
                 </div>
               </div>
-              <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => void handleFriendshipAction(friendship.id, "cancel").catch(() => toast.error("Failed"))}>Cancel</Button>
+              <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => void handleFriendshipAction(friendship.id, "cancel").catch(() => toast.error(t("common.error")))}><T id="common.cancel" /></Button>
             </div>
           ))}
           {!incomingRequests.length && !outgoingRequests.length && (
-            <p className="text-xs text-muted-foreground py-4 text-center">No requests.</p>
+            <p className="text-xs text-muted-foreground py-4 text-center"><T id="social.noRequests" /></p>
           )}
         </TabsContent>
       </Tabs>
@@ -1496,12 +1503,12 @@ export function SocialHub() {
             <div>
               <p className="text-sm font-semibold">{activeConversationFriend.display_name}</p>
               <p className="text-xs text-muted-foreground">
-                @{activeConversationFriend.username ?? "pending"} · {formatTimestamp(activeConversation?.last_message_at)}
+                @{activeConversationFriend.username ?? t("common.pending")} · {formatTimestamp(activeConversation?.last_message_at, t)}
               </p>
             </div>
             {isMobile ? (
               <Button variant="outline" size="sm" className="ml-auto" onClick={() => setActiveConversation(null)}>
-                Back
+                <T id="common.back" />
               </Button>
             ) : null}
           </div>
@@ -1510,7 +1517,7 @@ export function SocialHub() {
           <div className="flex-1 space-y-4 overflow-y-auto px-6 py-6">
             {messages.length ? (
               messages.map((message) => {
-                const isOwnMessage = message.sender_id === publicProfile.id;
+                const isOwnMessage = message.sender_id === publicProfile?.id;
                 const hasText = message.body.trim().length > 0;
                 const messageTranslation = messageTranslations[message.id];
 
@@ -1537,8 +1544,8 @@ export function SocialHub() {
                             )}
                             onClick={() => void handleTranslateMessage(message)}
                             disabled={messageTranslation?.loading}
-                            title="Translate message"
-                            aria-label="Translate message"
+                            title={t("social.translateMessage")}
+                            aria-label={t("social.translateMessage")}
                           >
                             {messageTranslation?.loading ? (
                               <Loader2 className="size-3 animate-spin" />
@@ -1566,7 +1573,7 @@ export function SocialHub() {
                               )}
                             >
                               <p className="font-medium">
-                                Translation
+                                <T id="social.translation" />
                                 {messageTranslation.sourceLanguage
                                   ? ` (${messageTranslation.sourceLanguage})`
                                   : ""}
@@ -1581,7 +1588,8 @@ export function SocialHub() {
                       ) : null}
 
                       {(message.attachments ?? []).map((attachment) => {
-                        const AttachmentIcon = attachmentIcon(attachment.attachment_type);
+                        const icon = attachmentIcon(attachment.attachment_type);
+                        const Icon = icon;
                         const imageUrl = attachmentUrls[attachment.id]?.url;
                         const imageLoading = attachmentUrls[attachment.id]?.loading;
                         const attachmentTranslation = attachmentTranslations[attachment.id];
@@ -1606,7 +1614,7 @@ export function SocialHub() {
                                 {imageUrl ? (
                                   <img
                                     src={imageUrl}
-                                    alt={attachment.file_name ?? "Shared image"}
+                                    alt={attachment.file_name ?? t("social.image")}
                                     className="max-h-64 w-full object-cover"
                                   />
                                 ) : (
@@ -1627,14 +1635,14 @@ export function SocialHub() {
                               onClick={() => handlePreviewAttachment(attachment)}
                             >
                               <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                                <AttachmentIcon className="size-4" />
+                                <Icon className="size-4" />
                               </div>
                               <div className="min-w-0 flex-1">
                                 <p className="truncate text-sm font-medium">
-                                  {attachment.file_name ?? attachmentLabel(attachment.attachment_type)}
+                                  {attachment.file_name ?? <AttachmentLabel type={attachment.attachment_type} />}
                                 </p>
                                 <p className="text-xs text-muted-foreground">
-                                  {attachmentLabel(attachment.attachment_type)}
+                                  <AttachmentLabel type={attachment.attachment_type} />
                                 </p>
                               </div>
                             </button>
@@ -1647,7 +1655,7 @@ export function SocialHub() {
                                 className="h-7 text-[11px]"
                                 onClick={() => handlePreviewAttachment(attachment)}
                               >
-                                Preview
+                                <T id="social.preview" />
                               </Button>
                               {attachment.extracted_text ? (
                                 <>
@@ -1658,7 +1666,7 @@ export function SocialHub() {
                                     className="h-7 text-[11px]"
                                     onClick={() => toggleAttachmentExpanded(attachment.id)}
                                   >
-                                    {isExpanded ? "Hide text" : "Show text"}
+                                    {isExpanded ? t("social.hideText") : t("social.showText")}
                                   </Button>
                                   <Button
                                     type="button"
@@ -1673,7 +1681,7 @@ export function SocialHub() {
                                     ) : (
                                       <Languages className="size-3" />
                                     )}
-                                    Translate text
+                                    <T id="social.translateText" />
                                   </Button>
                                 </>
                               ) : null}
@@ -1681,7 +1689,7 @@ export function SocialHub() {
 
                             {isExpanded && attachment.extracted_text ? (
                               <div className="mt-3 rounded-md bg-muted px-3 py-2 text-xs text-foreground">
-                                <p className="font-medium">Extracted text</p>
+                                <p className="font-medium"><T id="social.extractedText" /></p>
                                 <p className="mt-1 whitespace-pre-wrap">
                                   {attachment.extracted_text.slice(0, MAX_TRANSLATION_CHARS)}
                                   {attachment.extracted_text.length > MAX_TRANSLATION_CHARS ? "..." : ""}
@@ -1692,7 +1700,7 @@ export function SocialHub() {
                             {attachmentTranslation?.text ? (
                               <div className="mt-3 rounded-md bg-muted px-3 py-2 text-xs text-foreground">
                                 <p className="font-medium">
-                                  Translation
+                                  <T id="social.translation" />
                                   {attachmentTranslation.sourceLanguage
                                     ? ` (${attachmentTranslation.sourceLanguage})`
                                     : ""}
@@ -1707,7 +1715,7 @@ export function SocialHub() {
                       })}
                     </div>
                     <p className="mt-1 text-[10px] text-muted-foreground">
-                      {formatTimestamp(message.created_at)}
+                      {formatTimestamp(message.created_at, t)}
                     </p>
                   </div>
                 );
@@ -1715,7 +1723,7 @@ export function SocialHub() {
             ) : (
               <div className="flex h-full items-center justify-center">
                 <p className="text-sm text-muted-foreground">
-                  Send a message to start the conversation.
+                  <T id="social.startConversation" />
                 </p>
               </div>
             )}
@@ -1731,7 +1739,7 @@ export function SocialHub() {
                 try {
                   await handleSendMessage(payload);
                 } catch (error) {
-                  toast.error(error instanceof Error ? error.message : "Failed to send message");
+                  toast.error(error instanceof Error ? error.message : t("social.failedSendMessage"));
                   throw error;
                 }
               }}
@@ -1744,9 +1752,9 @@ export function SocialHub() {
             <div className="mx-auto flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
               <MessageCircle className="size-5" />
             </div>
-            <h2 className="mt-4 text-base font-semibold">Pick a conversation</h2>
+            <h2 className="mt-4 text-base font-semibold"><T id="social.pickConversation" /></h2>
             <p className="text-muted-foreground mt-1 text-sm">
-              Select a chat from the left or add friends to start messaging.
+              <T id="social.pickConversationDesc" />
             </p>
           </div>
         </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useT } from "@/lib/i18n/I18nProvider";
+import { useT, T } from "@/lib/i18n/I18nProvider";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import {
@@ -44,9 +44,9 @@ export default function FlashcardsPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold">{t("flashcards.title")}</h1>
+      <h1 className="text-2xl font-bold"><T id="flashcards.title" /></h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        {t("flashcards.subtitle")}
+        <T id="flashcards.subtitle" />
       </p>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mt-6 items-stretch">
@@ -56,11 +56,11 @@ export default function FlashcardsPage() {
             <div className="flex items-start justify-between">
               <CardTitle className="text-lg flex items-center gap-2">
                 <Clock className="h-5 w-5" />
-                {t("flashcards.startReview")}
+                <T id="flashcards.startReview" />
               </CardTitle>
               {!isLoadingDue && dueCount !== null && dueCount > 0 && (
                 <span className="bg-primary text-primary-foreground text-xs font-semibold px-2 py-1 rounded-full">
-                  {t("flashcards.dueCount").replace("{count}", String(dueCount))}
+                  <T id="flashcards.dueCount" values={{ count: String(dueCount) }} />
                 </span>
               )}
             </div>
@@ -70,14 +70,14 @@ export default function FlashcardsPage() {
               {isLoadingDue ? (
                 <span className="flex items-center gap-2 text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  {t("flashcards.checkingDue")}
+                  <T id="flashcards.checkingDue" />
                 </span>
               ) : dueCount === 0 ? (
-                t("flashcards.noDue")
+                <T id="flashcards.noDue" />
               ) : dueCount === 1 ? (
-                t("flashcards.oneCardReady")
+                <T id="flashcards.oneCardReady" />
               ) : (
-                t("flashcards.cardsReady").replace("{count}", String(dueCount))
+                <T id="flashcards.cardsReady" values={{ count: String(dueCount) }} />
               )}
             </p>
           </CardContent>
@@ -87,7 +87,7 @@ export default function FlashcardsPage() {
               onClick={() => setShowReview(true)}
               disabled={isLoadingDue || dueCount === 0}
             >
-              {t("flashcards.startReview")}
+              <T id="flashcards.startReview" />
             </Button>
           </CardFooter>
         </Card>
@@ -97,16 +97,16 @@ export default function FlashcardsPage() {
             <div className="flex items-start justify-between">
               <CardTitle className="text-lg flex items-center gap-2">
                 <BookOpen className="h-5 w-5" />
-                {t("flashcards.viewFlashcards")}
+                <T id="flashcards.viewFlashcards" />
               </CardTitle>
             </div>
           </CardHeader>
           <CardContent className="flex-1">
-            <p>{t("flashcards.viewFlashcardsDesc")}</p>
+            <p><T id="flashcards.viewFlashcardsDesc" /></p>
           </CardContent>
           <CardFooter className="mt-auto">
             <Button asChild className="w-full" variant="outline">
-              <Link href="/all">{t("common.viewAll")}</Link>
+              <Link href="/all"><T id="common.viewAll" /></Link>
             </Button>
           </CardFooter>
         </Card>
@@ -114,17 +114,17 @@ export default function FlashcardsPage() {
         <Card className="h-full">
           <CardHeader>
             <div className="flex items-start justify-between">
-              <CardTitle className="text-lg">{t("flashcards.createNew")}</CardTitle>
+              <CardTitle className="text-lg"><T id="flashcards.createNew" /></CardTitle>
             </div>
           </CardHeader>
           <CardContent className="flex-1">
-            <p>{t("flashcards.createNewDesc")}</p>
+            <p><T id="flashcards.createNewDesc" /></p>
           </CardContent>
           <CardFooter className="mt-auto">
             <Button asChild className="w-full" variant="outline">
               <Link href="/create">
                 <Plus className="h-4 w-4 mr-2" />
-                {t("common.create")}
+                <T id="common.create" />
               </Link>
             </Button>
           </CardFooter>

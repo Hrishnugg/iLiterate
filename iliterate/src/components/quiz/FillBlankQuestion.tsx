@@ -4,6 +4,7 @@ import { AssessmentQuestion } from "@/types/database";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { CheckCircle2, XCircle } from "lucide-react";
+import { useT } from "@/lib/i18n/I18nProvider";
 
 interface FillBlankQuestionProps {
   question: AssessmentQuestion;
@@ -20,6 +21,7 @@ export function FillBlankQuestion({
   showResult = false,
   disabled = false,
 }: FillBlankQuestionProps) {
+  const t = useT();
   const isCorrect = question.correct;
 
   return (
@@ -33,7 +35,7 @@ export function FillBlankQuestion({
         )}
         {question.hint && !showResult && (
           <p className="text-sm text-muted-foreground mt-1 italic">
-            Hint: {question.hint}
+            {t("quizzes.hint").replace("{hint}", question.hint)}
           </p>
         )}
       </div>
@@ -43,7 +45,7 @@ export function FillBlankQuestion({
           type="text"
           value={answer}
           onChange={(e) => !disabled && onAnswer(e.target.value)}
-          placeholder="Type your answer..."
+          placeholder={t("quizzes.typeAnswer")}
           disabled={disabled}
           className={cn(
             "text-lg pr-10",
@@ -64,7 +66,7 @@ export function FillBlankQuestion({
 
       {showResult && !isCorrect && (
         <div className="text-sm">
-          <span className="text-muted-foreground">Correct answer: </span>
+          <span className="text-muted-foreground">{t("quizzes.correctAnswer")}</span>
           <span className="font-medium text-green-600 dark:text-green-400">
             {question.correct_answer}
           </span>
