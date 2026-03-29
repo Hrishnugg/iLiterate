@@ -1,0 +1,26 @@
+name: Deploy to Vercel on Specific User Merge
+on:
+  pull_request:
+    types:
+      - closed
+    branches:
+      - main
+jobs:
+  deploy:
+    if: |
+      github.event.pull_request.merged == true &&
+      (github.event.pull_request.merged_by.login == 'git-author-username')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+      - name: Trigger Vercel deploy
+        env:
+          VERCEL_DEPLOY_HOOK: ${{ secrets.AutoDeploy }}
+        run: |
+          echo "Triggering Vercel deployment via Deploy Hook…"
+          curl -X POST "$VERCEL_DEPLOY_HOOK"
+      - name: Log successful trigger
+        run: echo "✅ Vercel deploy hook triggered successfully!"
