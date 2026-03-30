@@ -571,6 +571,7 @@
     "docx": "DOCX",
     "messages": "Mensajes",
     "chats": "Chats",
+    "friends": "Amigos",
     "friendsCount": "Amigos ({count})",
     "requestsCount": "Solicitudes ({count})",
     "searchPlaceholderSocial": "Busca por nombre de usuario, nombre o email...",

@@ -7,17 +7,18 @@ import {
   LANGUAGE_TO_LOCALE,
   Messages,
   getLocaleMessages,
-  resolveKey,
+  TranslationValues,
+  translate,
 } from "./index";
 
 interface I18nContextValue {
-  t: (key: string) => string;
+  t: (key: string, values?: TranslationValues) => string;
   locale: string;
   refreshLocale: () => Promise<void>;
 }
 
 const I18nContext = createContext<I18nContextValue>({
-  t: (key) => key,
+  t: (key, values) => translate(getLocaleMessages("en"), key, values),
   locale: "en",
   refreshLocale: async () => {},
 });
@@ -79,10 +80,18 @@ export function I18nProvider({
   }, []);
 
   useEffect(() => {
-    void refreshLocale();
+    const timeoutId = window.setTimeout(() => {
+      void refreshLocale();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
   }, [refreshLocale]);
 
-  const t = (key: string) => resolveKey(messages, key);
+  const t = useCallback(
+    (key: string, values?: TranslationValues) =>
+      translate(messages, key, values),
+    [messages]
+  );
 
   return (
     <I18nContext.Provider value={{ t, locale, refreshLocale }}>
@@ -91,7 +100,10 @@ export function I18nProvider({
   );
 }
 
-export function useT(): (key: string) => string {
+export function useT(): (
+  key: string,
+  values?: TranslationValues
+) => string {
   return useContext(I18nContext).t;
 }
 
@@ -156,16 +168,11 @@ export function T({
   className,
 }: {
   id: string;
-  values?: Record<string, string>;
+  values?: TranslationValues;
   className?: string;
 }) {
   const { locale, t } = useContext(I18nContext);
-  let text = t(id);
-  if (values) {
-    for (const [k, v] of Object.entries(values)) {
-      text = text.replace(`{${k}}`, v);
-    }
-  }
+  const text = t(id, values);
 
   return (
     <span style={{ position: "relative", display: "inline-block" }}>
