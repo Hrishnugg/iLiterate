@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion, type Transition } from "motion/react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -29,7 +29,7 @@ const slideVariants = {
   exit: (dir: number) => ({ opacity: 0, x: -dir * 24 }),
 };
 
-const transition = { duration: 0.25, ease: "easeInOut" };
+const transition: Transition = { duration: 0.25, ease: "easeInOut" };
 
 export function LoginForm({
   className,
