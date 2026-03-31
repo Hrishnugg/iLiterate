@@ -6,6 +6,7 @@ import {
   getStudyChatThread,
   getViewerLanguages,
   listStudyChatSessions,
+  streamStudyChatReply,
 } from "@/lib/study-chat/server";
 import type { StudyChatAction } from "@/lib/study-chat/types";
 import { createClient } from "@/lib/supabase/server";
@@ -14,6 +15,7 @@ const createMessageSchema = z.object({
   body: z.string().trim().min(1).max(4000),
   action: z.enum(["chat", "summary", "translation", "vocabulary"]).optional(),
   uploadIds: z.array(z.string().uuid()).max(8).optional(),
+  stream: z.boolean().optional(),
 });
 
 async function requireUser() {
@@ -88,6 +90,61 @@ export async function POST(
     }
 
     const { sessionId } = await params;
+    if (parsed.data.stream) {
+      const encoder = new TextEncoder();
+
+      return new Response(
+        new ReadableStream({
+          async start(controller) {
+            const sendEvent = (event: string, payload: unknown) => {
+              controller.enqueue(
+                encoder.encode(`event: ${event}\ndata: ${JSON.stringify(payload)}\n\n`)
+              );
+            };
+
+            try {
+              const thread = await streamStudyChatReply({
+                supabase,
+                userId: user.id,
+                sessionId,
+                body: parsed.data.body,
+                action: (parsed.data.action ?? "chat") as StudyChatAction,
+                uploadIds: parsed.data.uploadIds,
+                onDelta(delta) {
+                  sendEvent("delta", { delta });
+                },
+              });
+
+              const sessions = await listStudyChatSessions(supabase, user.id);
+              sendEvent("done", {
+                session: thread.session,
+                messages: thread.messages,
+                uploads: thread.uploads,
+                sessions,
+              });
+            } catch (error) {
+              console.error("Study chat messages STREAM error:", error);
+              sendEvent("error", {
+                error:
+                  error instanceof Error
+                    ? error.message
+                    : "Failed to send study chat message",
+              });
+            } finally {
+              controller.close();
+            }
+          },
+        }),
+        {
+          headers: {
+            "Content-Type": "text/event-stream; charset=utf-8",
+            "Cache-Control": "no-cache, no-transform",
+            Connection: "keep-alive",
+          },
+        }
+      );
+    }
+
     const thread = await createStudyChatReply({
       supabase,
       userId: user.id,

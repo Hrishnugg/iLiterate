@@ -162,6 +162,141 @@
   background: transparent;
 }
 
+.study-chat-markdown {
+  color: inherit;
+  line-height: 1.7;
+  word-break: break-word;
+}
+
+.study-chat-markdown > :first-child {
+  margin-top: 0;
+}
+
+.study-chat-markdown > :last-child {
+  margin-bottom: 0;
+}
+
+.study-chat-markdown p,
+.study-chat-markdown ul,
+.study-chat-markdown ol,
+.study-chat-markdown pre,
+.study-chat-markdown table,
+.study-chat-markdown blockquote,
+.study-chat-markdown hr {
+  margin: 0 0 1rem;
+}
+
+.study-chat-markdown h1,
+.study-chat-markdown h2,
+.study-chat-markdown h3,
+.study-chat-markdown h4,
+.study-chat-markdown h5,
+.study-chat-markdown h6 {
+  margin: 1.25rem 0 0.75rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.study-chat-markdown h1 {
+  font-size: 1.35rem;
+}
+
+.study-chat-markdown h2 {
+  font-size: 1.2rem;
+}
+
+.study-chat-markdown h3 {
+  font-size: 1.05rem;
+}
+
+.study-chat-markdown ul,
+.study-chat-markdown ol {
+  padding-left: 1.4rem;
+}
+
+.study-chat-markdown ul {
+  list-style: disc;
+}
+
+.study-chat-markdown ol {
+  list-style: decimal;
+}
+
+.study-chat-markdown li + li {
+  margin-top: 0.35rem;
+}
+
+.study-chat-markdown a {
+  color: var(--primary);
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.study-chat-markdown strong {
+  font-weight: 600;
+}
+
+.study-chat-markdown blockquote {
+  border-left: 3px solid var(--border);
+  color: var(--muted-foreground);
+  padding-left: 1rem;
+}
+
+.study-chat-markdown pre {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 0.9rem;
+  background: var(--muted);
+  padding: 0.9rem 1rem;
+  font-size: 0.8rem;
+  line-height: 1.6;
+}
+
+.study-chat-markdown pre code {
+  background: transparent;
+  border-radius: 0;
+  padding: 0;
+}
+
+.study-chat-markdown code {
+  font-family: var(--font-geist-mono), monospace;
+}
+
+.study-chat-markdown :not(pre) > code {
+  border-radius: 0.4rem;
+  background: var(--muted);
+  padding: 0.1rem 0.35rem;
+  font-size: 0.9em;
+}
+
+.study-chat-markdown table {
+  display: block;
+  width: max-content;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+  border: 1px solid var(--border);
+  border-radius: 0.9rem;
+}
+
+.study-chat-markdown thead {
+  background: color-mix(in oklab, var(--muted) 85%, transparent);
+}
+
+.study-chat-markdown th,
+.study-chat-markdown td {
+  border: 1px solid var(--border);
+  padding: 0.55rem 0.75rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.study-chat-markdown hr {
+  border: 0;
+  border-top: 1px solid var(--border);
+}
+
 /* 3D Transform utilities for flip cards */
 @layer utilities {
   .perspective-1000 {

@@ -509,7 +509,7 @@ For each item, include:
   }
 }
 
-async function generateAssistantReply(input: {
+function buildAssistantPrompt(input: {
   prompt: string;
   action: StudyChatAction;
   uploads: StudyChatAttachedUpload[];
@@ -519,34 +519,97 @@ async function generateAssistantReply(input: {
   const grounding = buildGroundingContext(input.uploads, input.prompt, input.action);
 
   if (!grounding.hasGrounding) {
-    return "I don't have extracted study material in this session yet. Upload a PDF, DOCX, or image with readable text first, then ask me to summarize, translate, or explain it.";
+    return {
+      prompt: null,
+      fallbackReply:
+        "I don't have extracted study material in this session yet. Upload a PDF, DOCX, or image with readable text first, then ask me to summarize, translate, or explain it.",
+    };
   }
 
-  const prompt = [
-    "You are iLiterate Study Chat, a document-grounded language-learning assistant.",
-    "Rules:",
-    "- Use only the grounded material below when making factual claims.",
-    "- If the material does not contain the answer, say so plainly.",
-    "- Cite upload titles when referring to specific evidence.",
-    "- Keep the response practical for a language learner.",
-    "",
-    `Learner native language: ${input.viewerLanguages.nativeLanguage}`,
-    `Learner target language: ${input.viewerLanguages.targetLanguage}`,
-    `Requested mode: ${input.action}`,
-    actionInstructions(input.action, input.viewerLanguages),
-    "",
-    "Recent conversation:",
-    formatConversationHistory(input.conversation) || "No prior messages.",
-    "",
-    "Grounded material:",
-    grounding.context,
-    "",
-    `Latest learner request:\n${input.prompt}`,
-  ].join("\n");
+  return {
+    prompt: [
+      "You are iLiterate Study Chat, a document-grounded language-learning assistant.",
+      "Rules:",
+      "- Use only the grounded material below when making factual claims.",
+      "- If the material does not contain the answer, say so plainly.",
+      "- Cite upload titles when referring to specific evidence.",
+      "- Keep the response practical for a language learner.",
+      "",
+      `Learner native language: ${input.viewerLanguages.nativeLanguage}`,
+      `Learner target language: ${input.viewerLanguages.targetLanguage}`,
+      `Requested mode: ${input.action}`,
+      actionInstructions(input.action, input.viewerLanguages),
+      "",
+      "Recent conversation:",
+      formatConversationHistory(input.conversation) || "No prior messages.",
+      "",
+      "Grounded material:",
+      grounding.context,
+      "",
+      `Latest learner request:\n${input.prompt}`,
+    ].join("\n"),
+    fallbackReply: null,
+  };
+}
 
-  const result = await getGeminiModel().generateContent(prompt);
+async function generateAssistantReply(input: {
+  prompt: string;
+  action: StudyChatAction;
+  uploads: StudyChatAttachedUpload[];
+  conversation: StudyChatMessage[];
+  viewerLanguages: StudyChatViewerLanguages;
+}) {
+  const prepared = buildAssistantPrompt(input);
+  if (!prepared.prompt) {
+    return (
+      prepared.fallbackReply ||
+      "I couldn't produce a response for that request."
+    );
+  }
+
+  const result = await getGeminiModel().generateContent(prepared.prompt);
   const text = result.response.text().trim();
   return truncateMessageBody(text || "I couldn't produce a response for that request.");
+}
+
+async function generateAssistantReplyStream(input: {
+  prompt: string;
+  action: StudyChatAction;
+  uploads: StudyChatAttachedUpload[];
+  conversation: StudyChatMessage[];
+  viewerLanguages: StudyChatViewerLanguages;
+  onDelta?: (delta: string) => Promise<void> | void;
+}) {
+  const prepared = buildAssistantPrompt(input);
+  if (!prepared.prompt) {
+    if (prepared.fallbackReply && input.onDelta) {
+      await input.onDelta(prepared.fallbackReply);
+    }
+    return (
+      prepared.fallbackReply ||
+      "I couldn't produce a response for that request."
+    );
+  }
+
+  const result = await getGeminiModel().generateContentStream(prepared.prompt);
+  let streamedText = "";
+
+  for await (const chunk of result.stream) {
+    const delta = chunk.text();
+    if (!delta) {
+      continue;
+    }
+
+    streamedText += delta;
+    if (input.onDelta) {
+      await input.onDelta(delta);
+    }
+  }
+
+  const aggregatedText = (await result.response).text().trim();
+  return truncateMessageBody(
+    aggregatedText || streamedText.trim() || "I couldn't produce a response for that request."
+  );
 }
 
 async function generateSessionTitle(input: {
@@ -578,6 +641,80 @@ async function generateSessionTitle(input: {
 }
 
 export async function createStudyChatReply(params: {
+  supabase: DbClient;
+  userId: string;
+  sessionId: string;
+  body: string;
+  action: StudyChatAction;
+  uploadIds?: string[];
+}) {
+  const prepared = await prepareStudyChatReply(params);
+
+  let assistantBody: string;
+  try {
+    assistantBody = await generateAssistantReply({
+      prompt: params.body,
+      action: params.action,
+      uploads: prepared.threadWithUserMessage.uploads,
+      conversation: prepared.threadWithUserMessage.messages,
+      viewerLanguages: prepared.viewerLanguages,
+    });
+  } catch (error) {
+    console.error("Study chat generation failed:", error);
+    assistantBody =
+      "I couldn't analyze that material just now. Please try again in a moment, or narrow the request to a smaller passage.";
+  }
+
+  return finalizeStudyChatReply({
+    supabase: params.supabase,
+    userId: params.userId,
+    sessionId: params.sessionId,
+    prompt: params.body,
+    assistantBody,
+    threadBefore: prepared.threadBefore,
+    threadWithUserMessage: prepared.threadWithUserMessage,
+  });
+}
+
+export async function streamStudyChatReply(params: {
+  supabase: DbClient;
+  userId: string;
+  sessionId: string;
+  body: string;
+  action: StudyChatAction;
+  uploadIds?: string[];
+  onDelta?: (delta: string) => Promise<void> | void;
+}) {
+  const prepared = await prepareStudyChatReply(params);
+
+  let assistantBody: string;
+  try {
+    assistantBody = await generateAssistantReplyStream({
+      prompt: params.body,
+      action: params.action,
+      uploads: prepared.threadWithUserMessage.uploads,
+      conversation: prepared.threadWithUserMessage.messages,
+      viewerLanguages: prepared.viewerLanguages,
+      onDelta: params.onDelta,
+    });
+  } catch (error) {
+    console.error("Study chat generation failed:", error);
+    assistantBody =
+      "I couldn't analyze that material just now. Please try again in a moment, or narrow the request to a smaller passage.";
+  }
+
+  return finalizeStudyChatReply({
+    supabase: params.supabase,
+    userId: params.userId,
+    sessionId: params.sessionId,
+    prompt: params.body,
+    assistantBody,
+    threadBefore: prepared.threadBefore,
+    threadWithUserMessage: prepared.threadWithUserMessage,
+  });
+}
+
+async function prepareStudyChatReply(params: {
   supabase: DbClient;
   userId: string;
   sessionId: string;
@@ -630,53 +767,54 @@ export async function createStudyChatReply(params: {
 
   const viewerLanguages = await getViewerLanguages(params.supabase, params.userId);
 
-  let assistantBody: string;
-  try {
-    assistantBody = await generateAssistantReply({
-      prompt: params.body,
-      action: params.action,
-      uploads: threadWithUserMessage.uploads,
-      conversation: threadWithUserMessage.messages,
-      viewerLanguages,
-    });
-  } catch (error) {
-    console.error("Study chat generation failed:", error);
-    assistantBody =
-      "I couldn't analyze that material just now. Please try again in a moment, or narrow the request to a smaller passage.";
-  }
+  return {
+    threadBefore,
+    threadWithUserMessage,
+    viewerLanguages,
+  };
+}
 
+async function finalizeStudyChatReply(params: {
+  supabase: DbClient;
+  userId: string;
+  sessionId: string;
+  prompt: string;
+  assistantBody: string;
+  threadBefore: StudyChatThread;
+  threadWithUserMessage: StudyChatThread;
+}) {
   const { error: assistantError } = await params.supabase
     .from("study_chat_messages")
     .insert({
       session_id: params.sessionId,
       role: "assistant",
-      body: assistantBody,
+      body: params.assistantBody,
     });
 
   if (assistantError) {
     throw assistantError;
   }
 
-  const isFirstMessage = threadBefore.messages.length === 0;
+  const isFirstMessage = params.threadBefore.messages.length === 0;
   let title: string;
   if (isFirstMessage) {
     try {
       title = await generateSessionTitle({
-        prompt: params.body,
-        uploads: threadWithUserMessage.uploads,
+        prompt: params.prompt,
+        uploads: params.threadWithUserMessage.uploads,
       });
     } catch {
       title = deriveTitle({
-        currentTitle: threadWithUserMessage.session.title,
-        message: params.body,
-        uploads: threadWithUserMessage.uploads,
+        currentTitle: params.threadWithUserMessage.session.title,
+        message: params.prompt,
+        uploads: params.threadWithUserMessage.uploads,
       });
     }
   } else {
     title = deriveTitle({
-      currentTitle: threadWithUserMessage.session.title,
-      message: params.body,
-      uploads: threadWithUserMessage.uploads,
+      currentTitle: params.threadWithUserMessage.session.title,
+      message: params.prompt,
+      uploads: params.threadWithUserMessage.uploads,
     });
   }
 

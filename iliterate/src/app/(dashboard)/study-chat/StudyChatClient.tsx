@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState, type ComponentType } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { formatDistanceToNow } from "date-fns";
 import {
   ArrowLeft,
   Check,
@@ -18,7 +17,6 @@ import {
   Send,
   Sparkles,
   Trash2,
-  Upload,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -43,7 +41,7 @@ import type {
 } from "@/lib/study-chat/types";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/I18nProvider";
-import type { StudyChatMessage } from "@/types/database";
+import { StudyChatMarkdown } from "./StudyChatMarkdown";
 
 interface SessionsResponse {
   sessions: StudyChatSessionSummary[];
@@ -57,6 +55,14 @@ interface SessionResponse extends StudyChatThread {
 
 interface UploadResponse {
   id: string;
+}
+
+interface StreamDeltaPayload {
+  delta: string;
+}
+
+interface StreamErrorPayload {
+  error?: string;
 }
 
 const ACCEPTED_STUDY_UPLOADS =
@@ -91,31 +97,57 @@ const QUICK_ACTIONS: Array<{
   },
 ];
 
-function relativeTime(value: string | null | undefined) {
-  if (!value) {
-    return "Just now";
-  }
-
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) {
-    return "Just now";
-  }
-
-  return formatDistanceToNow(parsed, { addSuffix: true });
-}
-
 function uploadIcon(upload: StudyChatAttachedUpload) {
   return upload.kind === "image" ? FileImage : FileText;
 }
 
-function uploadLabel(upload: StudyChatAttachedUpload) {
-  return upload.title || upload.original_filename || "Untitled upload";
+function isSessionResponse(payload: unknown): payload is SessionResponse {
+  return (
+    !!payload &&
+    typeof payload === "object" &&
+    "session" in payload &&
+    "messages" in payload &&
+    "uploads" in payload
+  );
 }
 
-function messageBubbleTone(message: StudyChatMessage) {
-  return message.role === "user"
-    ? "bg-primary text-primary-foreground"
-    : "border border-border/70 bg-background text-foreground";
+function extractSseEvents(buffer: string) {
+  const normalized = buffer.replace(/\r\n/g, "\n");
+  const blocks = normalized.split("\n\n");
+  const remainder = blocks.pop() ?? "";
+  const events = blocks.flatMap((block) => {
+    const lines = block.split("\n").filter(Boolean);
+    if (lines.length === 0) {
+      return [];
+    }
+
+    let event = "message";
+    const dataLines: string[] = [];
+
+    for (const line of lines) {
+      if (line.startsWith("event:")) {
+        event = line.slice("event:".length).trim();
+      } else if (line.startsWith("data:")) {
+        dataLines.push(line.slice("data:".length).trimStart());
+      }
+    }
+
+    const rawData = dataLines.join("\n");
+    if (!rawData) {
+      return [];
+    }
+
+    try {
+      return [{ event, payload: JSON.parse(rawData) as unknown }];
+    } catch {
+      return [];
+    }
+  });
+
+  return {
+    events,
+    remainder,
+  };
 }
 
 export function StudyChatClient() {
@@ -127,13 +159,8 @@ export function StudyChatClient() {
   const [sessions, setSessions] = useState<StudyChatSessionSummary[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [thread, setThread] = useState<StudyChatThread | null>(null);
-  const [viewerLanguages, setViewerLanguages] = useState<StudyChatViewerLanguages>({
-    nativeLanguage: "english",
-    targetLanguage: "english",
-  });
   const [draft, setDraft] = useState("");
   const [loadingSessions, setLoadingSessions] = useState(true);
-  const [loadingThread, setLoadingThread] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [showMobileDetail, setShowMobileDetail] = useState(false);
@@ -176,8 +203,6 @@ export function StudyChatClient() {
         }
 
         setSessions(payload.sessions);
-        setViewerLanguages(payload.viewerLanguages);
-
         if (payload.sessions.length === 0) {
           setActiveSessionId(null);
           setThread(null);
@@ -206,11 +231,14 @@ export function StudyChatClient() {
       return;
     }
 
+    if (thread?.session.id === activeSessionId) {
+      return;
+    }
+
     let cancelled = false;
 
     async function loadThread() {
       try {
-        setLoadingThread(true);
         const response = await fetch(`/api/study-chat/sessions/${activeSessionId}/messages`);
         const payload = (await response.json().catch(() => null)) as
           | SessionResponse
@@ -230,17 +258,9 @@ export function StudyChatClient() {
           messages: payload.messages,
           uploads: payload.uploads,
         });
-
-        if (payload.viewerLanguages) {
-          setViewerLanguages(payload.viewerLanguages);
-        }
       } catch (error) {
         if (!cancelled) {
           toast.error(error instanceof Error ? error.message : "Failed to load thread");
-        }
-      } finally {
-        if (!cancelled) {
-          setLoadingThread(false);
         }
       }
     }
@@ -250,7 +270,7 @@ export function StudyChatClient() {
     return () => {
       cancelled = true;
     };
-  }, [activeSessionId]);
+  }, [activeSessionId, thread?.session.id]);
 
   async function createSession(input?: { title?: string; uploadIds?: string[] }) {
     const response = await fetch("/api/study-chat/sessions", {
@@ -282,11 +302,12 @@ export function StudyChatClient() {
     return payload.session.id;
   }
 
-  async function sendPrompt(input: {
+  async function sendPromptStreaming(input: {
     sessionId: string;
     body: string;
     action?: StudyChatAction;
     uploadIds?: string[];
+    tempAssistantId: string;
   }) {
     const response = await fetch(`/api/study-chat/sessions/${input.sessionId}/messages`, {
       method: "POST",
@@ -295,28 +316,81 @@ export function StudyChatClient() {
         body: input.body,
         action: input.action ?? "chat",
         uploadIds: input.uploadIds,
+        stream: true,
       }),
     });
-    const payload = (await response.json().catch(() => null)) as
-      | SessionResponse
-      | { error?: string }
-      | null;
 
-    if (!response.ok || !payload || !("session" in payload)) {
-      throw new Error(payload && "error" in payload ? payload.error : "Failed to send message");
+    if (!response.ok) {
+      const contentType = response.headers.get("content-type") ?? "";
+      if (contentType.includes("application/json")) {
+        const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(payload?.error || "Failed to send message");
+      }
+
+      throw new Error((await response.text().catch(() => "")) || "Failed to send message");
     }
 
-    if (payload.sessions) {
-      setSessions(payload.sessions);
+    if (!response.body) {
+      throw new Error("Streaming response body was empty");
     }
 
-    setActiveSessionId(payload.session.id);
-    setThread({
-      session: payload.session,
-      messages: payload.messages,
-      uploads: payload.uploads,
-    });
-    setShowMobileDetail(true);
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    while (true) {
+      const { value, done } = await reader.read();
+      buffer += decoder.decode(value ?? new Uint8Array(), { stream: !done });
+
+      const parsed = extractSseEvents(buffer);
+      buffer = parsed.remainder;
+
+      for (const event of parsed.events) {
+        if (event.event === "delta") {
+          const payload = event.payload as StreamDeltaPayload;
+          if (typeof payload?.delta === "string" && payload.delta.length > 0) {
+            setThread((current) => {
+              if (!current || current.session.id !== input.sessionId) {
+                return current;
+              }
+
+              return {
+                ...current,
+                messages: current.messages.map((message) =>
+                  message.id === input.tempAssistantId
+                    ? { ...message, body: message.body + payload.delta }
+                    : message
+                ),
+              };
+            });
+          }
+        } else if (event.event === "done") {
+          if (isSessionResponse(event.payload)) {
+            if (event.payload.sessions) {
+              setSessions(event.payload.sessions);
+            }
+
+            setActiveSessionId(event.payload.session.id);
+            setThread({
+              session: event.payload.session,
+              messages: event.payload.messages,
+              uploads: event.payload.uploads,
+            });
+            setShowMobileDetail(true);
+            return;
+          }
+        } else if (event.event === "error") {
+          const payload = event.payload as StreamErrorPayload;
+          throw new Error(payload?.error || "Failed to send message");
+        }
+      }
+
+      if (done) {
+        break;
+      }
+    }
+
+    throw new Error("The streamed reply ended before the final payload arrived");
   }
 
   function handleNewSession() {
@@ -371,11 +445,43 @@ export function StudyChatClient() {
         uploadedIds = [];
       }
 
-      await sendPrompt({
+      const now = new Date().toISOString();
+      const optimisticUserId = `temp-user-${Date.now()}`;
+      const optimisticAssistantId = `temp-assistant-${Date.now()}`;
+
+      setThread((current) => {
+        if (!current || current.session.id !== sessionId) {
+          return current;
+        }
+
+        return {
+          ...current,
+          messages: [
+            ...current.messages,
+            {
+              id: optimisticUserId,
+              session_id: sessionId,
+              role: "user",
+              body,
+              created_at: now,
+            },
+            {
+              id: optimisticAssistantId,
+              session_id: sessionId,
+              role: "assistant",
+              body: "",
+              created_at: now,
+            },
+          ],
+        };
+      });
+
+      await sendPromptStreaming({
         sessionId,
         body,
         action,
         uploadIds: uploadedIds.length ? uploadedIds : undefined,
+        tempAssistantId: optimisticAssistantId,
       });
 
       if (!promptText) {
@@ -827,7 +933,14 @@ export function StudyChatClient() {
                           </div>
                         </div>
                       ) : (
-                        <p className="whitespace-pre-wrap text-[13px] leading-[1.65] text-foreground">{message.body}</p>
+                        message.body.trim() ? (
+                          <StudyChatMarkdown content={message.body} className="text-foreground" />
+                        ) : (
+                          <div className="flex items-center gap-2 text-[13px] text-muted-foreground">
+                            <Loader2 className="size-3.5 animate-spin" />
+                            Thinking…
+                          </div>
+                        )
                       )}
                     </div>
                   ))}
