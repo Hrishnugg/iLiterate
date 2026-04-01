@@ -9,7 +9,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { z } from "zod";
 
-const MAX_BODY_CHARS = 100_000;
+const MAX_BODY_CHARS = 500_000;
 
 const uploadSchema = z.object({
   title: z.string().min(1).max(300),

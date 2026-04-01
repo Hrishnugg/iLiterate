@@ -15,7 +15,7 @@ const IMPORTABLE_CONTENT_TYPES: ContentType[] = ["article", "sign", "menu"];
 
 export interface UploadImportPreview {
   sourceUploadId: string;
-  uploadKind: "image" | "pdf";
+  uploadKind: "image" | "pdf" | "epub";
   title: string;
   extractedText: string;
   language: string;
@@ -214,8 +214,8 @@ export async function extractUploadPreview(
   const mimeType = upload.mime_type ?? "";
   const kind = inferUploadKind(mimeType, upload.original_filename ?? "");
 
-  if (kind !== "image" && kind !== "pdf") {
-    throw new Error("Only PDF and image imports are supported in the library");
+  if (kind !== "image" && kind !== "pdf" && kind !== "epub") {
+    throw new Error("Only PDF, EPUB, and image imports are supported in the library");
   }
 
   let extractedText = normalizeWhitespace(upload.extracted_text ?? "");
@@ -228,6 +228,17 @@ export async function extractUploadPreview(
         throw new Error(
           "No text found in the PDF. Only text-based PDFs are supported in this import flow."
         );
+      }
+    } else if (kind === "epub") {
+      const { extractUploadPayload } = await import("@/lib/uploads");
+      const payload = await extractUploadPayload({
+        buffer,
+        filename: upload.original_filename ?? "book.epub",
+        mimeType: upload.mime_type ?? "application/epub+zip",
+      });
+      extractedText = normalizeWhitespace(payload.text ?? "");
+      if (!extractedText) {
+        throw new Error("No text could be extracted from this EPUB file.");
       }
     } else {
       if (buffer.byteLength > IMAGE_PROMPT_LIMIT_BYTES) {
@@ -243,9 +254,11 @@ export async function extractUploadPreview(
   }
 
   const metadata = await detectContentMetadata(extractedText);
+  const isEpub = kind === "epub";
+  const isPdf = kind === "pdf";
   return {
     sourceUploadId: upload.id,
-    uploadKind: kind,
+    uploadKind: kind as "image" | "pdf" | "epub",
     title: upload.title?.trim()
       || (upload.original_filename && upload.original_filename.trim().length > 0
         ? suggestTitleFromFilename(upload.original_filename)
@@ -253,8 +266,12 @@ export async function extractUploadPreview(
     extractedText,
     language: metadata.language,
     difficulty: metadata.difficulty,
-    suggestedContentType: suggestContentType(extractedText),
-    contentTypeOptions: IMPORTABLE_CONTENT_TYPES,
+    suggestedContentType: isEpub ? "epub" : isPdf ? "pdf" : suggestContentType(extractedText),
+    contentTypeOptions: isEpub
+      ? (["epub", ...IMPORTABLE_CONTENT_TYPES] as ContentType[])
+      : isPdf
+      ? (["pdf", ...IMPORTABLE_CONTENT_TYPES] as ContentType[])
+      : IMPORTABLE_CONTENT_TYPES,
     previewUrl: kind === "image" ? await createSignedUrl(upload.storage_path) : null,
   };
 }

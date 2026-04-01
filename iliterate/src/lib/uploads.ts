@@ -1,3 +1,5 @@
+import AdmZip from "adm-zip";
+import { load } from "cheerio";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import mammoth from "mammoth";
 
@@ -5,10 +7,11 @@ import { extractTextFromPdfBuffer } from "@/lib/pdf";
 
 export type UploadScope = "content_import" | "study_chat" | "dm_attachment";
 export type UploadStatus = "uploaded" | "processed" | "failed";
-export type UploadKind = "image" | "pdf" | "docx" | "unknown";
+export type UploadKind = "image" | "pdf" | "docx" | "epub" | "unknown";
 export const UPLOADS_BUCKET = "user-uploads";
 export const SUPPORTED_UPLOAD_MIME_TYPES = new Set([
   "application/pdf",
+  "application/epub+zip",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   "image/jpeg",
   "image/png",
@@ -19,6 +22,7 @@ const MIME_TYPE_ALIASES = new Map<string, string>([
   ["application/acrobat", "application/pdf"],
   ["applications/vnd.pdf", "application/pdf"],
   ["text/pdf", "application/pdf"],
+  ["application/x-epub+zip", "application/epub+zip"],
   ["application/octet-stream", "application/octet-stream"],
 ]);
 
@@ -53,6 +57,44 @@ async function extractPdfText(buffer: Buffer) {
 async function extractDocxText(buffer: Buffer) {
   const result = await mammoth.extractRawText({ buffer });
   return result.value.trim();
+}
+
+const EPUB_MAX_CHARS = 500_000;
+
+async function extractEpubText(buffer: Buffer): Promise<string> {
+  const zip = new AdmZip(buffer);
+  const entries = zip.getEntries();
+  const parts: string[] = [];
+  let totalChars = 0;
+
+  for (const entry of entries) {
+    const name = entry.entryName.toLowerCase();
+    if (!name.endsWith(".html") && !name.endsWith(".xhtml") && !name.endsWith(".htm")) {
+      continue;
+    }
+    // Skip nav / table of contents documents
+    if (name.includes("nav") || name.includes("toc")) {
+      continue;
+    }
+    try {
+      const html = entry.getData().toString("utf-8");
+      const $ = load(html);
+      // Remove non-content tags
+      $("script, style, noscript, nav, aside").remove();
+      const text = $("body").text().replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").trim();
+      if (text.length > 0) {
+        const remaining = EPUB_MAX_CHARS - totalChars;
+        if (remaining <= 0) break;
+        const chunk = text.length > remaining ? text.slice(0, remaining) : text;
+        parts.push(chunk);
+        totalChars += chunk.length;
+      }
+    } catch {
+      // skip unreadable entries
+    }
+  }
+
+  return parts.join("\n\n").trim();
 }
 
 async function extractImageText(buffer: Buffer, mimeType: string) {
@@ -94,6 +136,8 @@ export async function extractUploadPayload(input: {
 
     if (mimeType === "application/pdf" || lowerName.endsWith(".pdf")) {
       text = await extractPdfText(buffer);
+    } else if (mimeType === "application/epub+zip" || lowerName.endsWith(".epub")) {
+      text = await extractEpubText(buffer);
     } else if (
       mimeType ===
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
@@ -144,6 +188,9 @@ export function resolveUploadMimeType(
   if (lowerName.endsWith(".pdf")) {
     return "application/pdf";
   }
+  if (lowerName.endsWith(".epub")) {
+    return "application/epub+zip";
+  }
   if (lowerName.endsWith(".docx")) {
     return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
   }
@@ -177,6 +224,9 @@ export function inferUploadKind(mimeType: string, filename = ""): UploadKind {
   if (mimeType.startsWith("image/")) return "image";
   if (mimeType === "application/pdf" || lowerName.endsWith(".pdf")) {
     return "pdf";
+  }
+  if (mimeType === "application/epub+zip" || lowerName.endsWith(".epub")) {
+    return "epub";
   }
   if (
     mimeType ===

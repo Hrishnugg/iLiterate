@@ -1,9 +1,10 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
 import {
+  BookOpen,
   CheckCircle2,
   ChevronLeft,
   FileImage,
@@ -49,7 +50,7 @@ const CONTENT_TYPE_LABELS: Record<ContentType, string> = {
 };
 
 type ImportMethod = "pdf" | "photo" | "website";
-type DialogStep = "select" | "file" | "url" | "processing" | "review";
+type DialogStep = "select" | "file" | "url" | "processing" | "review" | "done";
 
 interface ImportPreview {
   title: string;
@@ -74,7 +75,7 @@ function getAcceptForMethod(method: ImportMethod | null) {
   }
 
   if (method === "pdf") {
-    return "application/pdf";
+    return "application/pdf,application/epub+zip,.pdf,.epub";
   }
 
   return "";
@@ -84,7 +85,6 @@ export function ImportContentDialog({
   targetLanguage,
   onImported,
 }: ImportContentDialogProps) {
-  const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -92,6 +92,8 @@ export function ImportContentDialog({
   const [method, setMethod] = useState<ImportMethod | null>(null);
   const [websiteUrl, setWebsiteUrl] = useState("");
   const [preview, setPreview] = useState<ImportPreview | null>(null);
+  const [savedContentId, setSavedContentId] = useState<string | null>(null);
+  const [savedTitle, setSavedTitle] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -105,6 +107,8 @@ export function ImportContentDialog({
     setMethod(null);
     setWebsiteUrl("");
     setPreview(null);
+    setSavedContentId(null);
+    setSavedTitle("");
     setError(null);
     setIsSaving(false);
   };
@@ -241,9 +245,11 @@ export function ImportContentDialog({
         throw new Error(payload.error ?? "Failed to save content");
       }
 
-      close();
+      setSavedContentId(payload.id);
+      setSavedTitle(preview.title.trim());
+      setStep("done");
+      setIsSaving(false);
       onImported(payload.id);
-      router.push(`/reader/${payload.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save content");
       setIsSaving(false);
@@ -264,7 +270,7 @@ export function ImportContentDialog({
             Import content into your library
           </p>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            Upload a PDF, snap a photo, or pull in a website to study it in iLiterate
+            Upload a PDF or EPUB, snap a photo, or pull in a website to study it in iLiterate
           </p>
         </div>
         <span className="shrink-0 rounded-full border border-border/40 px-3 py-1 text-xs font-medium text-muted-foreground transition-all group-hover:border-primary/40 group-hover:text-primary">
@@ -276,7 +282,7 @@ export function ImportContentDialog({
         <DialogContent className="overflow-hidden p-0 sm:max-w-2xl">
           <DialogHeader className="px-6 pt-6">
             <DialogTitle className="flex items-center gap-2">
-              {step !== "select" && (
+              {step !== "select" && step !== "done" && (
                 <button
                   onClick={() => {
                     setError(null);
@@ -290,11 +296,12 @@ export function ImportContentDialog({
               <Upload className="h-4 w-4 text-primary" />
               <span>
                 {step === "select" && "Import into your library"}
-                {step === "file" && method === "pdf" && "Upload PDF"}
+                {step === "file" && method === "pdf" && "Upload PDF or EPUB"}
                 {step === "file" && method === "photo" && "Upload photo"}
                 {step === "url" && "Import from website"}
                 {step === "processing" && "Processing import…"}
                 {step === "review" && "Review imported content"}
+                {step === "done" && "Saved to library!"}
               </span>
             </DialogTitle>
           </DialogHeader>
@@ -312,8 +319,8 @@ export function ImportContentDialog({
                   {[
                     {
                       id: "pdf",
-                      title: "Upload PDF",
-                      description: "Import a text-based PDF",
+                      title: "Upload PDF or EPUB",
+                      description: "Import a text-based PDF or EPUB book",
                       Icon: FileText,
                     },
                     {
@@ -374,7 +381,7 @@ export function ImportContentDialog({
                     <div>
                       <p className="text-sm font-medium">
                         {method === "pdf"
-                          ? "Drop a text PDF here"
+                          ? "Drop a PDF or EPUB here"
                           : "Drop a photo here"}
                       </p>
                       <p className="mt-1 text-xs text-muted-foreground">
@@ -602,7 +609,40 @@ export function ImportContentDialog({
                       {isSaving ? (
                         <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
                       ) : null}
-                      Save &amp; read
+                      Save to library
+                    </Button>
+                  </div>
+                </motion.div>
+              )}
+
+              {step === "done" && savedContentId && (
+                <motion.div
+                  key="done"
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, transition: { duration: 0.08 } }}
+                  className="flex flex-col items-center gap-5 py-10 text-center"
+                >
+                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-green-500/10">
+                    <CheckCircle2 className="h-7 w-7 text-green-500" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">
+                      &ldquo;{savedTitle}&rdquo; was added to your library.
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      You can find it in the <strong>My Content</strong> tab.
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button asChild size="sm">
+                      <Link href={`/reader/${savedContentId}`}>
+                        <BookOpen className="mr-2 h-3.5 w-3.5" />
+                        Read now
+                      </Link>
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={close}>
+                      Close
                     </Button>
                   </div>
                 </motion.div>

@@ -70,7 +70,7 @@ export function UploadBookDialog({ onUploadedAction }: { onUploadedAction?: () =
       const extractedText = uploadData.extractedText ?? "";
       if (!extractedText.trim()) {
         throw new Error(
-          "Could not extract text from this file. Make sure the PDF contains selectable text (not a scanned image)."
+          "Could not extract text from this file. Make sure the PDF contains selectable text (not a scanned image), or that the EPUB contains readable content."
         );
       }
 
@@ -139,8 +139,8 @@ export function UploadBookDialog({ onUploadedAction }: { onUploadedAction?: () =
             <DialogHeader>
               <DialogTitle>Upload a book or document</DialogTitle>
               <DialogDescription>
-                Supported formats: PDF, DOCX. Text is extracted and added to
-                your <strong>My Content</strong> tab.
+                Supported formats: PDF, EPUB, DOCX. Text is extracted and added
+                to your <strong>My Content</strong> tab.
               </DialogDescription>
             </DialogHeader>
 
@@ -150,7 +150,7 @@ export function UploadBookDialog({ onUploadedAction }: { onUploadedAction?: () =
                 <Input
                   id="ub-file"
                   type="file"
-                  accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                  accept=".pdf,.epub,.docx,application/pdf,application/epub+zip,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                   onChange={(e) => setFile(e.target.files?.[0] ?? null)}
                 />
               </div>
