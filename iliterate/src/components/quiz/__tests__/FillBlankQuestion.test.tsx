@@ -1,45 +1,82 @@
-import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
-import { FillBlankQuestion } from '../FillBlankQuestion';
+import { describe, it, expect, vi } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { FillBlankQuestion } from "@/components/quiz/FillBlankQuestion";
+import type { AssessmentQuestion } from "@/types/database";
 
-const makeQuestion = (overrides = {}) => ({
-  id: 'q1',
-  type: 'vocab_fill_blank',
-  question: 'Translate: hola',
-  context: 'Used in greetings',
-  hint: 'Starts with h',
-  correct: undefined,
-  correct_answer: 'hello',
-  ...overrides,
-});
+const baseQuestion: AssessmentQuestion = {
+  id: "q2",
+  type: "vocabulary_fill_blank",
+  question: "Complete: La casa ___ grande.",
+  context: "The house is big.",
+  correct_answer: "es",
+  hint: "Think of the verb 'to be'.",
+};
 
-describe('FillBlankQuestion', () => {
-  it('renders question, context and hint', () => {
-    const q = makeQuestion();
-    render(<FillBlankQuestion question={q as any} answer="" onAnswer={() => {}} />);
+describe("FillBlankQuestion", () => {
+  it("renders question, context, and hint", () => {
+    render(<FillBlankQuestion question={baseQuestion} answer="" onAnswer={vi.fn()} />);
 
-    expect(screen.getByText('Translate: hola')).toBeInTheDocument();
-    expect(screen.getByText('Used in greetings')).toBeInTheDocument();
-    expect(screen.getByText(/Hint:/)).toBeInTheDocument();
+    expect(screen.getByText(baseQuestion.question)).toBeInTheDocument();
+    expect(screen.getByText("The house is big.")).toBeInTheDocument();
+    expect(screen.getByText(/Hint:/i)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/Type your answer/i)).toBeInTheDocument();
   });
 
-  it('calls onAnswer when typing', () => {
-    const q = makeQuestion();
+  it("calls onAnswer on input change when enabled", () => {
     const onAnswer = vi.fn();
-    render(<FillBlankQuestion question={q as any} answer="" onAnswer={onAnswer} />);
+    render(<FillBlankQuestion question={baseQuestion} answer="" onAnswer={onAnswer} />);
 
-    const input = screen.getByPlaceholderText('Type your answer...');
-    fireEvent.change(input, { target: { value: 'hello' } });
-
-    expect(onAnswer).toHaveBeenCalledWith('hello');
+    fireEvent.change(screen.getByPlaceholderText(/Type your answer/i), {
+      target: { value: "es" },
+    });
+    expect(onAnswer).toHaveBeenCalledWith("es");
   });
 
-  it('shows result and correct answer when incorrect', () => {
-    const q = makeQuestion({ correct: false });
-    render(<FillBlankQuestion question={q as any} answer="no" onAnswer={() => {}} showResult />);
+  it("does not call onAnswer when disabled", () => {
+    const onAnswer = vi.fn();
+    render(
+      <FillBlankQuestion
+        question={baseQuestion}
+        answer=""
+        onAnswer={onAnswer}
+        disabled={true}
+      />
+    );
 
-    expect(screen.getByText('Correct answer:')).toBeInTheDocument();
-    expect(screen.getByText('hello')).toBeInTheDocument();
+    fireEvent.change(screen.getByPlaceholderText(/Type your answer/i), {
+      target: { value: "es" },
+    });
+    expect(onAnswer).not.toHaveBeenCalled();
+  });
+
+  it("shows incorrect result state and correct answer", () => {
+    render(
+      <FillBlankQuestion
+        question={{ ...baseQuestion, correct: false }}
+        answer="soy"
+        onAnswer={vi.fn()}
+        showResult={true}
+      />
+    );
+
+    const input = screen.getByDisplayValue("soy");
+    expect(input).toHaveClass("border-red-500");
+    expect(screen.getByText(/Correct answer:/i)).toBeInTheDocument();
+    expect(screen.getByText("es")).toBeInTheDocument();
+  });
+
+  it("shows correct result state and hides hint while showing results", () => {
+    render(
+      <FillBlankQuestion
+        question={{ ...baseQuestion, correct: true }}
+        answer="es"
+        onAnswer={vi.fn()}
+        showResult={true}
+      />
+    );
+
+    const input = screen.getByDisplayValue("es");
+    expect(input).toHaveClass("border-green-500");
+    expect(screen.queryByText(/Hint:/i)).not.toBeInTheDocument();
   });
 });

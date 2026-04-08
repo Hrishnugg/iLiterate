@@ -1,37 +1,95 @@
-import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
-import { vi, describe, it, expect, afterEach } from "vitest";
-import { ReviewButtons } from "../ReviewButtons";
+import { describe, it, expect, vi } from 'vitest'
+import { render, screen, fireEvent } from '@testing-library/react'
+import { ReviewButtons } from '@/components/flashcards/ReviewButtons'
 
-afterEach(() => vi.restoreAllMocks());
+describe('ReviewButtons', () => {
+  const mockOnResponse = vi.fn()
+  const intervalPreview = {
+    again: 1,
+    hard: 3,
+    good: 6,
+    easy: 12
+  }
 
-describe("ReviewButtons", () => {
-  it("renders four buttons with interval previews and calls onResponse", () => {
-    const onResponse = vi.fn();
-    const preview = { again: 1, hard: 2, good: 6, easy: 30 };
+  beforeEach(() => {
+    mockOnResponse.mockClear()
+  })
 
-    render(<ReviewButtons intervalPreview={preview} onResponse={onResponse} />);
+  it('should render all four buttons', () => {
+    render(
+      <ReviewButtons
+        intervalPreview={intervalPreview}
+        onResponse={mockOnResponse}
+      />
+    )
 
-    expect(screen.getByText(/Again/)).toBeInTheDocument();
-    expect(screen.getByText(/Hard/)).toBeInTheDocument();
-    expect(screen.getByText(/Good/)).toBeInTheDocument();
-    expect(screen.getByText(/Easy/)).toBeInTheDocument();
+    expect(screen.getByText('Again')).toBeInTheDocument()
+    expect(screen.getByText('Hard')).toBeInTheDocument()
+    expect(screen.getByText('Good')).toBeInTheDocument()
+    expect(screen.getByText('Easy')).toBeInTheDocument()
+  })
 
-    // Click each button via label's nearest button
-    const againBtn = screen.getByText("Again").closest("button")!;
-    fireEvent.click(againBtn);
-    expect(onResponse).toHaveBeenCalledWith("again");
+  it('should display interval previews', () => {
+    render(
+      <ReviewButtons
+        intervalPreview={intervalPreview}
+        onResponse={mockOnResponse}
+      />
+    )
 
-    const hardBtn = screen.getByText("Hard").closest("button")!;
-    fireEvent.click(hardBtn);
-    expect(onResponse).toHaveBeenCalledWith("hard");
+    expect(screen.getByText('1d')).toBeInTheDocument() // again
+    expect(screen.getByText('3d')).toBeInTheDocument() // hard
+    expect(screen.getByText('6d')).toBeInTheDocument() // good
+    expect(screen.getByText('2w')).toBeInTheDocument() // easy (12 days = 2 weeks)
+  })
 
-    const goodBtn = screen.getByText("Good").closest("button")!;
-    fireEvent.click(goodBtn);
-    expect(onResponse).toHaveBeenCalledWith("good");
+  it('should call onResponse with correct response when button clicked', () => {
+    render(
+      <ReviewButtons
+        intervalPreview={intervalPreview}
+        onResponse={mockOnResponse}
+      />
+    )
 
-    const easyBtn = screen.getByText("Easy").closest("button")!;
-    fireEvent.click(easyBtn);
-    expect(onResponse).toHaveBeenCalledWith("easy");
-  });
-});
+    fireEvent.click(screen.getByText('Again'))
+    expect(mockOnResponse).toHaveBeenCalledWith('again')
+
+    fireEvent.click(screen.getByText('Hard'))
+    expect(mockOnResponse).toHaveBeenCalledWith('hard')
+
+    fireEvent.click(screen.getByText('Good'))
+    expect(mockOnResponse).toHaveBeenCalledWith('good')
+
+    fireEvent.click(screen.getByText('Easy'))
+    expect(mockOnResponse).toHaveBeenCalledWith('easy')
+  })
+
+  it('should disable buttons when disabled prop is true', () => {
+    render(
+      <ReviewButtons
+        intervalPreview={intervalPreview}
+        onResponse={mockOnResponse}
+        disabled={true}
+      />
+    )
+
+    const againButton = screen.getByRole('button', { name: /again/i })
+    expect(againButton).toBeDisabled()
+
+    fireEvent.click(againButton)
+    expect(mockOnResponse).not.toHaveBeenCalled()
+  })
+
+  it('should enable buttons when disabled prop is false or undefined', () => {
+    render(
+      <ReviewButtons
+        intervalPreview={intervalPreview}
+        onResponse={mockOnResponse}
+        disabled={false}
+      />
+    )
+
+    const againButton = screen.getByText('Again')
+    expect(againButton).not.toBeDisabled()
+  })
+})

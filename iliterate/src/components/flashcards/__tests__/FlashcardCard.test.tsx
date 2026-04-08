@@ -1,59 +1,186 @@
-import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
-import { vi, describe, it, expect, afterEach } from "vitest";
-import { FlashcardCard, type FlashcardData } from "../FlashcardCard";
+import { describe, it, expect, vi } from 'vitest'
+import { render, screen, fireEvent } from '@testing-library/react'
+import { FlashcardCard } from '@/components/flashcards/FlashcardCard'
 
-afterEach(() => vi.restoreAllMocks());
-
-const mockCard: FlashcardData = {
-  id: "1",
+const baseCard = {
+  id: 'u1',
   ease_factor: 2.5,
-  interval_days: 1,
-  repetitions: 0,
-  next_review_date: new Date().toISOString(),
-  times_reviewed: 3,
-  times_correct: 2,
-  context_sentence: "This is a context hint.",
-  vocabulary: {
-    id: "v1",
-    word: "hola",
-    language: "es",
-    pronunciation: "o-la",
-    definitions: { translation: "hello", definitions: ["hello", "hi"] },
-    part_of_speech: "interjection",
+  interval_days: 3,
+  repetitions: 2,
+  next_review_date: '2026-04-08',
+  times_reviewed: 10,
+  times_correct: 7,
+  context_sentence: 'Ella lee un libro.',
+  intervalPreview: {
+    again: 1,
+    hard: 3,
+    good: 6,
+    easy: 12,
   },
-  intervalPreview: { again: 1, hard: 2, good: 6, easy: 30 },
-};
+  vocabulary: {
+    id: 'v1',
+    word: 'libro',
+    language: 'es',
+    pronunciation: 'LEE-broh',
+    definitions: {
+      translation: 'book',
+      definitions: ['book', 'volume', 'manual'],
+    },
+    part_of_speech: 'noun',
+  },
+}
 
-describe("FlashcardCard", () => {
-  it("shows front content and reveals pronunciation and hint", () => {
-    const onFlip = vi.fn();
-    render(<FlashcardCard card={mockCard} isFlipped={false} onFlip={onFlip} />);
+describe('FlashcardCard', () => {
+  it('renders front content and hint controls', () => {
+    render(<FlashcardCard card={baseCard} isFlipped={false} onFlip={vi.fn()} />)
 
-    expect(screen.getAllByText("hola")[0]).toBeInTheDocument();
-    expect(screen.getByText("Pronunciation")).toBeInTheDocument();
-    expect(screen.getByText("Hint")).toBeInTheDocument();
+    expect(screen.getAllByText('libro').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getByRole('button', { name: /pronunciation/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /hint/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /show answer/i })).toBeInTheDocument()
+  })
 
-    // show pronunciation
-    fireEvent.click(screen.getByText("Pronunciation"));
-    expect(screen.getAllByText("o-la")[0]).toBeInTheDocument();
+  it('calls onFlip from container click only when not flipped', () => {
+    const onFlip = vi.fn()
+    const { container, rerender } = render(
+      <FlashcardCard card={baseCard} isFlipped={false} onFlip={onFlip} />
+    )
 
-    // show hint
-    fireEvent.click(screen.getByText("Hint"));
-    expect(screen.getAllByText(/This is a context hint/)[0]).toBeInTheDocument();
+    const clickable = container.querySelector('.transform-style-3d')
+    expect(clickable).toBeTruthy()
+    if (!clickable) throw new Error('Expected clickable card container')
 
-    // clicking Show Answer calls onFlip
-    fireEvent.click(screen.getByText(/Show Answer/i));
-    expect(onFlip).toHaveBeenCalled();
-  });
+    fireEvent.click(clickable)
+    expect(onFlip).toHaveBeenCalledTimes(1)
 
-  it("renders back side when flipped", () => {
-    const onFlip = vi.fn();
-    render(<FlashcardCard card={mockCard} isFlipped={true} onFlip={onFlip} />);
+    rerender(<FlashcardCard card={baseCard} isFlipped={true} onFlip={onFlip} />)
+    fireEvent.click(clickable)
+    expect(onFlip).toHaveBeenCalledTimes(1)
+  })
 
-    // back shows translation and review counts
-    expect(screen.getAllByText("hola")[0]).toBeInTheDocument();
-    expect(screen.getByText("hello")).toBeInTheDocument();
-    expect(screen.getByText(/Reviewed 3 times/)).toBeInTheDocument();
-  });
-});
+  it('toggles pronunciation and hint content', () => {
+    render(<FlashcardCard card={baseCard} isFlipped={false} onFlip={vi.fn()} />)
+
+    fireEvent.click(screen.getByRole('button', { name: /pronunciation/i }))
+    expect(screen.getAllByText('LEE-broh').length).toBeGreaterThanOrEqual(1)
+
+    fireEvent.click(screen.getByRole('button', { name: /hint/i }))
+    expect(screen.getAllByText(/ella lee un libro/i).length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('renders back-side details when flipped', () => {
+    render(<FlashcardCard card={baseCard} isFlipped={true} onFlip={vi.fn()} />)
+
+    expect(screen.getByText('book')).toBeInTheDocument()
+    expect(screen.getByText('noun')).toBeInTheDocument()
+    expect(screen.getByText('volume')).toBeInTheDocument()
+    expect(screen.getByText('manual')).toBeInTheDocument()
+    expect(screen.getByText(/Reviewed 10 times \(7 correct\)/i)).toBeInTheDocument()
+  })
+
+  it('falls back to first definition when translation is missing', () => {
+    const card = {
+      ...baseCard,
+      vocabulary: {
+        ...baseCard.vocabulary,
+        definitions: {
+          definitions: ['fallback definition'],
+        },
+      },
+    }
+
+    render(<FlashcardCard card={card} isFlipped={true} onFlip={vi.fn()} />)
+    expect(screen.getByText('fallback definition')).toBeInTheDocument()
+  })
+
+  it('shows "No translation" when definitions object is empty', () => {
+    const card = {
+      ...baseCard,
+      vocabulary: { ...baseCard.vocabulary, definitions: {} },
+    }
+    render(<FlashcardCard card={card} isFlipped={true} onFlip={vi.fn()} />)
+    expect(screen.getByText('No translation')).toBeInTheDocument()
+  })
+
+  it('second pronunciation click hides the pronunciation text', () => {
+    render(<FlashcardCard card={baseCard} isFlipped={false} onFlip={vi.fn()} />)
+    const pronBtn = screen.getByRole('button', { name: /pronunciation/i })
+
+    // First click — front shows pronunciation → total 2 (front + invisible back)
+    fireEvent.click(pronBtn)
+    expect(screen.getAllByText('LEE-broh')).toHaveLength(2)
+
+    // Second click — front hides it → back to 1 (only invisible back card)
+    fireEvent.click(pronBtn)
+    expect(screen.getAllByText('LEE-broh')).toHaveLength(1)
+  })
+
+  it('second hint click hides the context sentence', () => {
+    render(<FlashcardCard card={baseCard} isFlipped={false} onFlip={vi.fn()} />)
+    const hintBtn = screen.getByRole('button', { name: /hint/i })
+
+    fireEvent.click(hintBtn)
+    expect(screen.getAllByText(/ella lee un libro/i)).toHaveLength(2)
+
+    fireEvent.click(hintBtn)
+    expect(screen.getAllByText(/ella lee un libro/i)).toHaveLength(1)
+  })
+
+  it('does not render pronunciation button when pronunciation is null', () => {
+    const card = {
+      ...baseCard,
+      vocabulary: { ...baseCard.vocabulary, pronunciation: null },
+    }
+    render(<FlashcardCard card={card} isFlipped={false} onFlip={vi.fn()} />)
+    expect(
+      screen.queryByRole('button', { name: /pronunciation/i })
+    ).not.toBeInTheDocument()
+  })
+
+  it('does not render hint button when context_sentence is null', () => {
+    const card = { ...baseCard, context_sentence: null }
+    render(<FlashcardCard card={card} isFlipped={false} onFlip={vi.fn()} />)
+    expect(
+      screen.queryByRole('button', { name: /hint/i })
+    ).not.toBeInTheDocument()
+  })
+
+  it('does not render part_of_speech badge when part_of_speech is null', () => {
+    const card = {
+      ...baseCard,
+      vocabulary: { ...baseCard.vocabulary, part_of_speech: null },
+    }
+    render(<FlashcardCard card={card} isFlipped={true} onFlip={vi.fn()} />)
+    expect(screen.queryByText('noun')).not.toBeInTheDocument()
+  })
+
+  it('does not render additional definitions when only one definition exists', () => {
+    const card = {
+      ...baseCard,
+      vocabulary: {
+        ...baseCard.vocabulary,
+        definitions: { translation: 'book', definitions: ['book'] },
+      },
+    }
+    render(<FlashcardCard card={card} isFlipped={true} onFlip={vi.fn()} />)
+    expect(screen.queryByText('volume')).not.toBeInTheDocument()
+    expect(screen.queryByText('manual')).not.toBeInTheDocument()
+  })
+
+  it('shows context sentence on the back side when flipped', () => {
+    render(<FlashcardCard card={baseCard} isFlipped={true} onFlip={vi.fn()} />)
+    expect(
+      screen.getAllByText(/ella lee un libro/i).length
+    ).toBeGreaterThanOrEqual(1)
+  })
+
+  it('pronunciation and hint buttons do not trigger onFlip via bubbling', () => {
+    const onFlip = vi.fn()
+    render(<FlashcardCard card={baseCard} isFlipped={false} onFlip={onFlip} />)
+
+    fireEvent.click(screen.getByRole('button', { name: /pronunciation/i }))
+    fireEvent.click(screen.getByRole('button', { name: /hint/i }))
+
+    expect(onFlip).not.toHaveBeenCalled()
+  })
+})
