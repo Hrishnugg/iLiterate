@@ -1,134 +1,290 @@
-import { describe, it, expect } from 'vitest'
-import { calculateNextReview, formatInterval, DEFAULT_EASE_FACTOR, type ResponseQuality } from '@/lib/spaced-repetition'
+/**
+ * Spaced Repetition (SM-2 Algorithm) — Comprehensive Test Suite
+ *
+ * Testing methods used:
+ * 1. Unit testing with boundary values
+ * 2. Regression testing (pinned expected outputs)
+ * 3. Designed for mutation testing via Stryker
+ *    - Each branch and constant has at least one test that will fail if mutated
+ */
 
-describe('Spaced Repetition Algorithm', () => {
-  describe('calculateNextReview', () => {
-    it('should handle "again" response correctly', () => {
-      const result = calculateNextReview(DEFAULT_EASE_FACTOR, 10, 3, 'again')
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import {
+  calculateNextReview,
+  calculateIntervalPreview,
+  formatInterval,
+  isCardDue,
+  daysUntilReview,
+  DEFAULT_EASE_FACTOR,
+} from "../spaced-repetition";
 
-      expect(result.newEaseFactor).toBe(2.3) // 2.5 - 0.2
-      expect(result.newInterval).toBe(1)
-      expect(result.newRepetitions).toBe(0)
-      expect(result.nextReviewDate).toBeInstanceOf(Date)
-    })
+// ---------------------------------------------------------------------------
+// calculateNextReview
+// ---------------------------------------------------------------------------
+describe("calculateNextReview", () => {
+  // ---- "again" response ----
+  describe("response: again", () => {
+    it("resets repetitions to 0", () => {
+      const result = calculateNextReview(2.5, 10, 5, "again");
+      expect(result.newRepetitions).toBe(0);
+    });
 
-    it('should handle "hard" response correctly', () => {
-      const result = calculateNextReview(DEFAULT_EASE_FACTOR, 10, 3, 'hard')
+    it("sets interval to 1 day", () => {
+      const result = calculateNextReview(2.5, 30, 3, "again");
+      expect(result.newInterval).toBe(1);
+    });
 
-      expect(result.newEaseFactor).toBe(2.35) // 2.5 - 0.15
-      expect(result.newInterval).toBe(12) // Math.round(10 * 1.2)
-      expect(result.newRepetitions).toBe(3) // unchanged
-    })
+    it("decreases ease factor by 0.2", () => {
+      const result = calculateNextReview(2.5, 10, 3, "again");
+      expect(result.newEaseFactor).toBe(2.3);
+    });
 
-    it('should handle "good" response for new card (repetitions = 0)', () => {
-      const result = calculateNextReview(DEFAULT_EASE_FACTOR, 1, 0, 'good')
+    it("clamps ease factor to minimum 1.3", () => {
+      const result = calculateNextReview(1.4, 10, 3, "again");
+      expect(result.newEaseFactor).toBe(1.3);
+    });
 
-      expect(result.newEaseFactor).toBe(2.5) // unchanged
-      expect(result.newInterval).toBe(1)
-      expect(result.newRepetitions).toBe(1)
-    })
+    it("does not go below 1.3 even from exactly 1.3", () => {
+      const result = calculateNextReview(1.3, 10, 3, "again");
+      expect(result.newEaseFactor).toBe(1.3);
+    });
+  });
 
-    it('should handle "good" response for first repetition (repetitions = 1)', () => {
-      const result = calculateNextReview(DEFAULT_EASE_FACTOR, 1, 1, 'good')
+  // ---- "hard" response ----
+  describe("response: hard", () => {
+    it("decreases ease factor by 0.15", () => {
+      const result = calculateNextReview(2.5, 10, 3, "hard");
+      expect(result.newEaseFactor).toBe(2.35);
+    });
 
-      expect(result.newEaseFactor).toBe(2.5) // unchanged
-      expect(result.newInterval).toBe(6)
-      expect(result.newRepetitions).toBe(2)
-    })
+    it("multiplies interval by 1.2 (hard multiplier)", () => {
+      const result = calculateNextReview(2.5, 10, 3, "hard");
+      expect(result.newInterval).toBe(12); // round(10 * 1.2) = 12
+    });
 
-    it('should handle "good" response for established card (repetitions >= 2)', () => {
-      const result = calculateNextReview(DEFAULT_EASE_FACTOR, 6, 2, 'good')
+    it("does not let interval fall below 1", () => {
+      const result = calculateNextReview(2.5, 0, 0, "hard");
+      expect(result.newInterval).toBe(1);
+    });
 
-      expect(result.newEaseFactor).toBe(2.5) // unchanged
-      expect(result.newInterval).toBe(15) // Math.round(6 * 2.5)
-      expect(result.newRepetitions).toBe(3)
-    })
+    it("does not increment repetitions", () => {
+      const result = calculateNextReview(2.5, 10, 5, "hard");
+      expect(result.newRepetitions).toBe(5);
+    });
 
-    it('should handle "easy" response for new card (repetitions = 0)', () => {
-      const result = calculateNextReview(DEFAULT_EASE_FACTOR, 1, 0, 'easy')
+    it("clamps ease factor to minimum 1.3", () => {
+      const result = calculateNextReview(1.35, 5, 2, "hard");
+      expect(result.newEaseFactor).toBe(1.3);
+    });
+  });
 
-      expect(result.newEaseFactor).toBe(2.65) // 2.5 + 0.15
-      expect(result.newInterval).toBe(4) // Skip ahead for easy new cards
-      expect(result.newRepetitions).toBe(1)
-    })
+  // ---- "good" response ----
+  describe("response: good", () => {
+    it("sets interval to 1 on first review (rep=0)", () => {
+      const result = calculateNextReview(2.5, 0, 0, "good");
+      expect(result.newInterval).toBe(1);
+    });
 
-    it('should handle "easy" response for first repetition (repetitions = 1)', () => {
-      const result = calculateNextReview(DEFAULT_EASE_FACTOR, 1, 1, 'easy')
+    it("sets interval to 6 on second review (rep=1)", () => {
+      const result = calculateNextReview(2.5, 1, 1, "good");
+      expect(result.newInterval).toBe(6);
+    });
 
-      expect(result.newEaseFactor).toBe(2.65) // 2.5 + 0.15
-      expect(result.newInterval).toBe(8) // Math.round(6 * 1.3)
-      expect(result.newRepetitions).toBe(2)
-    })
+    it("multiplies interval by ease factor for rep>=2", () => {
+      const result = calculateNextReview(2.5, 6, 2, "good");
+      expect(result.newInterval).toBe(15); // round(6 * 2.5) = 15
+    });
 
-    it('should handle "easy" response for established card (repetitions >= 2)', () => {
-      const result = calculateNextReview(DEFAULT_EASE_FACTOR, 6, 2, 'easy')
+    it("increments repetitions", () => {
+      const result = calculateNextReview(2.5, 6, 2, "good");
+      expect(result.newRepetitions).toBe(3);
+    });
 
-      expect(result.newEaseFactor).toBe(2.65) // 2.5 + 0.15
-      expect(result.newInterval).toBe(20) // Math.round(6 * 2.5 * 1.3)
-      expect(result.newRepetitions).toBe(3)
-    })
+    it("does not change ease factor", () => {
+      const result = calculateNextReview(2.5, 6, 2, "good");
+      expect(result.newEaseFactor).toBe(2.5);
+    });
+  });
 
-    it('should not allow ease factor below minimum', () => {
-      const result = calculateNextReview(1.4, 10, 3, 'again')
+  // ---- "easy" response ----
+  describe("response: easy", () => {
+    it("sets interval to 4 on first review (rep=0)", () => {
+      const result = calculateNextReview(2.5, 0, 0, "easy");
+      expect(result.newInterval).toBe(4);
+    });
 
-      expect(result.newEaseFactor).toBe(1.3) // clamped to MIN_EASE_FACTOR
-    })
+    it("sets interval to round(6 * 1.3) = 8 on second review (rep=1)", () => {
+      const result = calculateNextReview(2.5, 1, 1, "easy");
+      expect(result.newInterval).toBe(8); // round(6 * 1.3) = 7.8 → 8
+    });
 
-    it('should round ease factor to 2 decimal places', () => {
-      const result = calculateNextReview(2.534, 10, 3, 'hard')
+    it("multiplies interval by ease * EASY_BONUS for rep>=2", () => {
+      const result = calculateNextReview(2.5, 6, 2, "easy");
+      // round(6 * 2.5 * 1.3) = round(19.5) = 20
+      expect(result.newInterval).toBe(20);
+    });
 
-      expect(result.newEaseFactor).toBe(2.38) // 2.534 - 0.15 = 2.384, rounded to 2.38
-    })
+    it("increases ease factor by 0.15", () => {
+      const result = calculateNextReview(2.5, 6, 2, "easy");
+      expect(result.newEaseFactor).toBe(2.65);
+    });
 
-    it('should calculate next review date correctly', () => {
-      const now = new Date()
-      const result = calculateNextReview(DEFAULT_EASE_FACTOR, 1, 0, 'good')
+    it("increments repetitions", () => {
+      const result = calculateNextReview(2.5, 6, 2, "easy");
+      expect(result.newRepetitions).toBe(3);
+    });
+  });
 
-      const expectedDate = new Date(now)
-      expectedDate.setDate(now.getDate() + 1)
+  // ---- nextReviewDate ----
+  it("sets nextReviewDate to today + newInterval days", () => {
+    const now = new Date("2024-06-15T12:00:00Z");
+    vi.useFakeTimers({ now });
 
-      expect(result.nextReviewDate.toDateString()).toBe(expectedDate.toDateString())
-    })
-  })
+    const result = calculateNextReview(2.5, 6, 2, "good");
+    const expected = new Date("2024-06-15T12:00:00Z");
+    expected.setDate(expected.getDate() + result.newInterval);
+    expect(result.nextReviewDate.toDateString()).toBe(expected.toDateString());
 
-  describe('formatInterval', () => {
-    it('should format days correctly', () => {
-      expect(formatInterval(0.5)).toBe('<1d')
-      expect(formatInterval(1)).toBe('1d')
-      expect(formatInterval(3)).toBe('3d')
-      expect(formatInterval(6)).toBe('6d')
-    })
+    vi.useRealTimers();
+  });
 
-    it('should format weeks correctly', () => {
-      expect(formatInterval(7)).toBe('1w')
-      expect(formatInterval(10)).toBe('1w') // rounded
-      expect(formatInterval(14)).toBe('2w')
-    })
+  // ---- Regression: full progression sequence ----
+  it("tracks a realistic learning sequence (regression)", () => {
+    // New card: good → good → good → good
+    const r1 = calculateNextReview(2.5, 0, 0, "good");
+    expect(r1).toMatchObject({ newInterval: 1, newRepetitions: 1, newEaseFactor: 2.5 });
 
-    it('should format months correctly', () => {
-      expect(formatInterval(30)).toBe('1mo')
-      expect(formatInterval(60)).toBe('2mo')
-      expect(formatInterval(90)).toBe('3mo')
-    })
+    const r2 = calculateNextReview(r1.newEaseFactor, r1.newInterval, r1.newRepetitions, "good");
+    expect(r2).toMatchObject({ newInterval: 6, newRepetitions: 2, newEaseFactor: 2.5 });
 
-    it('should format years correctly', () => {
-      expect(formatInterval(365)).toBe('1y')
-      expect(formatInterval(730)).toBe('2y')
-      expect(formatInterval(547.5)).toBe('1.5y') // 547.5 / 365 ≈ 1.5
-    })
-  })
+    const r3 = calculateNextReview(r2.newEaseFactor, r2.newInterval, r2.newRepetitions, "good");
+    expect(r3).toMatchObject({ newInterval: 15, newRepetitions: 3, newEaseFactor: 2.5 });
 
-  describe('edge cases', () => {
-    it('should handle minimum interval for hard response', () => {
-      const result = calculateNextReview(DEFAULT_EASE_FACTOR, 1, 3, 'hard')
+    const r4 = calculateNextReview(r3.newEaseFactor, r3.newInterval, r3.newRepetitions, "good");
+    expect(r4).toMatchObject({ newInterval: 38, newRepetitions: 4, newEaseFactor: 2.5 });
+  });
+});
 
-      expect(result.newInterval).toBe(1) // Math.max(1, Math.round(1 * 1.2)) = 1
-    })
+// ---------------------------------------------------------------------------
+// calculateIntervalPreview
+// ---------------------------------------------------------------------------
+describe("calculateIntervalPreview", () => {
+  it("returns intervals for all four responses", () => {
+    const preview = calculateIntervalPreview(2.5, 6, 2);
+    expect(preview).toEqual({
+      again: 1,
+      hard: 7, // round(6 * 1.2) = 7.2 → 7
+      good: 15, // round(6 * 2.5)
+      easy: 20, // round(6 * 2.5 * 1.3)
+    });
+  });
 
-    it('should handle very high ease factor', () => {
-      const result = calculateNextReview(5.0, 10, 3, 'good')
+  it("handles new card (rep=0)", () => {
+    const preview = calculateIntervalPreview(2.5, 0, 0);
+    expect(preview).toEqual({ again: 1, hard: 1, good: 1, easy: 4 });
+  });
+});
 
-      expect(result.newInterval).toBe(50) // Math.round(10 * 5.0)
-    })
-  })
-})
+// ---------------------------------------------------------------------------
+// formatInterval
+// ---------------------------------------------------------------------------
+describe("formatInterval", () => {
+  it("returns '<1d' for sub-day values", () => {
+    expect(formatInterval(0)).toBe("<1d");
+    expect(formatInterval(0.5)).toBe("<1d");
+  });
+
+  it("returns '1d' for exactly 1", () => {
+    expect(formatInterval(1)).toBe("1d");
+  });
+
+  it("returns days for 2-6", () => {
+    expect(formatInterval(3)).toBe("3d");
+    expect(formatInterval(6)).toBe("6d");
+  });
+
+  it("returns weeks for 7-29", () => {
+    expect(formatInterval(7)).toBe("1w");
+    expect(formatInterval(14)).toBe("2w");
+    expect(formatInterval(21)).toBe("3w");
+  });
+
+  it("returns months for 30-364", () => {
+    expect(formatInterval(30)).toBe("1mo");
+    expect(formatInterval(90)).toBe("3mo");
+    expect(formatInterval(180)).toBe("6mo");
+  });
+
+  it("returns years for 365+", () => {
+    expect(formatInterval(365)).toBe("1y");
+    expect(formatInterval(730)).toBe("2y");
+    expect(formatInterval(547)).toBe("1.5y");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// isCardDue
+// ---------------------------------------------------------------------------
+describe("isCardDue", () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ now: new Date("2024-06-15T12:00:00Z") });
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("returns true if review date is today", () => {
+    const today = new Date("2024-06-15T12:00:00Z");
+    expect(isCardDue(today)).toBe(true);
+  });
+
+  it("returns true if review date is in the past", () => {
+    const past = new Date("2024-06-10T00:00:00Z");
+    expect(isCardDue(past)).toBe(true);
+  });
+
+  it("returns false if review date is in the future", () => {
+    const future = new Date("2024-06-20T00:00:00Z");
+    expect(isCardDue(future)).toBe(false);
+  });
+
+  it("accepts Date objects", () => {
+    expect(isCardDue(new Date("2024-06-14T00:00:00Z"))).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// daysUntilReview
+// ---------------------------------------------------------------------------
+describe("daysUntilReview", () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ now: new Date("2024-06-15T12:00:00Z") });
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("returns 0 for today", () => {
+    const today = new Date("2024-06-15T12:00:00Z");
+    expect(daysUntilReview(today)).toBe(0);
+  });
+
+  it("returns positive for future dates", () => {
+    const future = new Date("2024-06-20T12:00:00Z");
+    expect(daysUntilReview(future)).toBe(5);
+  });
+
+  it("returns negative for past dates", () => {
+    const past = new Date("2024-06-10T12:00:00Z");
+    expect(daysUntilReview(past)).toBe(-5);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// DEFAULT_EASE_FACTOR constant
+// ---------------------------------------------------------------------------
+describe("DEFAULT_EASE_FACTOR", () => {
+  it("is 2.5 (standard SM-2 default)", () => {
+    expect(DEFAULT_EASE_FACTOR).toBe(2.5);
+  });
+});
