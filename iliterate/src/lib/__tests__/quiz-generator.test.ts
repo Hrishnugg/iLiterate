@@ -1,10 +1,11 @@
 /**
- * Quiz Generator — Mock-Object Testing
+ * @fileoverview
+ * Mock-object and pure-function tests for quiz generation and grading logic.
  *
- * Testing method: Mock-object testing
- * - Mocks the OpenAI API to test quiz generation logic in isolation
- * - Verifies prompt construction, response parsing, error handling
- * - Tests the gradeQuiz pure function directly
+ * Testing strategy:
+ * 1. Mock OpenAI responses to isolate parsing and prompt behavior
+ * 2. Validate malformed response handling and fallback defaults
+ * 3. Assert deterministic scoring behavior in gradeQuiz
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";

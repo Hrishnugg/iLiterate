@@ -1,5 +1,10 @@
 "use client";
 
+/**
+ * @module
+ * Client-side social API adapter for profile, friendship, conversation, and messaging endpoints.
+ */
+
 import type {
   ChatAttachment,
   ChatMessage,
@@ -14,9 +19,14 @@ import type {
 
 type JsonRecord = Record<string, unknown>;
 
+/** Error wrapper carrying HTTP status for API requests. */
 class ApiError extends Error {
   status: number;
 
+  /**
+   * @param message Human-readable error message.
+   * @param status HTTP status code returned by the API.
+   */
   constructor(message: string, status: number) {
     super(message);
     this.name = "ApiError";
@@ -24,6 +34,14 @@ class ApiError extends Error {
   }
 }
 
+/**
+ * Fetches JSON from an endpoint and normalizes non-2xx responses into ApiError.
+ *
+ * @param input Request URL or Request object.
+ * @param init Fetch options.
+ * @returns Parsed JSON payload.
+ * @throws ApiError when response status is non-2xx.
+ */
 async function fetchJson<T>(
   input: RequestInfo,
   init?: RequestInit
@@ -56,14 +74,17 @@ async function fetchJson<T>(
   return (await response.json()) as T;
 }
 
+/** Type guard for plain object records. */
 function isRecord(value: unknown): value is JsonRecord {
   return typeof value === "object" && value !== null;
 }
 
+/** Safely casts unknown values to string when possible. */
 function asString(value: unknown): string | null {
   return typeof value === "string" ? value : null;
 }
 
+/** Normalizes raw person payloads into SocialPerson. */
 function normalizePerson(raw: unknown): SocialPerson {
   if (!isRecord(raw)) {
     return {
@@ -89,6 +110,7 @@ function normalizePerson(raw: unknown): SocialPerson {
   };
 }
 
+/** Normalizes friendship payloads into a consistent client shape. */
 function normalizeFriendship(
   raw: unknown,
   viewerId: string
@@ -128,6 +150,7 @@ function normalizeFriendship(
   };
 }
 
+/** Normalizes conversation summary payloads from API responses. */
 function normalizeConversation(raw: unknown): ConversationSummary {
   if (!isRecord(raw)) {
     return {
@@ -162,6 +185,7 @@ function normalizeConversation(raw: unknown): ConversationSummary {
   };
 }
 
+/** Normalizes chat message payloads including attachments and sender info. */
 function normalizeMessage(raw: unknown): ChatMessage {
   if (!isRecord(raw)) {
     return {
@@ -242,6 +266,11 @@ function normalizeMessage(raw: unknown): ChatMessage {
   };
 }
 
+/**
+ * Retrieves the signed-in user's public social profile.
+ *
+ * @returns Social profile, or null when profile is not found.
+ */
 export async function getSocialProfile(): Promise<SocialProfile | null> {
   try {
     const payload = await fetchJson<SocialProfile | { profile?: SocialProfile }>(
@@ -262,6 +291,12 @@ export async function getSocialProfile(): Promise<SocialProfile | null> {
   }
 }
 
+/**
+ * Updates public social profile fields.
+ *
+ * @param input Profile fields to update.
+ * @returns Updated social profile.
+ */
 export async function updateSocialProfile(input: {
   username: string;
   displayName: string;
@@ -279,6 +314,12 @@ export async function updateSocialProfile(input: {
     : (payload as SocialProfile);
 }
 
+/**
+ * Fetches social dashboard summary payloads and normalizes relationships.
+ *
+ * @param viewerId Current authenticated user ID used to resolve relationship perspective.
+ * @returns Incoming requests, outgoing requests, friends, and conversations.
+ */
 export async function getSocialSummary(
   viewerId: string
 ): Promise<SocialSummary> {
@@ -325,6 +366,12 @@ export async function getSocialSummary(
   };
 }
 
+/**
+ * Searches discoverable users by free-text query.
+ *
+ * @param query Search text.
+ * @returns Matching people records.
+ */
 export async function searchPeople(query: string): Promise<SocialPerson[]> {
   if (!query.trim()) {
     return [];
@@ -343,6 +390,12 @@ export async function searchPeople(query: string): Promise<SocialPerson[]> {
   return results.map((item) => normalizePerson(item));
 }
 
+/**
+ * Sends a friendship request to another user.
+ *
+ * @param recipientId Target user ID.
+ * @returns Created friendship record.
+ */
 export async function sendFriendRequest(
   recipientId: string
 ): Promise<FriendshipRecord> {
@@ -359,6 +412,12 @@ export async function sendFriendRequest(
     : (payload as FriendshipRecord);
 }
 
+/**
+ * Updates an existing friendship request state.
+ *
+ * @param friendshipId Friendship record ID.
+ * @param action State transition action.
+ */
 export async function updateFriendship(
   friendshipId: string,
   action: "accept" | "decline" | "cancel"
@@ -369,12 +428,23 @@ export async function updateFriendship(
   });
 }
 
+/**
+ * Removes an existing friendship.
+ *
+ * @param friendshipId Friendship record ID.
+ */
 export async function unfriend(friendshipId: string): Promise<void> {
   await fetchJson(`/api/social/friendships/${friendshipId}`, {
     method: "DELETE",
   });
 }
 
+/**
+ * Loads or creates a conversation thread with a friend.
+ *
+ * @param friendId Target friend user ID.
+ * @returns Conversation summary and normalized messages.
+ */
 export async function getConversation(
   friendId: string
 ): Promise<ConversationPayload> {
@@ -394,6 +464,14 @@ export async function getConversation(
   };
 }
 
+/**
+ * Sends a chat message, optionally with upload attachments.
+ *
+ * @param conversationId Conversation record ID.
+ * @param body Message text.
+ * @param attachments Optional attachment metadata to persist with message.
+ * @returns Normalized message record.
+ */
 export async function sendMessage(
   conversationId: string,
   body: string,

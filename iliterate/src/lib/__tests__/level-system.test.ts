@@ -1,10 +1,11 @@
 /**
- * Level System — Comprehensive Test Suite
+ * @fileoverview
+ * Tests for XP progression, CEFR transitions, and recommendation logic.
  *
- * Testing methods used:
- * 1. Unit testing with boundary values
- * 2. Regression testing (pinned expected outputs for XP calculations)
- * 3. Designed for mutation testing — every branch and constant exercised
+ * Testing strategy:
+ * 1. Boundary-focused unit testing for XP and level-up math
+ * 2. Regression assertions for progression invariants
+ * 3. Mutation-friendly branch coverage across helper utilities
  */
 
 import { describe, it, expect } from "vitest";

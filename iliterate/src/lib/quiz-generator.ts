@@ -1,8 +1,19 @@
+/**
+ * @module
+ * Quiz generation and grading utilities for CEFR-aligned comprehension checks.
+ */
+
 import OpenAI from "openai";
 import { Content, AssessmentQuestion, CEFRLevel, numericLevelToCEFR } from "@/types/database";
 
 // Lazily initialize OpenAI to avoid module-level instantiation during build
 let _openai: OpenAI | null = null;
+
+/**
+ * Returns a memoized OpenAI client for quiz generation.
+ *
+ * @returns Shared OpenAI client instance.
+ */
 function getOpenAI(): OpenAI {
   if (!_openai) {
     _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -10,6 +21,7 @@ function getOpenAI(): OpenAI {
   return _openai;
 }
 
+/** Input parameters for generating a quiz from stored content. */
 export interface GenerateQuizParams {
   content: Content;
   userLevel: number;
@@ -18,6 +30,7 @@ export interface GenerateQuizParams {
   questionCount?: number;
 }
 
+/** Generated quiz payload saved or returned by API routes. */
 export interface GeneratedQuiz {
   questions: AssessmentQuestion[];
   contentId: string;
@@ -38,7 +51,11 @@ const LEVEL_GUIDELINES: Record<CEFRLevel, string> = {
 };
 
 /**
- * Generate a quiz for a piece of content using OpenAI
+ * Generates a CEFR-aware quiz for a content item.
+ *
+ * @param params Quiz generation context including content and learner profile.
+ * @returns Generated quiz questions and metadata.
+ * @throws If AI output does not contain parseable JSON.
  */
 export async function generateQuiz(params: GenerateQuizParams): Promise<GeneratedQuiz> {
   const {
@@ -154,7 +171,16 @@ Important rules:
 }
 
 /**
- * Generate a quiz directly from content body (for lesson sessions)
+ * Generates a quiz directly from raw lesson body text.
+ *
+ * @param contentBody Source content body (HTML/text) used to derive questions.
+ * @param targetLevel Learner numeric level (1-20).
+ * @param targetLanguage Language being learned.
+ * @param nativeLanguage Learner native language.
+ * @param vocabulary Vocabulary list from the lesson context.
+ * @param questionCount Number of questions to request.
+ * @returns Normalized assessment questions.
+ * @throws If AI output does not contain parseable JSON.
  */
 export async function generateQuizFromContent(
   contentBody: string,
@@ -257,7 +283,11 @@ Rules:
 }
 
 /**
- * Grade quiz answers and calculate score
+ * Grades user quiz responses using exact string matching.
+ *
+ * @param questions Quiz questions with answer keys.
+ * @param userAnswers User-submitted answers keyed by question ID.
+ * @returns Graded questions and score summary.
  */
 export function gradeQuiz(
   questions: AssessmentQuestion[],

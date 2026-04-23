@@ -1,9 +1,21 @@
+/**
+ * @module
+ * AI lesson generation utilities for creating CEFR-aligned lesson passages,
+ * extracting vocabulary, and mapping user motivation to lesson topics.
+ */
+
 import OpenAI from "openai";
 import { getLevelDescription } from "./level-system";
 import { SpeechFormality } from "@/types/database";
 
 // Lazily initialize OpenAI to avoid module-level instantiation during build
 let _openai: OpenAI | null = null;
+
+/**
+ * Returns a memoized OpenAI client instance.
+ *
+ * @returns Shared OpenAI client for lesson generation calls.
+ */
 function getOpenAI(): OpenAI {
   if (!_openai) {
     _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -15,8 +27,10 @@ function getOpenAI(): OpenAI {
 // Types
 // ============================================================================
 
+/** Supported lesson size presets. */
 export type LessonLength = "short" | "medium" | "long";
 
+/** Generated lesson payload returned to callers. */
 export interface LessonContent {
   title: string;
   body: string; // HTML formatted
@@ -25,12 +39,14 @@ export interface LessonContent {
   wordCount: number;
 }
 
+/** Vocabulary term extracted from generated lesson content. */
 export interface VocabularyItem {
   word: string;
   translation: string;
   context: string;
 }
 
+/** Input options for generating a lesson passage with AI. */
 export interface GenerateLessonOptions {
   targetLevel: number;
   language: string;
@@ -112,7 +128,11 @@ const FORMALITY_DESCRIPTIONS: Record<SpeechFormality, { style: string; instructi
 // ============================================================================
 
 /**
- * Generate a lesson using Gemini AI.
+ * Generates a lesson passage and structured learning artifacts.
+ *
+ * @param options Lesson generation parameters including level, languages, topic, and length.
+ * @returns Structured lesson content with HTML body, vocabulary list, grammar points, and word count.
+ * @throws If the AI response cannot be parsed into expected JSON.
  */
 export async function generateLesson(options: GenerateLessonOptions): Promise<LessonContent> {
   const { targetLevel, language, nativeLanguage, topic, length, formality = "standard" } = options;
@@ -196,7 +216,10 @@ Generate the lesson now:`;
 }
 
 /**
- * Suggest a topic based on user's learning motivations.
+ * Suggests a topic ID based on one or more learner motivations.
+ *
+ * @param motivations User-selected motivation keywords.
+ * @returns Most relevant topic ID, or a fallback topic when no mapping exists.
  */
 export function suggestTopic(motivations: string[]): TopicId {
   // Map motivations to topic preferences
@@ -237,7 +260,10 @@ export function suggestTopic(motivations: string[]): TopicId {
 }
 
 /**
- * Get topic display info.
+ * Resolves display metadata for a topic ID.
+ *
+ * @param topicId Topic identifier from a lesson or profile.
+ * @returns Matching topic metadata, or the first topic as a fallback.
  */
 export function getTopicInfo(topicId: string) {
   return LESSON_TOPICS.find((t) => t.id === topicId) || LESSON_TOPICS[0];

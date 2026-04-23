@@ -216,8 +216,27 @@ npm run lint         # Run ESLint
 npm test             # Run all tests
 npm run test:watch   # Watch mode
 npm run test:reader  # Reader component tests only
+npm run docs:build   # Generate API docs (HTML)
 npx stryker run      # Run mutation testing
 ```
+
+## Documentation Standards and API Docs
+
+The project uses a consistent TSDoc/JSDoc style for major modules, exported classes, functions, methods, and important test files.
+
+- Style guide: `docs/DOCUMENTATION_STYLE.md`
+- API doc generator: TypeDoc
+
+Generate browsable HTML docs:
+
+```bash
+npm run docs:build
+```
+
+Generated output folder (included for submission):
+
+- `api-docs/`
+- Entry page: `api-docs/index.html`
 
 ## Deployment
 
@@ -236,3 +255,12 @@ Set `PYTHON_API_BASE_URL` in Vercel to the deployed Cloud Run URL.
 - Never commit live secrets. `.env.local` is gitignored.
 - Keep production secrets in Vercel environment variables and Google Secret Manager.
 - Rotate any credentials that were previously exposed before deploying.
+
+### Team Members and Contributions
+Ethan Fang: Back-end, Lesson Plan, Leaderboard, Library, Quiz, Progress Features
+Hrishi Hari: Back-end, E-Reader, Social, Profile, Search features, UI Design
+Anthony Retelewski: Front-end, Landing page, WPM Reader, Home page features, UI Design
+Curtis Li: Front-end, Flashcards (+Integration with Reader and Library), Unit and Mutation Testing
+
+### Retrospective
+Some lessons learned include: Using the program itself to learn where it falls short

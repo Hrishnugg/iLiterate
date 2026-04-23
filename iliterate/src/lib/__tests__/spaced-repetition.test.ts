@@ -1,11 +1,11 @@
 /**
- * Spaced Repetition (SM-2 Algorithm) — Comprehensive Test Suite
+ * @fileoverview
+ * Regression and boundary tests for the SM-2 spaced repetition module.
  *
- * Testing methods used:
- * 1. Unit testing with boundary values
- * 2. Regression testing (pinned expected outputs)
- * 3. Designed for mutation testing via Stryker
- *    - Each branch and constant has at least one test that will fail if mutated
+ * Testing strategy:
+ * 1. Unit tests around branch-heavy response handling (again/hard/good/easy)
+ * 2. Regression tests for stable interval progression behavior
+ * 3. Mutation-resistant assertions on constants and date logic
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";

@@ -1,0 +1,24 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": [
+    "src/lib/spaced-repetition.ts",
+    "src/lib/level-system.ts",
+    "src/lib/quiz-generator.ts",
+    "src/lib/lesson-generator.ts",
+    "src/lib/validations.ts",
+    "src/components/social/api.ts"
+  ],
+  "out": "api-docs",
+  "name": "iLiterate API Documentation",
+  "readme": "README.md",
+  "plugin": [],
+  "categorizeByGroup": true,
+  "sort": ["source-order"],
+  "excludePrivate": true,
+  "excludeProtected": false,
+  "excludeExternals": true,
+  "excludeInternal": true,
+  "excludeNotDocumented": false,
+  "githubPages": false,
+  "tsconfig": "tsconfig.typedoc.json"
+}

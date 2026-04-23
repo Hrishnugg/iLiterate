@@ -1,4 +1,5 @@
 /**
+ * @module
  * SM-2 Spaced Repetition Algorithm Implementation
  *
  * Based on the SuperMemo SM-2 algorithm used by Anki.
@@ -11,6 +12,7 @@
 
 export type ResponseQuality = 'again' | 'hard' | 'good' | 'easy';
 
+/** Next review state after grading a card response. */
 export interface ReviewResult {
   newEaseFactor: number;
   newInterval: number;
@@ -18,6 +20,7 @@ export interface ReviewResult {
   nextReviewDate: Date;
 }
 
+/** Preview of intervals for each response option. */
 export interface IntervalPreview {
   again: number;
   hard: number;

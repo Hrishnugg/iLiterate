@@ -1,3 +1,8 @@
+/**
+ * @module
+ * Level progression, XP calculations, CEFR mapping, and content recommendation helpers.
+ */
+
 import {
   SkillType,
   UserSkillLevels,
