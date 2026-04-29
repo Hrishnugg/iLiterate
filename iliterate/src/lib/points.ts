@@ -1,3 +1,12 @@
+/**
+ * @module points
+ * Point calculation and award utilities for iLiterate's gamification system.
+ *
+ * Points are sourced from quiz completions, reading sessions, lesson completions,
+ * flashcard reviews, and daily streaks. All awards are written to the immutable
+ * `point_events` table and trigger automatic streak refresh via Supabase RPC.
+ */
+
 import { SupabaseClient } from "@supabase/supabase-js";
 
 export type PointSource =

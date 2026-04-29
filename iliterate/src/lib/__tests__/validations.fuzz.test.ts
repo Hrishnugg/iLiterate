@@ -1,11 +1,12 @@
 /**
- * @fileoverview
- * Property-based and fuzz testing for shared validation schemas.
+ * Validations — Property-Based / Fuzz Testing with fast-check
  *
- * Testing strategy:
- * 1. Property-based generators validate invariants across large input spaces
- * 2. Fuzz inputs verify schemas fail safely without uncaught exceptions
- * 3. Boundary checks lock key limits for API payload safety
+ * Testing methods:
+ * 1. Property-based testing (fast-check): generates thousands of random inputs
+ *    to verify schema invariants hold for all values, not just hand-picked ones.
+ * 2. Fuzz testing: random strings, boundary values, and adversarial inputs
+ *    to verify schemas reject invalid data without throwing exceptions.
+ *
  */
 
 import { describe, it, expect } from "vitest";

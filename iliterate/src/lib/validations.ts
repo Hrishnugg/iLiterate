@@ -1,11 +1,14 @@
 /**
- * @module
- * Shared Zod validation schemas for API payloads and request parsing helpers.
+ * @module validations
+ * Shared Zod validation schemas used across API routes and form handlers.
+ *
+ * All schemas are exported and can be composed or extended. Use these for
+ * both runtime validation (API boundaries) and TypeScript type inference.
  */
 
 import { z } from "zod";
 
-/** Common UUID validation schema used across API routes. */
+// Common UUID validation
 export const uuidSchema = z.string().uuid("Invalid ID format");
 export const karaokeProviderSchema = z.enum([
   "tts",
@@ -52,7 +55,7 @@ export const providerCollectionKindSchema = z.enum([
   "recents",
 ]);
 
-/** Supported language values for translation and text services. */
+// Supported languages for translation (common language codes)
 export const SUPPORTED_LANGUAGES = [
   "en", "es", "fr", "de", "it", "pt", "ru", "zh", "ja", "ko",
   "ar", "hi", "bn", "pa", "te", "mr", "ta", "ur", "gu", "kn",
@@ -81,7 +84,7 @@ export const languageSchema = z.string().min(2).max(50).refine(
   { message: "Unsupported or invalid language code" }
 );
 
-/** Translation request payload schema. */
+// Translation request validation
 export const translateRequestSchema = z.object({
   text: z.string().min(1, "Text is required").max(10000, "Text too long (max 10000 characters)"),
   sourceLang: z.union([languageSchema, z.literal("auto")]),
@@ -92,7 +95,7 @@ export const translateRequestSchema = z.object({
   lessonId: uuidSchema.optional(),
 });
 
-/** Reader TTS request payload schema. */
+// Reader TTS request validation
 export const ttsRequestSchema = z.object({
   contentId: uuidSchema.optional(),
   lessonId: uuidSchema.optional(),
@@ -101,7 +104,7 @@ export const ttsRequestSchema = z.object({
   { message: "Either contentId or lessonId is required" }
 );
 
-/** Word-level TTS request payload schema. */
+// Word TTS request validation (single word / short phrase)
 export const ttsWordRequestSchema = z.object({
   text: z.string().min(1, "Text is required").max(500, "Text too long"),
   language: languageSchema,
@@ -207,7 +210,7 @@ export const karaokeSetlistReorderSchema = z.object({
   itemIds: z.array(uuidSchema).min(1).max(500),
 });
 
-/** Reader highlight request payload schema. */
+// Highlight request validation
 export const highlightRequestSchema = z.object({
   contentId: uuidSchema.optional(),
   lessonId: uuidSchema.optional(),
@@ -226,7 +229,7 @@ export const highlightRequestSchema = z.object({
   { message: "Either contentId or lessonId is required" }
 );
 
-/** Vocabulary creation request payload schema. */
+// Vocabulary request validation
 export const vocabularyRequestSchema = z.object({
   word: z.string().min(1).max(200),
   language: languageSchema,
@@ -239,7 +242,7 @@ export const vocabularyRequestSchema = z.object({
   contextSentence: z.string().max(1000).optional(),
 });
 
-/** Reading progress request payload schema. */
+// Reading progress request validation
 export const readingProgressRequestSchema = z.object({
   contentId: uuidSchema,
   progress: z.number().min(0).max(100).optional(),
@@ -248,13 +251,7 @@ export const readingProgressRequestSchema = z.object({
   completed: z.boolean().optional(),
 });
 
-/**
- * Validates a request JSON body against a provided Zod schema.
- *
- * @param request Incoming Request object.
- * @param schema Zod schema used to validate request body shape.
- * @returns Either typed parsed data or an aggregated validation error string.
- */
+// Helper function to validate request body
 export async function validateRequestBody<T>(
   request: Request,
   schema: z.ZodSchema<T>

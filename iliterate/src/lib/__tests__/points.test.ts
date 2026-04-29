@@ -1,3 +1,15 @@
+/**
+ * Points System — Unit Test Suite
+ *
+ * Covers all point calculation helpers in `lib/points.ts`:
+ * - Quiz points (score-proportional, 0–20 pts)
+ * - Perfect quiz bonus (+10 pts for 100% on ≥3 questions)
+ * - Reading completion points (base + word-count bonus)
+ * - Lesson completion points (base + quiz-score bonus)
+ * - Flashcard review points (correct vs incorrect)
+ * - Streak bonus (capped at 7 pts/day)
+ */
+
 import { describe, it, expect } from "vitest";
 import {
   calculateQuizPoints,

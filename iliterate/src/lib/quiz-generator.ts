@@ -1,6 +1,21 @@
 /**
- * @module
- * Quiz generation and grading utilities for CEFR-aligned comprehension checks.
+ * @module quiz-generator
+ * Generates adaptive multiple-choice reading comprehension quizzes using OpenAI GPT-4o-mini.
+ *
+ * Questions are calibrated to the user's CEFR level and may be presented in the learner's
+ * native language (A1–B2) or in the target language (C1–C2, level 14+).
+ * Provides both content-based quiz generation and grading utilities.
+ *
+ * @example
+ * ```ts
+ * const quiz = await generateQuiz({
+ *   content,
+ *   userLevel: 8,
+ *   nativeLanguage: "English",
+ *   questionCount: 5,
+ * });
+ * const result = gradeQuiz(quiz.questions, userAnswers);
+ * ```
  */
 
 import OpenAI from "openai";
@@ -8,12 +23,6 @@ import { Content, AssessmentQuestion, CEFRLevel, numericLevelToCEFR } from "@/ty
 
 // Lazily initialize OpenAI to avoid module-level instantiation during build
 let _openai: OpenAI | null = null;
-
-/**
- * Returns a memoized OpenAI client for quiz generation.
- *
- * @returns Shared OpenAI client instance.
- */
 function getOpenAI(): OpenAI {
   if (!_openai) {
     _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -21,7 +30,6 @@ function getOpenAI(): OpenAI {
   return _openai;
 }
 
-/** Input parameters for generating a quiz from stored content. */
 export interface GenerateQuizParams {
   content: Content;
   userLevel: number;
@@ -30,7 +38,6 @@ export interface GenerateQuizParams {
   questionCount?: number;
 }
 
-/** Generated quiz payload saved or returned by API routes. */
 export interface GeneratedQuiz {
   questions: AssessmentQuestion[];
   contentId: string;
@@ -51,11 +58,7 @@ const LEVEL_GUIDELINES: Record<CEFRLevel, string> = {
 };
 
 /**
- * Generates a CEFR-aware quiz for a content item.
- *
- * @param params Quiz generation context including content and learner profile.
- * @returns Generated quiz questions and metadata.
- * @throws If AI output does not contain parseable JSON.
+ * Generate a quiz for a piece of content using OpenAI
  */
 export async function generateQuiz(params: GenerateQuizParams): Promise<GeneratedQuiz> {
   const {
@@ -171,16 +174,7 @@ Important rules:
 }
 
 /**
- * Generates a quiz directly from raw lesson body text.
- *
- * @param contentBody Source content body (HTML/text) used to derive questions.
- * @param targetLevel Learner numeric level (1-20).
- * @param targetLanguage Language being learned.
- * @param nativeLanguage Learner native language.
- * @param vocabulary Vocabulary list from the lesson context.
- * @param questionCount Number of questions to request.
- * @returns Normalized assessment questions.
- * @throws If AI output does not contain parseable JSON.
+ * Generate a quiz directly from content body (for lesson sessions)
  */
 export async function generateQuizFromContent(
   contentBody: string,
@@ -283,11 +277,7 @@ Rules:
 }
 
 /**
- * Grades user quiz responses using exact string matching.
- *
- * @param questions Quiz questions with answer keys.
- * @param userAnswers User-submitted answers keyed by question ID.
- * @returns Graded questions and score summary.
+ * Grade quiz answers and calculate score
  */
 export function gradeQuiz(
   questions: AssessmentQuestion[],
